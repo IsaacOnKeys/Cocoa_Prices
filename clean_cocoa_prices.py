@@ -1,8 +1,26 @@
+import argparse
+import logging
 from datetime import datetime
 
 import apache_beam as beam
-from apache_beam.options.pipeline_options import PipelineOptions
-import argparse
+from apache_beam.options.pipeline_options import (
+    GoogleCloudOptions,
+    PipelineOptions,
+    StandardOptions,
+)
+
+logging.basicConfig(
+    level=logging.INFO,  # Set the logging level (DEBUG, INFO, WARNING, ERROR, CRITICAL)
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+)
+
+options = PipelineOptions()
+gcp_options = options.view_as(GoogleCloudOptions)
+gcp_options.project = 'cocoa-prices-430315'
+gcp_options.job_name = 'cleaning-cocoa-prices'
+gcp_options.staging_location = 'gs://raw_historic_data/staging'
+gcp_options.temp_location = 'gs://raw_historic_data/temp'
+options.view_as(StandardOptions).runner = 'DirectRunner'#'DataflowRunner'
 
 # Function to parse each line
 def parse_csv(line):
@@ -24,9 +42,7 @@ def clean_and_convert(element):
     try:
         element["Euro_Price"] = float(element["Euro_Price"])
     except ValueError:
-        element["Euro_Price"] = None
-
-    return element
+        element["Euro_Price"] = None 
 
 
 # Function to filter out rows with missing prices
@@ -48,7 +64,7 @@ def run():
             p
             | "Read CSV"
             >> beam.io.ReadFromText(
-                "RAW/Daily Prices_Home_NEW.csv", skip_header_lines=1
+                "gs://raw_historic_data/Daily Prices_Home_NEW.csv", skip_header_lines=1
             )
             | "Parse CSV" >> beam.Map(parse_csv)
             | "Clean and Convert" >> beam.Map(clean_and_convert)
@@ -56,7 +72,7 @@ def run():
             | "Format to CSV" >> beam.Map(format_to_csv)
             | "Write CSV"
             >> beam.io.WriteToText(
-                "TEST/cleaned_cocoa_prices",
+                "gs://cleaned-coca-data/cocoa_prices",
                 file_name_suffix=".csv",
                 header="Date,Euro_Price",
             )
