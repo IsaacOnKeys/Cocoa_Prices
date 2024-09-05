@@ -69,7 +69,7 @@ def run():
             p
             | "Read CSV"
             >> beam.io.ReadFromText(
-                "gs://raw_historic_data/eiaHistoricData.csv ", skip_header_lines=1
+                "gs://raw_historic_data/eiaHistoricData.csv", skip_header_lines=1
             )
             | "Parse CSV" >> beam.Map(parse_csv)
             | "Clean and Convert" >> beam.Map(clean_and_convert)
