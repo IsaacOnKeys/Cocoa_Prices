@@ -147,7 +147,7 @@ def run():
             | "Format to CSV" >> beam.Map(format_to_csv)
             | "Write CSV"
             >> beam.io.WriteToText(
-                "TEST/combined_cleaned_data.csv",
+                "gs://clean_ml_data/cocoa_oil_precip.csv",
                 file_name_suffix=".csv",
                 header="date,cocoa_price_euro,Brent_Price,precipitation,soil_moisture",
             )
