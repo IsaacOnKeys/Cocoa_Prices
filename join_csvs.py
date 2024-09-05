@@ -1,7 +1,26 @@
+import argparse
+import logging
 from datetime import datetime
 
 import apache_beam as beam
-from apache_beam.options.pipeline_options import PipelineOptions
+from apache_beam.options.pipeline_options import (
+    GoogleCloudOptions,
+    PipelineOptions,
+    StandardOptions,
+)
+
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
+)
+
+options = PipelineOptions()
+gcp_options = options.view_as(GoogleCloudOptions)
+gcp_options.project = "cocoa-prices-430315"
+gcp_options.job_name = "joined-cocoa-oil-weather"
+gcp_options.staging_location = "gs://cleaned-coca-data/staging"
+gcp_options.temp_location = "gs://cleaned-coca-data/temp"
+options.view_as(StandardOptions).runner = "DirectRunner"  #'DataflowRunner'
 
 
 # Function to parse the cocoa price CSV
@@ -76,7 +95,7 @@ def run():
             p
             | "Read Cocoa Prices"
             >> beam.io.ReadFromText(
-                "CLEAN/cleaned_cocoa_prices.csv", skip_header_lines=1
+                "gs://cleaned-coca-data/cocoa_prices*.csv", skip_header_lines=1
             )
             | "Parse Cocoa CSV" >> beam.Map(parse_cocoa_csv)
         )
@@ -85,7 +104,7 @@ def run():
             p
             | "Read Oil Prices"
             >> beam.io.ReadFromText(
-                "CLEAN/cleaned_eia_oil_prices.csv", skip_header_lines=1
+                "gs://cleaned-coca-data/oil_prices*.csv", skip_header_lines=1
             )
             | "Parse Oil CSV" >> beam.Map(parse_oil_csv)
         )
@@ -94,7 +113,7 @@ def run():
             p
             | "Read Precipitation"
             >> beam.io.ReadFromText(
-                "CLEAN/cleaned_precipitation.csv", skip_header_lines=1
+                "gs://cleaned-coca-data/weather_data*.csv", skip_header_lines=1
             )
             | "Parse Precipitation CSV" >> beam.Map(parse_precipitation_csv)
         )
