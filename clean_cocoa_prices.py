@@ -11,16 +11,17 @@ from apache_beam.options.pipeline_options import (
 
 logging.basicConfig(
     level=logging.INFO,  # Set the logging level (DEBUG, INFO, WARNING, ERROR, CRITICAL)
-    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+    format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
 )
 
 options = PipelineOptions()
 gcp_options = options.view_as(GoogleCloudOptions)
-gcp_options.project = 'cocoa-prices-430315'
-gcp_options.job_name = 'cleaning-cocoa-prices'
-gcp_options.staging_location = 'gs://raw_historic_data/staging'
-gcp_options.temp_location = 'gs://raw_historic_data/temp'
-options.view_as(StandardOptions).runner = 'DirectRunner'#'DataflowRunner'
+gcp_options.project = "cocoa-prices-430315"
+gcp_options.job_name = "cleaning-cocoa-prices"
+gcp_options.staging_location = "gs://raw_historic_data/staging"
+gcp_options.temp_location = "gs://raw_historic_data/temp"
+options.view_as(StandardOptions).runner = "DirectRunner"  #'DataflowRunner'
+
 
 # Function to parse each line
 def parse_csv(line):
@@ -42,12 +43,12 @@ def clean_and_convert(element):
     try:
         element["Euro_Price"] = float(element["Euro_Price"])
     except ValueError:
-        element["Euro_Price"] = None 
+        element["Euro_Price"] = None
 
 
 # Function to filter out rows with missing prices
 def filter_missing_prices(element):
-    return element["Euro_Price"] is not None
+    return element is not None and element.get("Euro_Price") is not None
 
 
 # Function to format the output as CSV
