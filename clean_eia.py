@@ -1,8 +1,27 @@
+import argparse
 import csv
+import logging
 from datetime import datetime
 
 import apache_beam as beam
-from apache_beam.options.pipeline_options import PipelineOptions
+from apache_beam.options.pipeline_options import (
+    GoogleCloudOptions,
+    PipelineOptions,
+    StandardOptions,
+)
+
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
+)
+
+options = PipelineOptions()
+gcp_options = options.view_as(GoogleCloudOptions)
+gcp_options.project = "cocoa-prices-430315"
+gcp_options.job_name = "cleaning-oil-prices"
+gcp_options.staging_location = "gs://raw_historic_data/staging"
+gcp_options.temp_location = "gs://raw_historic_data/temp"
+options.view_as(StandardOptions).runner = "DirectRunner"  #'DataflowRunner'
 
 
 # Function to parse each line
@@ -28,7 +47,7 @@ def clean_and_convert(element):
 
 # Function to filter out rows with missing Brent_Price
 def filter_missing_prices(element):
-    return element["Brent_Price"] is not None
+    return element is not None and element.get("Brent_Price") is not None
 
 
 # Function to format the output as CSV
@@ -49,14 +68,16 @@ def run():
         (
             p
             | "Read CSV"
-            >> beam.io.ReadFromText("RAW/eiaHistoricData.csv", skip_header_lines=1)
+            >> beam.io.ReadFromText(
+                "gs://raw_historic_data/eiaHistoricData.csv ", skip_header_lines=1
+            )
             | "Parse CSV" >> beam.Map(parse_csv)
             | "Clean and Convert" >> beam.Map(clean_and_convert)
             | "Filter Missing Prices" >> beam.Filter(filter_missing_prices)
             | "Format to CSV" >> beam.Map(format_to_csv)
             | "Write CSV"
             >> beam.io.WriteToText(
-                "TEST/eia_clean.csv",
+                "gs://cleaned-coca-data/oil_prices",
                 file_name_suffix=".csv",
                 header="date,Brent_Price",
             )
