@@ -45,6 +45,8 @@ def clean_and_convert(element):
     except ValueError:
         element["Euro_Price"] = None
 
+    return element
+
 
 # Function to filter out rows with missing prices
 def filter_missing_prices(element):

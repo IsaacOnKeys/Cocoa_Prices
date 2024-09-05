@@ -1,0 +1,5 @@
+# Ignore CLEAN folder
+CLEAN/
+
+# Ignore TEST folder
+TEST/
