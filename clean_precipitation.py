@@ -26,28 +26,29 @@ options.view_as(StandardOptions).runner = "DirectRunner"  #'DataflowRunner'
 # Function to parse each line
 def parse_csv(line):
     row = line.split(",")
-    return {
-        "YEAR": int(row[0]),
-        "DOY": int(row[1]),
-        "PRECTOTCORR": row[2],
-        "GWETROOT": row[3],
-    }
+    try:
+        parsed = {
+            "YEAR": int(row[0]),
+            "DOY": int(row[1]),
+            "PRECTOTCORR": float(row[2]),  # Converted to float here
+            "GWETROOT": float(row[3]),  # Converted to float here
+        }
+        logging.info(f"Parsed line successfully: {parsed}")
+        return parsed
+    except ValueError as e:
+        logging.warning(f"Skipping line due to parsing error: {line}, Error: {e}")
+        return None
 
 
 # Function to clean and convert data types
 def clean_and_convert(element):
+    if element is None:
+        return None
+
     # Combine YEAR and DOY to create a date
     year = element["YEAR"]
     doy = element["DOY"]
     element["date"] = datetime(year, 1, 1) + timedelta(days=doy - 1)
-
-    # Convert PRECTOTCORR and GWETROOT to float
-    try:
-        element["PRECTOTCORR"] = float(element["PRECTOTCORR"])
-        element["GWETROOT"] = float(element["GWETROOT"])
-    except ValueError:
-        element["PRECTOTCORR"] = None
-        element["GWETROOT"] = None
 
     return element
 
@@ -86,6 +87,7 @@ def run():
                 "gs://raw_historic_data/POWER_Point_Daily.csv", skip_header_lines=1
             )
             | "Parse CSV" >> beam.Map(parse_csv)
+            | "Filter Parsed Data" >> beam.Filter(lambda x: x is not None)
             | "Clean and Convert" >> beam.Map(clean_and_convert)
             | "Filter Missing Data" >> beam.Filter(filter_missing_data)
             | "Format to CSV" >> beam.Map(format_to_csv)
