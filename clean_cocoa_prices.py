@@ -1,4 +1,5 @@
 import argparse
+import csv
 import logging
 from datetime import datetime
 
@@ -15,47 +16,66 @@ logging.basicConfig(
 )
 
 options = PipelineOptions()
-gcp_options = options.view_as(GoogleCloudOptions)
-gcp_options.project = "cocoa-prices-430315"
-gcp_options.job_name = "cleaning-cocoa-prices"
-gcp_options.staging_location = "gs://raw_historic_data/staging"
-gcp_options.temp_location = "gs://raw_historic_data/temp"
 options.view_as(StandardOptions).runner = "DirectRunner"  #'DataflowRunner'
 
 
 # Function to parse each line
 def parse_csv(line):
-    row = line.split(",")
+    reader = csv.reader([line])
+    row = next(reader)
     return {
-        "Date": row[0].strip('"'),  # Remove extra quotation marks
-        "Euro_Price": row[4]
-        .strip('"')
-        .replace(",", ""),  # Remove extra quotation marks and commas
+        "Date": row[0].strip('"'),
+        "Euro_Price": row[4].strip('"'),
     }
 
 
-# Function to clean and convert data types
-def clean_and_convert(element):
-    # Convert the 'Date' field to datetime
-    element["Date"] = datetime.strptime(element["Date"], "%d/%m/%Y")
+# Function to validate, clean, and convert data types
+class ValidateAndConvert(beam.DoFn):
+    def process(self, element):
+        from datetime import datetime
+        valid = True
+        errors = []
 
-    # Convert 'Euro_Price' to float
-    try:
-        element["Euro_Price"] = float(element["Euro_Price"])
-    except ValueError:
-        element["Euro_Price"] = None
+        # Validate and convert 'Date'
+        try:
+            element["Date"] = datetime.strptime(element["Date"], "%d/%m/%Y")
+        except ValueError:
+            valid = False
+            errors.append("Invalid date format")
 
-    return element
+        # Validate and convert 'Euro_Price'
+        euro_price_str = element["Euro_Price"].replace(",", "")
+        try:
+            element["Euro_Price"] = float(euro_price_str)
+            if element["Euro_Price"] <= 0:
+                valid = False
+                errors.append("Euro_Price must be positive")
+        except ValueError:
+            valid = False
+            errors.append("Invalid Euro_Price")
 
-
-# Function to filter out rows with missing prices
-def filter_missing_prices(element):
-    return element is not None and element.get("Euro_Price") is not None
+        if valid:
+            yield element
+        else:
+            element["Errors"] = "; ".join(errors)
+            yield beam.pvalue.TaggedOutput("invalid", element)
 
 
 # Function to format the output as CSV
 def format_to_csv(element):
-    return ",".join([element["Date"].strftime("%Y-%m-%d"), str(element["Euro_Price"])])
+    return ",".join(
+        [element["Date"].strftime("%Y-%m-%d"), str(element["Euro_Price"])]
+    )
+
+
+# Function to format invalid records as CSV
+def format_invalid_to_csv(element):
+    date = element.get("Date", "")
+    if isinstance(date, datetime):
+        date = date.strftime("%Y-%m-%d")
+    euro_price = element.get("Euro_Price", "")
+    errors = element.get("Errors", "")
+    return ",".join([str(date), str(euro_price), errors])
 
 
 # Define the Beam pipeline
@@ -63,21 +83,47 @@ def run():
     pipeline_options = PipelineOptions()
 
     with beam.Pipeline(options=pipeline_options) as p:
-        (
+        records = (
             p
             | "Read CSV"
             >> beam.io.ReadFromText(
-                "gs://raw_historic_data/Daily Prices_Home_NEW.csv", skip_header_lines=1
+                "RAW/cocoa_test.csv",
+                skip_header_lines=1,
             )
             | "Parse CSV" >> beam.Map(parse_csv)
-            | "Clean and Convert" >> beam.Map(clean_and_convert)
-            | "Filter Missing Prices" >> beam.Filter(filter_missing_prices)
-            | "Format to CSV" >> beam.Map(format_to_csv)
-            | "Write CSV"
+        )
+
+        # Apply validation and get valid and invalid records
+        validated_records = (
+            records
+            | "Validate and Convert"
+            >> beam.ParDo(ValidateAndConvert()).with_outputs("invalid", main="valid")
+        )
+
+        valid_records = validated_records.valid
+        invalid_records = validated_records.invalid
+
+        # Write valid records to CSV
+        (
+            valid_records
+            | "Format Valid to CSV" >> beam.Map(format_to_csv)
+            | "Write Valid CSV"
             >> beam.io.WriteToText(
-                "gs://cleaned-coca-data/cocoa_prices",
+                "TEST/cocoa_valid",
                 file_name_suffix=".csv",
                 header="Date,Euro_Price",
+            )
+        )
+
+        # Write invalid records to a separate CSV
+        (
+            invalid_records
+            | "Format Invalid to CSV" >> beam.Map(format_invalid_to_csv)
+            | "Write Invalid CSV"
+            >> beam.io.WriteToText(
+                "TEST/cocoa_invalid",
+                file_name_suffix=".csv",
+                header="Date,Euro_Price,Errors",
             )
         )
 
