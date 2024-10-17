@@ -1,4 +1,3 @@
-import argparse
 import csv
 import logging
 from datetime import datetime
@@ -19,7 +18,6 @@ options = PipelineOptions()
 options.view_as(StandardOptions).runner = "DirectRunner"  #'DataflowRunner'
 
 
-# Function to parse each line
 def parse_csv(line):
     reader = csv.reader([line])
     row = next(reader)
@@ -29,21 +27,21 @@ def parse_csv(line):
     }
 
 
-# Function to validate, clean, and convert data types
-class ValidateAndConvert(beam.DoFn):
+class ValidateAndTransform(beam.DoFn):
     def process(self, element):
         from datetime import datetime
+
         valid = True
         errors = []
 
-        # Validate and convert 'Date'
+        # Validate and transform 'Date'
         try:
             element["Date"] = datetime.strptime(element["Date"], "%d/%m/%Y")
         except ValueError:
             valid = False
             errors.append("Invalid date format")
 
-        # Validate and convert 'Euro_Price'
+        # Validate and transform 'Euro_Price'
         euro_price_str = element["Euro_Price"].replace(",", "")
         try:
             element["Euro_Price"] = float(euro_price_str)
@@ -61,14 +59,12 @@ class ValidateAndConvert(beam.DoFn):
             yield beam.pvalue.TaggedOutput("invalid", element)
 
 
-# Function to format the output as CSV
+# Format the output as CSV
 def format_to_csv(element):
-    return ",".join(
-        [element["Date"].strftime("%Y-%m-%d"), str(element["Euro_Price"])]
-    )
+    return ",".join([element["Date"].strftime("%Y-%m-%d"), str(element["Euro_Price"])])
 
 
-# Function to format invalid records as CSV
+# Format invalid records as CSV
 def format_invalid_to_csv(element):
     date = element.get("Date", "")
     if isinstance(date, datetime):
@@ -78,7 +74,6 @@ def format_invalid_to_csv(element):
     return ",".join([str(date), str(euro_price), errors])
 
 
-# Define the Beam pipeline
 def run():
     pipeline_options = PipelineOptions()
 
@@ -87,18 +82,15 @@ def run():
             p
             | "Read CSV"
             >> beam.io.ReadFromText(
-                "RAW/cocoa_test.csv",
+                "RAW/Daily Prices_Home.csv",
                 skip_header_lines=1,
             )
             | "Parse CSV" >> beam.Map(parse_csv)
         )
 
-        # Apply validation and get valid and invalid records
-        validated_records = (
-            records
-            | "Validate and Convert"
-            >> beam.ParDo(ValidateAndConvert()).with_outputs("invalid", main="valid")
-        )
+        validated_records = records | "Validate and Transform" >> beam.ParDo(
+            ValidateAndTransform()
+        ).with_outputs("invalid", main="valid")
 
         valid_records = validated_records.valid
         invalid_records = validated_records.invalid
@@ -114,8 +106,7 @@ def run():
                 header="Date,Euro_Price",
             )
         )
-
-        # Write invalid records to a separate CSV
+        # Side-output invalid records to CSV
         (
             invalid_records
             | "Format Invalid to CSV" >> beam.Map(format_invalid_to_csv)
