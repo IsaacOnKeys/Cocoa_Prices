@@ -15,7 +15,7 @@ def extract_and_clean(file_content):
     data = json.loads(file_content)
 
     observations = data.get("observations", [])
-
+ 
     for obs in observations:
         date = obs.get("date")
         value = obs.get("value")
@@ -28,6 +28,15 @@ def extract_and_clean(file_content):
                 value = float(value)
             except ValueError:
                 value = None
+                # Forward-fill missing prices
+        # if value is None:
+        #     if last_valid_value is not None:
+        #         value = last_valid_value
+        #     else:
+        #         # Skip if no prior price available
+        #         continue
+        # else:
+        #     last_valid_value = value
 
         yield {"date": date, "brent_price_eu": value}
 
@@ -159,6 +168,7 @@ def run():
         )
 
         # Write invalid records (side-output) to a separate CSV
+        
         invalid_records = (
             invalid_records,
             invalid_duplicates,
