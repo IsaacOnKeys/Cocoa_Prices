@@ -36,7 +36,8 @@ class ValidateAndTransform(beam.DoFn):
 
         # Validate and transform 'Date'
         try:
-            element["Date"] = datetime.strptime(element["Date"], "%d/%m/%Y")
+            date_obj = datetime.strptime(element["Date"], "%d/%m/%Y")
+            element["Date"] = date_obj.strftime("%Y-%m-%d")  # Convert to 'YYYY-MM-DD' string for BBQ
         except ValueError:
             valid = False
             errors.append("Invalid date format")
