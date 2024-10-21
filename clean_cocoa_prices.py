@@ -76,6 +76,14 @@ def format_invalid_to_csv(element):
 
 def run():
     pipeline_options = PipelineOptions()
+    gcp_options = pipeline_options.view_as(GoogleCloudOptions)
+    gcp_options.project = "cocoa-prices-430315"
+    gcp_options.job_name = "cleaning-cocoa-prices-data"
+    gcp_options.staging_location = "gs://raw_historic_data/staging"
+    gcp_options.temp_location = "gs://raw_historic_data/temp"
+    pipeline_options.view_as(StandardOptions).runner = (
+        "DirectRunner"  # Use 'DataflowRunner' for cloud execution
+    )
 
     with beam.Pipeline(options=pipeline_options) as p:
         records = (
@@ -95,15 +103,15 @@ def run():
         valid_records = validated_records.valid
         invalid_records = validated_records.invalid
 
-        # Write valid records to CSV
+        # Write valid records to BigQuery
         (
             valid_records
-            | "Format Valid to CSV" >> beam.Map(format_to_csv)
-            | "Write Valid CSV"
-            >> beam.io.WriteToText(
-                "TEST/cocoa_valid",
-                file_name_suffix=".csv",
-                header="Date,Euro_Price",
+            | "Write Valid to BigQuery"
+            >> beam.io.WriteToBigQuery(
+                table="cocoa-prices-430315:cocoa_prices.cocoa",
+                schema="Date:DATE, Euro_Price:FLOAT",
+                write_disposition=beam.io.BigQueryDisposition.WRITE_TRUNCATE,
+                create_disposition=beam.io.BigQueryDisposition.CREATE_IF_NEEDED,
             )
         )
         # Side-output invalid records to CSV

@@ -3,7 +3,11 @@ import logging
 from datetime import datetime
 
 import apache_beam as beam
-from apache_beam.options.pipeline_options import PipelineOptions, StandardOptions
+from apache_beam.options.pipeline_options import (
+    GoogleCloudOptions,
+    PipelineOptions,
+    StandardOptions,
+)
 
 logging.basicConfig(
     level=logging.INFO,
@@ -122,8 +126,14 @@ def format_invalid_to_csv(element):
 
 def run():
     pipeline_options = PipelineOptions()
-    options = pipeline_options.view_as(StandardOptions)
-    options.runner = "DirectRunner"
+    gcp_options = pipeline_options.view_as(GoogleCloudOptions)
+    gcp_options.project = "cocoa-prices-430315"
+    gcp_options.job_name = "cleaning-oil-data"
+    gcp_options.staging_location = "gs://raw_historic_data/staging"
+    gcp_options.temp_location = "gs://raw_historic_data/temp"
+    pipeline_options.view_as(StandardOptions).runner = (
+        "DirectRunner"  # Use 'DataflowRunner' for cloud execution
+    )
 
     with beam.Pipeline(options=pipeline_options) as p:
         validated_records = (
@@ -155,15 +165,15 @@ def run():
         unique_records = final_output.unique
         invalid_duplicates = final_output.invalid
 
-        # Write valid records to CSV
+        # Write valid records to BigQuery
         (
             unique_records
-            | "Format Unique to CSV" >> beam.Map(format_to_csv)
-            | "Write Unique CSV"
-            >> beam.io.WriteToText(
-                "TEST/brent_prices_cleaned",
-                file_name_suffix=".csv",
-                header="date,brent_price_eu",
+            | "Write Valid to BigQuery"
+            >> beam.io.WriteToBigQuery(
+                table="cocoa-prices-430315:cocoa_prices.brent_prices",
+                schema="date:DATE, brent_price_eu:FLOAT",
+                write_disposition=beam.io.BigQueryDisposition.WRITE_TRUNCATE,
+                create_disposition=beam.io.BigQueryDisposition.CREATE_IF_NEEDED,
             )
         )
 
