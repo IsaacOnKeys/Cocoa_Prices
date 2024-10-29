@@ -25,22 +25,10 @@ def extract_and_clean(file_content):
         value = obs.get("value")
 
         # replace invalid values with None
-        if value == ".":
+        try:
+            value = float(value) if value != "." else None
+        except ValueError:
             value = None
-        else:
-            try:
-                value = float(value)
-            except ValueError:
-                value = None
-                # Forward-fill missing prices
-        # if value is None:
-        #     if last_valid_value is not None:
-        #         value = last_valid_value
-        #     else:
-        #         # Skip if no prior price available
-        #         continue
-        # else:
-        #     last_valid_value = value
 
         yield {"date": date, "brent_price_eu": value}
 
@@ -103,27 +91,6 @@ class CheckUniqueness(beam.DoFn):
         else:
             yield records[0]
 
-
-# Format the data to CSV
-def format_to_csv(element):
-    date = element["date"]
-    brent_price_eu = element["brent_price_eu"]
-
-    if brent_price_eu is None:
-        brent_price_eu = ""
-
-    return f"{date},{brent_price_eu}"
-
-
-# Format invalid records to CSV
-def format_invalid_to_csv(element):
-    date = element.get("date", "")
-    brent_price_eu = element.get("brent_price_eu", "")
-    errors = element.get("Errors", "")
-
-    return f"{date},{brent_price_eu},{errors}"
-
-
 def run():
     pipeline_options = PipelineOptions()
     gcp_options = pipeline_options.view_as(GoogleCloudOptions)
@@ -132,13 +99,12 @@ def run():
     gcp_options.staging_location = "gs://raw_historic_data/staging"
     gcp_options.temp_location = "gs://raw_historic_data/temp"
     pipeline_options.view_as(StandardOptions).runner = (
-        "DirectRunner"  # Use 'DataflowRunner' for cloud execution
+        'DataflowRunner'
     )
-
     with beam.Pipeline(options=pipeline_options) as p:
         validated_records = (
             p
-            | "Read JSON" >> beam.io.ReadFromText("RAW/brent_oil_fred.json")
+            | "Read JSON" >> beam.io.ReadFromText("gs://raw_historic_data/brent_oil_fred.json")
             | "Combine Lines"
             >> beam.CombineGlobally(lambda lines: "\n".join(lines)).without_defaults()
             | "Extract and Clean" >> beam.FlatMap(extract_and_clean)
@@ -153,7 +119,7 @@ def run():
         grouped_by_date = (
             valid_records
             | "Group by Date"
-            >> beam.Map(lambda x: (x["date"], x))  # Map to (key, value)
+            >> beam.Map(lambda x: (x["date"], x))
             | "Group ByKey" >> beam.GroupByKey()
         )
 
@@ -177,7 +143,7 @@ def run():
             )
         )
 
-        # Write invalid records (side-output) to a separate CSV
+       # Side-output invalid records to BigQuery
         
         invalid_records = (
             invalid_records,
@@ -186,15 +152,14 @@ def run():
 
         (
             invalid_records
-            | "Format Invalid to CSV" >> beam.Map(format_invalid_to_csv)
-            | "Write Invalid CSV"
-            >> beam.io.WriteToText(
-                "TEST/brent_prices_invalid",
-                file_name_suffix=".csv",
-                header="date,brent_price_eu,Errors",
+            | "Format Invalid to BigQuery"
+             >> beam.io.WriteToBigQuery(                
+                table="cocoa-prices-430315:cocoa_prices.invalid_brent_prices",
+                schema="Date:DATE, brent_price_eu:FLOAT",
+                write_disposition=beam.io.BigQueryDisposition.WRITE_TRUNCATE,
+                create_disposition=beam.io.BigQueryDisposition.CREATE_IF_NEEDED,
             )
         )
-
 
 if __name__ == "__main__":
     run()

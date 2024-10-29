@@ -61,16 +61,6 @@ def filter_missing_data(element):
     )
 
 
-# Format invalid records as CSV
-def format_invalid_to_csv(element):
-    date = element.get("date", "")
-    precipitation = element.get("precipitation", "")
-    soil_moisture = element.get("soil_moisture", "")
-    errors = element.get("Errors", "")
-
-    return ",".join([str(date), str(precipitation), str(soil_moisture), str(errors)])
-
-
 # DoFn for Validation and Transformation
 class ValidateAndTransform(beam.DoFn):
     def __init__(self):
@@ -158,17 +148,14 @@ def run():
     gcp_options.job_name = "cleaning-weather-data"
     gcp_options.staging_location = "gs://raw_historic_data/staging"
     gcp_options.temp_location = "gs://raw_historic_data/temp"
-    pipeline_options.view_as(StandardOptions).runner = (
-        "DirectRunner"  # Use 'DataflowRunner' for cloud execution
-    )
+    pipeline_options.view_as(StandardOptions).runner = 'DataflowRunner'
 
     with beam.Pipeline(options=pipeline_options) as p:
         parsed_records = (
             p
             | "Read CSV"
             >> beam.io.ReadFromText(
-                "RAW/POWER_Point_Daily.csv",
-                # "gs://raw_historic_data/POWER_Point_Daily.csv",
+                "gs://raw_historic_data/POWER_Point_Daily.csv",
                 skip_header_lines=1,
             )
             | "Parse CSV" >> beam.Map(parse_csv)
@@ -191,9 +178,7 @@ def run():
             | "Key by Date" >> beam.Map(key_by_date)
             | "Group by Date" >> beam.GroupByKey()
             | "Filter Unique Dates"
-            >> beam.ParDo(filter_unique_dates).with_outputs(
-                "invalid", main="valid_unique"
-            )
+            >> beam.ParDo(filter_unique_dates).with_outputs("invalid", main="valid_unique")
         )
 
         # Write valid records to BigQuery
@@ -208,19 +193,20 @@ def run():
             )
         )
 
-        # Write invalid records to CSV
+        # Combine all invalid records from validation and uniqueness checks
+        invalid_records = (validated_records.invalid, unique_records.invalid) | "Combine Invalid Records" >> beam.Flatten()
+
+        # Write invalid records to BigQuery
         (
-            unique_records.invalid
-            | "Format Invalid to CSV" >> beam.Map(format_invalid_to_csv)
-            | "Write Invalid CSV"
-            >> beam.io.WriteToText(
-                "TEST/weather_data_invalid",
-                # "gs://cleaned-coca-data/weather_data_invalid",
-                file_name_suffix=".csv",
-                header="date,precipitation,soil_moisture,Errors",
+            invalid_records
+            | "Write Invalid to BigQuery"
+            >> beam.io.WriteToBigQuery(
+                table="cocoa-prices-430315:cocoa_prices.invalid_precipitation",
+                schema="date:DATE, precipitation:FLOAT, soil_moisture:FLOAT, Errors:STRING",
+                write_disposition=beam.io.BigQueryDisposition.WRITE_TRUNCATE,
+                create_disposition=beam.io.BigQueryDisposition.CREATE_IF_NEEDED,
             )
         )
-
 
 if __name__ == "__main__":
     run()
