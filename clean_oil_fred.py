@@ -1,11 +1,13 @@
 import json
 import logging
+import time
 from datetime import datetime
 
 import apache_beam as beam
 from apache_beam.options.pipeline_options import (
     GoogleCloudOptions,
     PipelineOptions,
+    SetupOptions,
     StandardOptions,
 )
 
@@ -93,20 +95,29 @@ class CheckUniqueness(beam.DoFn):
 
 def run():
     pipeline_options = PipelineOptions()
+
+    setup_options = pipeline_options.view_as(SetupOptions)
+    setup_options.save_main_session = True
+    
+    standard_options = pipeline_options.view_as(StandardOptions)
+    standard_options.runner = 'DataflowRunner'
+
     gcp_options = pipeline_options.view_as(GoogleCloudOptions)
     gcp_options.project = "cocoa-prices-430315"
-    gcp_options.job_name = "cleaning-oil-data"
+    # Ensure unique job name
+    gcp_options.job_name = f"cleaning-oil-data-{int(time.time())}"
     gcp_options.staging_location = "gs://raw_historic_data/staging"
     gcp_options.temp_location = "gs://raw_historic_data/temp"
-    pipeline_options.view_as(StandardOptions).runner = (
-        'DataflowRunner'
-    )
+    gcp_options.region = "europe-west3"
+
     with beam.Pipeline(options=pipeline_options) as p:
         validated_records = (
             p
-            | "Read JSON" >> beam.io.ReadFromText("gs://raw_historic_data/brent_oil_fred.json")
-            | "Combine Lines"
-            >> beam.CombineGlobally(lambda lines: "\n".join(lines)).without_defaults()
+            | "Read JSON" >> beam.io.ReadFromText("gs://raw_historic_data/brent_oil_fred.json",
+            coder=beam.coders.WholeFileCoder(),
+            )
+            # | "Combine Lines"
+            # >> beam.CombineGlobally(lambda lines: "\n".join(lines)).without_defaults()
             | "Extract and Clean" >> beam.FlatMap(extract_and_clean)
             | "Validate and Transform"
             >> beam.ParDo(ValidateAndTransform()).with_outputs("invalid", main="valid")
@@ -145,17 +156,15 @@ def run():
 
        # Side-output invalid records to BigQuery
         
-        invalid_records = (
-            invalid_records,
-            invalid_duplicates,
-        ) | "Combine Invalid Records" >> beam.Flatten()
+        invalid_records = [invalid_records, invalid_duplicates] | "Combine Invalid Records" >> beam.Flatten()
 
         (
             invalid_records
             | "Format Invalid to BigQuery"
              >> beam.io.WriteToBigQuery(                
                 table="cocoa-prices-430315:cocoa_prices.invalid_brent_prices",
-                schema="Date:DATE, brent_price_eu:FLOAT",
+                # Use STRING for the date field in invalid records since invalid dates may not conform to the DATE type.
+                schema="date:STRING, brent_price_eu:FLOAT, Errors:STRING",
                 write_disposition=beam.io.BigQueryDisposition.WRITE_TRUNCATE,
                 create_disposition=beam.io.BigQueryDisposition.CREATE_IF_NEEDED,
             )

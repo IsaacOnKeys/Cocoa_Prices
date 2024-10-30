@@ -1,10 +1,12 @@
 import logging
+import time
 from datetime import datetime, timedelta
 
 import apache_beam as beam
 from apache_beam.options.pipeline_options import (
     GoogleCloudOptions,
     PipelineOptions,
+    SetupOptions,
     StandardOptions,
 )
 
@@ -143,15 +145,23 @@ def filter_unique_dates(element):
 
 def run():
     pipeline_options = PipelineOptions()
+
+    setup_options = pipeline_options.view_as(SetupOptions)
+    setup_options.save_main_session = True
+    
+    standard_options = pipeline_options.view_as(StandardOptions)
+    standard_options.runner = 'DataflowRunner'
+	
     gcp_options = pipeline_options.view_as(GoogleCloudOptions)
     gcp_options.project = "cocoa-prices-430315"
-    gcp_options.job_name = "cleaning-weather-data"
+	# Ensure unique job name
+    gcp_options.job_name = f"cleaning-weather-data-{int(time.time())}"  
     gcp_options.staging_location = "gs://raw_historic_data/staging"
     gcp_options.temp_location = "gs://raw_historic_data/temp"
-    pipeline_options.view_as(StandardOptions).runner = 'DataflowRunner'
+    gcp_options.region = "europe-west3"
 
     with beam.Pipeline(options=pipeline_options) as p:
-        parsed_records = (
+        parsed_records = ( 
             p
             | "Read CSV"
             >> beam.io.ReadFromText(
@@ -194,7 +204,7 @@ def run():
         )
 
         # Combine all invalid records from validation and uniqueness checks
-        invalid_records = (validated_records.invalid, unique_records.invalid) | "Combine Invalid Records" >> beam.Flatten()
+        invalid_records = [validated_records.invalid, unique_records.invalid] | "Combine Invalid Records" >> beam.Flatten()
 
         # Write invalid records to BigQuery
         (
@@ -202,7 +212,7 @@ def run():
             | "Write Invalid to BigQuery"
             >> beam.io.WriteToBigQuery(
                 table="cocoa-prices-430315:cocoa_prices.invalid_precipitation",
-                schema="date:DATE, precipitation:FLOAT, soil_moisture:FLOAT, Errors:STRING",
+                schema="date:STRING, precipitation:FLOAT, soil_moisture:FLOAT, Errors:STRING",
                 write_disposition=beam.io.BigQueryDisposition.WRITE_TRUNCATE,
                 create_disposition=beam.io.BigQueryDisposition.CREATE_IF_NEEDED,
             )

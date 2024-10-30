@@ -1,11 +1,13 @@
 import csv
 import logging
+import time
 from datetime import datetime
 
 import apache_beam as beam
 from apache_beam.options.pipeline_options import (
     GoogleCloudOptions,
     PipelineOptions,
+    SetupOptions,
     StandardOptions,
 )
 
@@ -62,12 +64,20 @@ class ValidateAndTransform(beam.DoFn):
 
 def run():
     pipeline_options = PipelineOptions()
+
+    setup_options = pipeline_options.view_as(SetupOptions)
+    setup_options.save_main_session = True
+    
+    standard_options = pipeline_options.view_as(StandardOptions)
+    standard_options.runner = 'DataflowRunner'
+
     gcp_options = pipeline_options.view_as(GoogleCloudOptions)
     gcp_options.project = PROJECT_ID
-    gcp_options.job_name = "cleaning-cocoa-prices-data"
+	# Ensure unique job name
+    gcp_options.job_name = f"cleaning-cocoa-prices-data-{int(time.time())}"
     gcp_options.staging_location = STAGING_LOCATION
     gcp_options.temp_location = TEMP_LOCATION
-    pipeline_options.view_as(StandardOptions).runner = "DataflowRunner"
+    gcp_options.region = "europe-west3"
 
     with beam.Pipeline(options=pipeline_options) as p:
         records = (
@@ -94,7 +104,7 @@ def run():
         # Side-output invalid records to BigQuery
         invalid_records | "Format Invalid to BigQuery" >> beam.io.WriteToBigQuery(
             table=INVALID_TABLE,
-            schema="Date:DATE, Euro_Price:FLOAT",
+            schema="Date:STRING, Euro_Price:FLOAT",
             write_disposition=beam.io.BigQueryDisposition.WRITE_TRUNCATE,
             create_disposition=beam.io.BigQueryDisposition.CREATE_IF_NEEDED,
         )
