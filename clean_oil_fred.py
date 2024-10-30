@@ -98,7 +98,8 @@ def run():
 
     setup_options = pipeline_options.view_as(SetupOptions)
     setup_options.save_main_session = True
-    
+    setup_options.requirements_file = 'requirements.txt'
+	
     standard_options = pipeline_options.view_as(StandardOptions)
     standard_options.runner = 'DataflowRunner'
 

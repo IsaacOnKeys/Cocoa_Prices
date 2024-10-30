@@ -143,25 +143,37 @@ def filter_unique_dates(element):
             yield beam.pvalue.TaggedOutput("invalid", record)
 
 
+# Function to check valid records before writing to BigQuery
+def check_valid_record(record):
+    if (
+        record["date"] is None
+        or record["precipitation"] is None
+        or record["soil_moisture"] is None
+    ):
+        raise ValueError(f"Invalid record: {record}")
+    return record
+
+
 def run():
     pipeline_options = PipelineOptions()
 
     setup_options = pipeline_options.view_as(SetupOptions)
     setup_options.save_main_session = True
-    
+    setup_options.requirements_file = 'requirements.txt'
+
     standard_options = pipeline_options.view_as(StandardOptions)
     standard_options.runner = 'DataflowRunner'
-	
+
     gcp_options = pipeline_options.view_as(GoogleCloudOptions)
     gcp_options.project = "cocoa-prices-430315"
-	# Ensure unique job name
-    gcp_options.job_name = f"cleaning-weather-data-{int(time.time())}"  
+    # Ensure unique job name
+    gcp_options.job_name = f"cleaning-weather-data-{int(time.time())}"
     gcp_options.staging_location = "gs://raw_historic_data/staging"
     gcp_options.temp_location = "gs://raw_historic_data/temp"
     gcp_options.region = "europe-west3"
 
     with beam.Pipeline(options=pipeline_options) as p:
-        parsed_records = ( 
+        parsed_records = (
             p
             | "Read CSV"
             >> beam.io.ReadFromText(
@@ -191,9 +203,15 @@ def run():
             >> beam.ParDo(filter_unique_dates).with_outputs("invalid", main="valid_unique")
         )
 
+        # **Integrate check_valid_record before writing to BigQuery**
+        unique_records_valid_checked = (
+            unique_records.valid_unique
+            | "Check Valid Records" >> beam.Map(check_valid_record)
+        )
+
         # Write valid records to BigQuery
         (
-            unique_records.valid_unique
+            unique_records_valid_checked
             | "Write Valid to BigQuery"
             >> beam.io.WriteToBigQuery(
                 table="cocoa-prices-430315:cocoa_prices.precipitation",
