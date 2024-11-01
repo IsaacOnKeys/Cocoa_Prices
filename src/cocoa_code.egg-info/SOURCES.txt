@@ -1,0 +1,8 @@
+README.md
+setup.py
+src/cocoa_code.egg-info/PKG-INFO
+src/cocoa_code.egg-info/SOURCES.txt
+src/cocoa_code.egg-info/dependency_links.txt
+src/cocoa_code.egg-info/top_level.txt
+src/weather_package/__init__.py
+src/weather_package/weather_transforms.py

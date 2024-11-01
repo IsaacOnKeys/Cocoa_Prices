@@ -107,7 +107,14 @@ def run():
             | "Write Invalid to BigQuery"
             >> beam.io.WriteToBigQuery(
                 table="cocoa-prices-430315:cocoa_prices.invalid_precipitation",
-                schema="date:STRING, precipitation:FLOAT, soil_moisture:FLOAT, Errors:STRING",
+                schema={
+                    "fields": [
+                        {"name": "date", "type": "STRING", "mode": "NULLABLE"},
+                        {"name": "precipitation", "type": "FLOAT", "mode": "NULLABLE"},
+                        {"name": "soil_moisture", "type": "FLOAT", "mode": "NULLABLE"},
+                        {"name": "Errors", "type": "STRING", "mode": "NULLABLE"},
+                    ]
+                },
                 write_disposition=beam.io.BigQueryDisposition.WRITE_TRUNCATE,
                 create_disposition=beam.io.BigQueryDisposition.CREATE_IF_NEEDED,
             )
