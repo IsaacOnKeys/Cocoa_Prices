@@ -1,13 +1,8 @@
 import logging
 from datetime import datetime, timedelta
-
 import apache_beam as beam
 
-# Configure logging if needed
-logging.basicConfig(
-    level=logging.INFO,
-    format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
-)
+
 
 def parse_csv(line):
     row = line.split(",")

@@ -9,8 +9,7 @@ from apache_beam.options.pipeline_options import (
     StandardOptions,
 )
 
-# Import your custom functions and classes from transforms.py
-from transforms import (
+from src.weather_package.weather_transforms import (
     ValidateAndTransform,
     check_valid_record,
     clean_and_transform,
@@ -19,6 +18,14 @@ from transforms import (
     key_by_date,
     parse_csv,
 )
+
+# Configure logging if needed
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
+)
+
+
 
 logging.basicConfig(
     level=logging.INFO,
@@ -29,7 +36,6 @@ def run():
     pipeline_options = PipelineOptions()
 
     setup_options = pipeline_options.view_as(SetupOptions)
-    # Removed save_main_session = True
     setup_options.requirements_file = 'requirements.txt'
 
     standard_options = pipeline_options.view_as(StandardOptions)
