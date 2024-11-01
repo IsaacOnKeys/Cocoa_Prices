@@ -9,7 +9,7 @@ from apache_beam.options.pipeline_options import (
     StandardOptions,
 )
 
-from src.weather_package.weather_transforms import (
+from src.weather_package import (
     ValidateAndTransform,
     check_valid_record,
     clean_and_transform,
@@ -26,20 +26,15 @@ logging.basicConfig(
 )
 
 
-
-logging.basicConfig(
-    level=logging.INFO,
-    format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
-)
-
 def run():
     pipeline_options = PipelineOptions()
 
     setup_options = pipeline_options.view_as(SetupOptions)
-    setup_options.requirements_file = 'requirements.txt'
+    setup_options.requirements_file = "requirements.txt"
+    setup_options.setup_file = './setup.py'
 
     standard_options = pipeline_options.view_as(StandardOptions)
-    standard_options.runner = 'DataflowRunner'
+    standard_options.runner = "DataflowRunner"
 
     gcp_options = pipeline_options.view_as(GoogleCloudOptions)
     gcp_options.project = "cocoa-prices-430315"
@@ -77,7 +72,9 @@ def run():
             | "Key by Date" >> beam.Map(key_by_date)
             | "Group by Date" >> beam.GroupByKey()
             | "Filter Unique Dates"
-            >> beam.ParDo(filter_unique_dates).with_outputs("invalid", main="valid_unique")
+            >> beam.ParDo(filter_unique_dates).with_outputs(
+                "invalid", main="valid_unique"
+            )
         )
 
         # Integrate check_valid_record before writing to BigQuery
@@ -99,10 +96,10 @@ def run():
         )
 
         # Combine all invalid records from validation and uniqueness checks
-        invalid_records = (
-            [validated_records.invalid, unique_records.invalid]
-            | "Combine Invalid Records" >> beam.Flatten()
-        )
+        invalid_records = [
+            validated_records.invalid,
+            unique_records.invalid,
+        ] | "Combine Invalid Records" >> beam.Flatten()
 
         # Write invalid records to BigQuery
         (
@@ -115,6 +112,7 @@ def run():
                 create_disposition=beam.io.BigQueryDisposition.CREATE_IF_NEEDED,
             )
         )
+
 
 if __name__ == "__main__":
     run()
