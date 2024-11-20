@@ -21,11 +21,10 @@ logging.basicConfig(
 
 def run():
     pipeline_options = PipelineOptions()
-
     setup_options = pipeline_options.view_as(SetupOptions)
     setup_options.requirements_file = "requirements.txt"
     standard_options = pipeline_options.view_as(StandardOptions)
-    standard_options.runner = "DirectRunner"  # Use 'DataflowRunner' for cloud execution
+    standard_options.runner = "DirectRunner" 
     gcp_options = pipeline_options.view_as(GoogleCloudOptions)
     gcp_options.project = "cocoa-prices-430315"
     gcp_options.job_name = f"cleaning-oil-data-{int(time.time())}"
