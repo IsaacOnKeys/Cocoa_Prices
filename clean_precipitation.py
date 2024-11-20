@@ -34,7 +34,8 @@ def run():
     setup_options.setup_file = './setup.py'
 
     standard_options = pipeline_options.view_as(StandardOptions)
-    standard_options.runner = "DataflowRunner"
+    # standard_options.runner = "DataflowRunner"
+    standard_options.runner = "DirectRunner"
 
     gcp_options = pipeline_options.view_as(GoogleCloudOptions)
     gcp_options.project = "cocoa-prices-430315"
@@ -107,14 +108,7 @@ def run():
             | "Write Invalid to BigQuery"
             >> beam.io.WriteToBigQuery(
                 table="cocoa-prices-430315:cocoa_prices.invalid_precipitation",
-                schema={
-                    "fields": [
-                        {"name": "date", "type": "STRING", "mode": "NULLABLE"},
-                        {"name": "precipitation", "type": "FLOAT", "mode": "NULLABLE"},
-                        {"name": "soil_moisture", "type": "FLOAT", "mode": "NULLABLE"},
-                        {"name": "Errors", "type": "STRING", "mode": "NULLABLE"},
-                    ]
-                },
+                schema="date:STRING, precipitation:STRING, soil_moisture:STRING, Errors:STRING",
                 write_disposition=beam.io.BigQueryDisposition.WRITE_TRUNCATE,
                 create_disposition=beam.io.BigQueryDisposition.CREATE_IF_NEEDED,
             )
