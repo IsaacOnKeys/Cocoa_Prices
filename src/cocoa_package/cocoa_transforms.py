@@ -47,9 +47,9 @@ class ValidateAndTransform(beam.DoFn):
 class CheckDuplicates(beam.DoFn):
     def process(self, element):
         date, records = element
-        if len(records) > 1:
-            for record in records:
-                record['Errors'] = f"Duplicate record for date {date}"
-                yield beam.pvalue.TaggedOutput('invalid', record)
-        else:
-            yield records[0]
+        # Yield the first record as unique
+        yield records[0]
+        # Yield all subsequent records as invalid
+        for record in records[1:]:
+            record["Errors"] = f"Duplicate record for date {date}"
+            yield beam.pvalue.TaggedOutput("invalid", record)
