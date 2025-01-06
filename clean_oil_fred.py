@@ -18,13 +18,13 @@ logging.basicConfig(
     format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
 )
 
-pipeline_options = PipelineOptions()
-setup_options = pipeline_options.view_as(SetupOptions)
+PIPELINE_OPTIONS = PipelineOptions()
+setup_options = PIPELINE_OPTIONS.view_as(SetupOptions)
 setup_options.requirements_file = "requirements.txt"
-standard_options = pipeline_options.view_as(StandardOptions)
+standard_options = PIPELINE_OPTIONS.view_as(StandardOptions)
 # standard_options.runner = "DataflowRunner"
 standard_options.runner = "DirectRunner"
-gcp_options = pipeline_options.view_as(GoogleCloudOptions)
+gcp_options = PIPELINE_OPTIONS.view_as(GoogleCloudOptions)
 gcp_options.project = "cocoa-prices-430315"
 gcp_options.job_name = f"cleaning-oil-data-{int(time.time())}"
 gcp_options.staging_location = "gs://raw_historic_data/staging"
@@ -34,7 +34,7 @@ gcp_options.region = "europe-west3"
 
 def run():
     logging.info("Pipeline is starting...")
-    with beam.Pipeline(options=pipeline_options) as p:
+    with beam.Pipeline(options=PIPELINE_OPTIONS) as p:
         validated_records = (
             p
             | "Match Files"
