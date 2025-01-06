@@ -19,32 +19,30 @@ from src.weather_package import (
     parse_csv,
 )
 
-# Configure logging if needed
 logging.basicConfig(
     level=logging.INFO,
     format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
 )
 
+pipeline_options = PipelineOptions()
+
+setup_options = pipeline_options.view_as(SetupOptions)
+setup_options.requirements_file = "requirements.txt"
+setup_options.setup_file = './setup.py'
+
+standard_options = pipeline_options.view_as(StandardOptions)
+# standard_options.runner = "DataflowRunner"
+standard_options.runner = "DirectRunner"
+
+gcp_options = pipeline_options.view_as(GoogleCloudOptions)
+gcp_options.project = "cocoa-prices-430315"
+gcp_options.job_name = f"cleaning-weather-data-{int(time.time())}"
+gcp_options.staging_location = "gs://raw_historic_data/staging"
+gcp_options.temp_location = "gs://raw_historic_data/temp"
+gcp_options.region = "europe-west3"
 
 def run():
-    pipeline_options = PipelineOptions()
-
-    setup_options = pipeline_options.view_as(SetupOptions)
-    setup_options.requirements_file = "requirements.txt"
-    setup_options.setup_file = './setup.py'
-
-    standard_options = pipeline_options.view_as(StandardOptions)
-    # standard_options.runner = "DataflowRunner"
-    standard_options.runner = "DirectRunner"
-
-    gcp_options = pipeline_options.view_as(GoogleCloudOptions)
-    gcp_options.project = "cocoa-prices-430315"
-    # Ensure unique job name
-    gcp_options.job_name = f"cleaning-weather-data-{int(time.time())}"
-    gcp_options.staging_location = "gs://raw_historic_data/staging"
-    gcp_options.temp_location = "gs://raw_historic_data/temp"
-    gcp_options.region = "europe-west3"
-
+    logging.info("Pipeline is starting...")
     with beam.Pipeline(options=pipeline_options) as p:
         parsed_records = (
             p
@@ -59,7 +57,6 @@ def run():
             | "Filter Missing Data" >> beam.Filter(filter_missing_data)
         )
 
-        # Extract and Clean
         validated_records = (
             parsed_records
             | "Extract and Clean" >> beam.FlatMap(lambda x: [x])
@@ -67,7 +64,6 @@ def run():
             >> beam.ParDo(ValidateAndTransform()).with_outputs("invalid", main="valid")
         )
 
-        # Handle Uniqueness Checks
         unique_records = (
             validated_records.valid
             | "Key by Date" >> beam.Map(key_by_date)
@@ -78,13 +74,11 @@ def run():
             )
         )
 
-        # Integrate check_valid_record before writing to BigQuery
         unique_records_valid_checked = (
             unique_records.valid_unique
             | "Check Valid Records" >> beam.Map(check_valid_record)
         )
 
-        # Write valid records to BigQuery
         (
             unique_records_valid_checked
             | "Write Valid to BigQuery"
@@ -96,13 +90,11 @@ def run():
             )
         )
 
-        # Combine all invalid records from validation and uniqueness checks
         invalid_records = [
             validated_records.invalid,
             unique_records.invalid,
         ] | "Combine Invalid Records" >> beam.Flatten()
 
-        # Write invalid records to BigQuery
         (
             invalid_records
             | "Write Invalid to BigQuery"
@@ -113,7 +105,7 @@ def run():
                 create_disposition=beam.io.BigQueryDisposition.CREATE_IF_NEEDED,
             )
         )
-
+    logging.info("Pipeline run has completed")
 
 if __name__ == "__main__":
     run()

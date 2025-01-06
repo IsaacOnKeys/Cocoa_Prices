@@ -18,20 +18,22 @@ logging.basicConfig(
     format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
 )
 
+pipeline_options = PipelineOptions()
+setup_options = pipeline_options.view_as(SetupOptions)
+setup_options.requirements_file = "requirements.txt"
+standard_options = pipeline_options.view_as(StandardOptions)
+# standard_options.runner = "DataflowRunner"
+standard_options.runner = "DirectRunner"
+gcp_options = pipeline_options.view_as(GoogleCloudOptions)
+gcp_options.project = "cocoa-prices-430315"
+gcp_options.job_name = f"cleaning-oil-data-{int(time.time())}"
+gcp_options.staging_location = "gs://raw_historic_data/staging"
+gcp_options.temp_location = "gs://raw_historic_data/temp"
+gcp_options.region = "europe-west3"
+
 
 def run():
-    pipeline_options = PipelineOptions()
-    setup_options = pipeline_options.view_as(SetupOptions)
-    setup_options.requirements_file = "requirements.txt"
-    standard_options = pipeline_options.view_as(StandardOptions)
-    standard_options.runner = "DirectRunner" 
-    gcp_options = pipeline_options.view_as(GoogleCloudOptions)
-    gcp_options.project = "cocoa-prices-430315"
-    gcp_options.job_name = f"cleaning-oil-data-{int(time.time())}"
-    gcp_options.staging_location = "gs://raw_historic_data/staging"
-    gcp_options.temp_location = "gs://raw_historic_data/temp"
-    gcp_options.region = "europe-west3"
-
+    logging.info("Pipeline is starting...")
     with beam.Pipeline(options=pipeline_options) as p:
         validated_records = (
             p
@@ -86,7 +88,7 @@ def run():
                 create_disposition=beam.io.BigQueryDisposition.CREATE_IF_NEEDED,
             )
         )
-
+    logging.info("Pipeline run has completed")
 
 if __name__ == "__main__":
     run()

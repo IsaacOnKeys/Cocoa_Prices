@@ -1,6 +1,5 @@
 import csv
 from datetime import datetime
-
 import apache_beam as beam
 
 

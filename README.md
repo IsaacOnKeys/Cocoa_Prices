@@ -22,10 +22,11 @@ This project is a comprehensive data engineering pipeline that tracks and analyz
 - **Logging**: Python's `logging` module for monitoring pipeline execution
 
 ## Data Sources
-
+### Historical and ML model data  
+**Dates**: from January 1, 2014 through December 31, 2024.
 1. **Cocoa Prices**: Daily cocoa prices in Euros obtained from the [International Cocoa Organization](https://www.icco.org/).
 2. **Brent Oil Prices**: Daily Brent crude oil prices sourced from the [Federal Reserve Economic Data (FRED)](https://fred.stlouisfed.org/).
-3. **Weather Data**: Daily precipitation and soil moisture levels in Côte d'Ivoire from NASA's [POWER Project](https://power.larc.nasa.gov/).
+3. **Weather Data**: Daily precipitation and soil moisture levels in Côte d'Ivoire from NASA's [POWER Project](https://power.larc.nasa.gov/). Specifically the San Pedro area in the Bas-Sassandra region of Côte d'Ivoire with the given Latitude of 4.75 and longitude -6.63.
 
 ## Pipeline Architecture
 
