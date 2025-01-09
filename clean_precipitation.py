@@ -39,8 +39,8 @@ RUNNER = os.getenv("RUNNER", "DirectRunner")
 NUM_WORKERS = int(os.getenv("NUM_WORKERS", 4))
 MAX_NUM_WORKERS = int(os.getenv("MAX_NUM_WORKERS", NUM_WORKERS))
 PROJECT_ID = os.getenv("PROJECT_ID", "cocoa-prices-430315")
-STAGING_LOCATION = os.getenv("STAGING_LOCATION", "gs://raw_historic_data/staging")
-TEMP_LOCATION = os.getenv("TEMP_LOCATION", "gs://raw_historic_data/temp")
+STAGING_LOCATION = os.getenv("STAGING_LOCATION", "gs://raw-historic-data/staging")
+TEMP_LOCATION = os.getenv("TEMP_LOCATION", "gs://raw-historic-data/temp")
 REGION = os.getenv("REGION", "europe-west3")
 WORKER_MACHINE_TYPE = os.getenv("WORKER_MACHINE_TYPE", "e2-standard-4")
 
@@ -110,7 +110,7 @@ def run():
             p
             | "Read CSV"
             >> beam.io.ReadFromText(
-                "gs://raw_historic_data/POWER_Point_Daily.csv",
+                "gs://raw-historic-data/POWER_Point_Daily.csv",
                 skip_header_lines=1,
             )
             | "Parse CSV" >> beam.Map(parse_csv)
@@ -149,6 +149,7 @@ def run():
                 schema="date:DATE, precipitation:FLOAT, soil_moisture:FLOAT",
                 write_disposition=beam.io.BigQueryDisposition.WRITE_TRUNCATE,
                 create_disposition=beam.io.BigQueryDisposition.CREATE_IF_NEEDED,
+                custom_gcs_temp_location="gs://cocoa-prices-temp-for-bq"
             )
         )
 
@@ -165,6 +166,7 @@ def run():
                 schema="date:STRING, precipitation:STRING, soil_moisture:STRING, Errors:STRING",
                 write_disposition=beam.io.BigQueryDisposition.WRITE_TRUNCATE,
                 create_disposition=beam.io.BigQueryDisposition.CREATE_IF_NEEDED,
+                custom_gcs_temp_location="gs://cocoa-prices-temp-for-bq"
             )
         )
     logging.info("Pipeline run has completed")

@@ -17,9 +17,9 @@ logging.basicConfig(
 )
 
 PROJECT_ID = "cocoa-prices-430315"
-STAGING_LOCATION = "gs://raw_historic_data/staging"
-TEMP_LOCATION = "gs://raw_historic_data/temp"
-SOURCE_FILE = "gs://raw_historic_data/Daily Prices_Home.csv"
+STAGING_LOCATION = "gs://raw-historic-data/staging"
+TEMP_LOCATION = "gs://raw-historic-data/temp"
+SOURCE_FILE = "gs://raw-historic-data/Daily Prices_Home.csv"
 VALID_TABLE = f"{PROJECT_ID}:cocoa_prices.cocoa"
 INVALID_TABLE = f"{PROJECT_ID}:cocoa_prices.invalid_cocoa"
 pipeline_options = PipelineOptions()
@@ -75,6 +75,7 @@ def run():
             schema="Date:DATE, Euro_Price:FLOAT",
             write_disposition=beam.io.BigQueryDisposition.WRITE_TRUNCATE,
             create_disposition=beam.io.BigQueryDisposition.CREATE_IF_NEEDED,
+            custom_gcs_temp_location="gs://cocoa-prices-temp-for-bq"
         )
 
         all_invalid_records | "Write Invalid to BigQuery" >> beam.io.WriteToBigQuery(
@@ -82,6 +83,7 @@ def run():
             schema="Date:STRING, Euro_Price:STRING, Errors:STRING",
             write_disposition=beam.io.BigQueryDisposition.WRITE_TRUNCATE,
             create_disposition=beam.io.BigQueryDisposition.CREATE_IF_NEEDED,
+            custom_gcs_temp_location="gs://cocoa-prices-temp-for-bq"
         )
     logging.info("Pipeline run has completed") 
 

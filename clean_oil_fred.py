@@ -27,8 +27,8 @@ standard_options.runner = "DirectRunner"
 gcp_options = PIPELINE_OPTIONS.view_as(GoogleCloudOptions)
 gcp_options.project = "cocoa-prices-430315"
 gcp_options.job_name = f"cleaning-oil-data-{int(time.time())}"
-gcp_options.staging_location = "gs://raw_historic_data/staging"
-gcp_options.temp_location = "gs://raw_historic_data/temp"
+gcp_options.staging_location = "gs://raw-historic-data/staging"
+gcp_options.temp_location = "gs://raw-historic-data/temp"
 gcp_options.region = "europe-west3"
 
 
@@ -38,7 +38,7 @@ def run():
         validated_records = (
             p
             | "Match Files"
-            >> fileio.MatchFiles("gs://raw_historic_data/brent_oil_fred.json")
+            >> fileio.MatchFiles("gs://raw-historic-data/brent_oil_fred.json")
             | "Read Matches" >> fileio.ReadMatches()
             | "Read File Content" >> beam.Map(lambda file: file.read_utf8())
             | "Extract and Clean" >> beam.FlatMap(extract_and_clean)
@@ -70,6 +70,7 @@ def run():
                 schema="date:DATE, brent_price_eu:FLOAT",
                 write_disposition=beam.io.BigQueryDisposition.WRITE_TRUNCATE,
                 create_disposition=beam.io.BigQueryDisposition.CREATE_IF_NEEDED,
+                custom_gcs_temp_location="gs://cocoa-prices-temp-for-bq"
             )
         )
 
@@ -86,6 +87,7 @@ def run():
                 schema="date:STRING, brent_price_eu:STRING, Errors:STRING",
                 write_disposition=beam.io.BigQueryDisposition.WRITE_TRUNCATE,
                 create_disposition=beam.io.BigQueryDisposition.CREATE_IF_NEEDED,
+                custom_gcs_temp_location="gs://cocoa-prices-temp-for-bq"
             )
         )
     logging.info("Pipeline run has completed")
