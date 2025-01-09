@@ -83,7 +83,7 @@ def run():
             write_disposition=beam.io.BigQueryDisposition.WRITE_TRUNCATE,
             create_disposition=beam.io.BigQueryDisposition.CREATE_IF_NEEDED,
         )
-    logging.info("Pipeline run has completed")
+    logging.info("Pipeline run has completed") 
 
 if __name__ == "__main__":
     run()
