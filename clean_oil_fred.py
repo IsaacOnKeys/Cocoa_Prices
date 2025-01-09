@@ -66,7 +66,7 @@ def run():
             unique_records
             | "Write Valid to BigQuery"
             >> beam.io.WriteToBigQuery(
-                table="cocoa-prices-430315:cocoa_prices.brent_prices",
+                table="cocoa-prices-430315:cocoa_related.brent_prices",
                 schema="date:DATE, brent_price_eu:FLOAT",
                 write_disposition=beam.io.BigQueryDisposition.WRITE_TRUNCATE,
                 create_disposition=beam.io.BigQueryDisposition.CREATE_IF_NEEDED,
@@ -83,7 +83,7 @@ def run():
             combined_invalid_records
             | "Write Invalid to BigQuery"
             >> beam.io.WriteToBigQuery(
-                table="cocoa-prices-430315:cocoa_prices.invalid_brent_prices",
+                table="cocoa-prices-430315:cocoa_related.invalid_brent_prices",
                 schema="date:STRING, brent_price_eu:STRING, Errors:STRING",
                 write_disposition=beam.io.BigQueryDisposition.WRITE_TRUNCATE,
                 create_disposition=beam.io.BigQueryDisposition.CREATE_IF_NEEDED,

@@ -39,6 +39,7 @@ RUNNER = os.getenv("RUNNER", "DirectRunner")
 NUM_WORKERS = int(os.getenv("NUM_WORKERS", 4))
 MAX_NUM_WORKERS = int(os.getenv("MAX_NUM_WORKERS", NUM_WORKERS))
 PROJECT_ID = os.getenv("PROJECT_ID", "cocoa-prices-430315")
+REGION = os.getenv("REGION", "europe-west3")
 STAGING_LOCATION = os.getenv("STAGING_LOCATION", "gs://raw-historic-data/staging")
 TEMP_LOCATION = os.getenv("TEMP_LOCATION", "gs://raw-historic-data/temp")
 REGION = os.getenv("REGION", "europe-west3")
@@ -64,7 +65,9 @@ STANDARD_OPTIONS.runner = RUNNER
 
 # Runner-specific configuration
 if RUNNER == "DirectRunner":
-    DIRECT_OPTIONS = PIPELINE_OPTIONS.view_as(beam.options.pipeline_options.DirectOptions)
+    DIRECT_OPTIONS = PIPELINE_OPTIONS.view_as(
+        beam.options.pipeline_options.DirectOptions
+    )
     DIRECT_OPTIONS.direct_num_workers = NUM_WORKERS
 
 elif RUNNER == "DataflowRunner":
@@ -145,11 +148,11 @@ def run():
             unique_records_valid_checked
             | "Write Valid to BigQuery"
             >> beam.io.WriteToBigQuery(
-                table="cocoa-prices-430315:cocoa_prices.precipitation",
+                table="cocoa-prices-430315:cocoa_related.precipitation",
                 schema="date:DATE, precipitation:FLOAT, soil_moisture:FLOAT",
                 write_disposition=beam.io.BigQueryDisposition.WRITE_TRUNCATE,
                 create_disposition=beam.io.BigQueryDisposition.CREATE_IF_NEEDED,
-                custom_gcs_temp_location="gs://cocoa-prices-temp-for-bq"
+                custom_gcs_temp_location="gs://cocoa-prices-temp-for-bq",
             )
         )
 
@@ -162,14 +165,13 @@ def run():
             invalid_records
             | "Write Invalid to BigQuery"
             >> beam.io.WriteToBigQuery(
-                table="cocoa-prices-430315:cocoa_prices.invalid_precipitation",
+                table="cocoa-prices-430315:cocoa_related.invalid_precipitation",
                 schema="date:STRING, precipitation:STRING, soil_moisture:STRING, Errors:STRING",
                 write_disposition=beam.io.BigQueryDisposition.WRITE_TRUNCATE,
                 create_disposition=beam.io.BigQueryDisposition.CREATE_IF_NEEDED,
-                custom_gcs_temp_location="gs://cocoa-prices-temp-for-bq"
+                custom_gcs_temp_location="gs://cocoa-prices-temp-for-bq",
             )
         )
-    logging.info("Pipeline run has completed")
 
 
 if __name__ == "__main__":

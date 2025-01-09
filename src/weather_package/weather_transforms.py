@@ -1,7 +1,7 @@
 import logging
 from datetime import datetime, timedelta
-import apache_beam as beam
 
+import apache_beam as beam
 
 
 def parse_csv(line):
@@ -53,7 +53,7 @@ class ValidateAndTransform(beam.DoFn):
     def __init__(self):
         super(ValidateAndTransform, self).__init__()
         self.start_date = datetime(2014, 1, 1)
-        self.end_date = datetime(2023, 12, 31)
+        self.end_date = datetime(2024, 12, 31)
 
     def process(self, element):
         valid = True
@@ -91,7 +91,7 @@ class ValidateAndTransform(beam.DoFn):
         if date_obj:
             if not (self.start_date <= date_obj <= self.end_date):
                 valid = False
-                errors.append("Date out of range (2014-01-01 to 2023-12-31)")
+                errors.append("Date out of range (2014-01-01 to 2024-12-31)")
 
         # Missing Value Handling
         if precipitation is None:

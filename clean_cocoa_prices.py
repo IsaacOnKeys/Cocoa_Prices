@@ -20,8 +20,8 @@ PROJECT_ID = "cocoa-prices-430315"
 STAGING_LOCATION = "gs://raw-historic-data/staging"
 TEMP_LOCATION = "gs://raw-historic-data/temp"
 SOURCE_FILE = "gs://raw-historic-data/Daily Prices_Home.csv"
-VALID_TABLE = f"{PROJECT_ID}:cocoa_prices.cocoa"
-INVALID_TABLE = f"{PROJECT_ID}:cocoa_prices.invalid_cocoa"
+VALID_TABLE = f"{PROJECT_ID}:cocoa_related.cocoa"
+INVALID_TABLE = f"{PROJECT_ID}:cocoa_related.invalid_cocoa"
 pipeline_options = PipelineOptions()
 
 setup_options = pipeline_options.view_as(SetupOptions)
