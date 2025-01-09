@@ -1,5 +1,6 @@
 import csv
 from datetime import datetime
+
 import apache_beam as beam
 
 
@@ -10,6 +11,7 @@ def parse_csv(line):
         "Date": row[0].strip('"'),
         "Euro_Price": row[4].strip('"'),
     }
+
 
 class ValidateAndTransform(beam.DoFn):
     def process(self, element):
@@ -42,6 +44,7 @@ class ValidateAndTransform(beam.DoFn):
             element["Euro_Price"] = str(element.get("Euro_Price", ""))
             element["Errors"] = "; ".join(errors)
             yield beam.pvalue.TaggedOutput("invalid", element)
+
 
 class CheckDuplicates(beam.DoFn):
     def process(self, element):

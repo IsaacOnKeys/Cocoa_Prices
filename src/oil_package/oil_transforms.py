@@ -1,6 +1,8 @@
 import json
 from datetime import datetime
+
 import apache_beam as beam
+
 
 def extract_and_clean(file_content):
     data = json.loads(file_content)
@@ -19,7 +21,7 @@ class ValidateAndTransform(beam.DoFn):
     def __init__(self):
         super(ValidateAndTransform, self).__init__()
         self.start_date = datetime(2014, 1, 1)
-        self.end_date = datetime(2023, 12, 31)
+        self.end_date = datetime(2024, 12, 31)
 
     def process(self, element):
         valid = True
