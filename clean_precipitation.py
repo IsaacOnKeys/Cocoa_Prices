@@ -18,6 +18,7 @@ from apache_beam.options.pipeline_options import (
     PipelineOptions,
     SetupOptions,
     StandardOptions,
+    WorkerOptions,
 )
 
 from src.weather_package import (
@@ -30,80 +31,48 @@ from src.weather_package import (
     parse_csv,
 )
 
+# Logging Configuration
 logging.basicConfig(
     level=logging.INFO,
     format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
 )
 
-RUNNER = os.getenv("RUNNER", "DirectRunner")
-NUM_WORKERS = int(os.getenv("NUM_WORKERS", 4))
-MAX_NUM_WORKERS = int(os.getenv("MAX_NUM_WORKERS", NUM_WORKERS))
+# Dynamic Pipeline Options
+PIPELINE_OPTIONS = PipelineOptions()
+STANDARD_OPTIONS = PIPELINE_OPTIONS.view_as(StandardOptions)
+GCP_OPTIONS = PIPELINE_OPTIONS.view_as(GoogleCloudOptions)
+RUNNER = STANDARD_OPTIONS.runner
+
+# Validate Runner
+if RUNNER not in ["DirectRunner", "DataflowRunner"]:
+    raise ValueError(f"Unsupported runner: {STANDARD_OPTIONS.runner}")
+
+# Environment Variables
 PROJECT_ID = os.getenv("PROJECT_ID", "cocoa-prices-430315")
 REGION = os.getenv("REGION", "europe-west3")
 STAGING_LOCATION = os.getenv("STAGING_LOCATION", "gs://raw-historic-data/staging")
 TEMP_LOCATION = os.getenv("TEMP_LOCATION", "gs://raw-historic-data/temp")
-REGION = os.getenv("REGION", "europe-west3")
 WORKER_MACHINE_TYPE = os.getenv("WORKER_MACHINE_TYPE", "e2-standard-4")
+NUM_WORKERS = int(os.getenv("NUM_WORKERS", 4))
+MAX_NUM_WORKERS = int(os.getenv("MAX_NUM_WORKERS", NUM_WORKERS))
 
-logging.info(f"Runner: {RUNNER}")
-
-if RUNNER not in ["DirectRunner", "DataflowRunner"]:
-    raise ValueError(f"Unsupported runner: {RUNNER}")
-
-logging.info(f"Number of workers: {NUM_WORKERS}")
-
-# Pipeline Options
-PIPELINE_OPTIONS = PipelineOptions()
-
-# Google Cloud Options
-GCP_OPTIONS = PIPELINE_OPTIONS.view_as(GoogleCloudOptions)
+# Google Cloud Configuration
+GCP_OPTIONS.project = PROJECT_ID
+GCP_OPTIONS.region = REGION
+GCP_OPTIONS.staging_location = STAGING_LOCATION
+GCP_OPTIONS.temp_location = TEMP_LOCATION
 GCP_OPTIONS.job_name = f"clean-weather-data-{int(time.time()) % 100000}"
 
-# Standard Options
-STANDARD_OPTIONS = PIPELINE_OPTIONS.view_as(StandardOptions)
-STANDARD_OPTIONS.runner = RUNNER
+# Runner-specific Configuration
+if RUNNER == "DataflowRunner":
+    WORKER_OPTIONS = PIPELINE_OPTIONS.view_as(WorkerOptions)
+    WORKER_OPTIONS.num_workers = NUM_WORKERS
+    WORKER_OPTIONS.max_num_workers = MAX_NUM_WORKERS
+    WORKER_OPTIONS.machine_type = WORKER_MACHINE_TYPE
 
-# Runner-specific configuration
-if RUNNER == "DirectRunner":
-    DIRECT_OPTIONS = PIPELINE_OPTIONS.view_as(
-        beam.options.pipeline_options.DirectOptions
-    )
-    DIRECT_OPTIONS.direct_num_workers = NUM_WORKERS
-
-elif RUNNER == "DataflowRunner":
-    # Environment Validation for DataflowRunner
-    required_vars = {
-        "PROJECT_ID": PROJECT_ID,
-        "STAGING_LOCATION": STAGING_LOCATION,
-        "TEMP_LOCATION": TEMP_LOCATION,
-        "REGION": REGION,
-        "WORKER_MACHINE_TYPE": WORKER_MACHINE_TYPE,
-        "NUM_WORKERS": NUM_WORKERS,
-        "MAX_NUM_WORKERS": MAX_NUM_WORKERS,
-    }
-    logging.info(f"Project: {PROJECT_ID[:5]}***")
-    logging.info(f"Staging location: {STAGING_LOCATION.split('/')[2]}***")
-    logging.info(f"Temp location: {TEMP_LOCATION.split('/')[2]}***")
-    logging.info(f"Region: {REGION}")
-    logging.info(f"Worker machine type: {WORKER_MACHINE_TYPE}")
-
-    for name, value in required_vars.items():
-        if not value:
-            logging.error(f"Missing required environment variable: {name}")
-            raise ValueError(
-                f"Environment variable {name} must be set for DataflowRunner."
-            )
-    # Setup Options
     SETUP_OPTIONS = PIPELINE_OPTIONS.view_as(SetupOptions)
     SETUP_OPTIONS.requirements_file = os.getenv("REQUIREMENTS_FILE", "requirements.txt")
     SETUP_OPTIONS.setup_file = os.getenv("SETUP_FILE", "./setup.py")
-    GCP_OPTIONS.worker_machine_type = WORKER_MACHINE_TYPE
-    GCP_OPTIONS.num_workers = NUM_WORKERS
-    GCP_OPTIONS.max_num_workers = MAX_NUM_WORKERS
-    GCP_OPTIONS.project = PROJECT_ID
-    GCP_OPTIONS.staging_location = STAGING_LOCATION
-    GCP_OPTIONS.temp_location = TEMP_LOCATION
-    GCP_OPTIONS.region = REGION
 
 
 def run():
@@ -118,8 +87,8 @@ def run():
             )
             | "Parse CSV" >> beam.Map(parse_csv)
             | "Filter Parsed Data" >> beam.Filter(lambda x: x is not None)
-            | "Clean and Transform" >> beam.Map(clean_and_transform)
             | "Filter Missing Data" >> beam.Filter(filter_missing_data)
+            | "Clean and Transform" >> beam.Map(clean_and_transform)
         )
 
         validated_records = (
@@ -129,9 +98,17 @@ def run():
             >> beam.ParDo(ValidateAndTransform()).with_outputs("invalid", main="valid")
         )
 
+        valid_records = validated_records.valid
+        invalid_records = validated_records.invalid
+
         unique_records = (
-            validated_records.valid
+            valid_records
             | "Key by Date" >> beam.Map(key_by_date)
+            | "Debug Before Reshuffle"
+            >> beam.Map(lambda x: logging.info(f"Before Reshuffle: {x}") or x)
+            | "Explicit Reshuffle" >> beam.Reshuffle()
+            | "Debug After Reshuffle"
+            >> beam.Map(lambda x: logging.info(f"After Reshuffle: {x}") or x)
             | "Group by Date" >> beam.GroupByKey()
             | "Filter Unique Dates"
             >> beam.ParDo(filter_unique_dates).with_outputs(
@@ -156,13 +133,13 @@ def run():
             )
         )
 
-        invalid_records = [
-            validated_records.invalid,
+        combined_invalid_records = [
+            invalid_records,
             unique_records.invalid,
         ] | "Combine Invalid Records" >> beam.Flatten()
 
         (
-            invalid_records
+            combined_invalid_records
             | "Write Invalid to BigQuery"
             >> beam.io.WriteToBigQuery(
                 table="cocoa-prices-430315:cocoa_related.invalid_precipitation",

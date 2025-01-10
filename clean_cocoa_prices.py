@@ -1,10 +1,22 @@
+"""
+Usage:
+To run with DirectRunner (default):
+python clean_cocoa_prices.py
+
+To run with DataFlow:
+python clean_cocoa_prices.py --runner=DataflowRunner
+
+"""
+
 import logging
+import os
 import time
 
 import apache_beam as beam
 from apache_beam.options.pipeline_options import (
     GoogleCloudOptions,
     PipelineOptions,
+    WorkerOptions,
     SetupOptions,
     StandardOptions,
 )
@@ -85,7 +97,6 @@ def run():
             create_disposition=beam.io.BigQueryDisposition.CREATE_IF_NEEDED,
             custom_gcs_temp_location="gs://cocoa-prices-temp-for-bq"
         )
-    logging.info("Pipeline run has completed") 
 
 if __name__ == "__main__":
     run()
