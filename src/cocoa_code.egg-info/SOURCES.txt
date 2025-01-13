@@ -3,6 +3,11 @@ setup.py
 src/cocoa_code.egg-info/PKG-INFO
 src/cocoa_code.egg-info/SOURCES.txt
 src/cocoa_code.egg-info/dependency_links.txt
+src/cocoa_code.egg-info/requires.txt
 src/cocoa_code.egg-info/top_level.txt
+src/cocoa_package/__init__.py
+src/cocoa_package/cocoa_transforms.py
+src/oil_package/__init__.py
+src/oil_package/oil_transforms.py
 src/weather_package/__init__.py
 src/weather_package/weather_transforms.py

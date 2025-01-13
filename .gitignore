@@ -1,7 +1,4 @@
-# Ignore CLEAN folder
 CLEAN/
-
-# Ignore TEST folder
 TEST/
-
-RAW/Old_Raw_Data"
+RAW/
+env/

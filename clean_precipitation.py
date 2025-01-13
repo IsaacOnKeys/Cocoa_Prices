@@ -1,10 +1,12 @@
 """
 Usage:
 To run with DirectRunner (default):
+
 python clean_precipitation.py
 
 To run with DataFlow:
-python clean_precipitation.py --runner=DataflowRunner
+
+python clean_precipitation.py --runner=DataflowRunner --prebuild_sdk_container
 
 """
 
@@ -55,7 +57,8 @@ TEMP_LOCATION = os.getenv("TEMP_LOCATION", "gs://raw-historic-data/temp")
 WORKER_MACHINE_TYPE = os.getenv("WORKER_MACHINE_TYPE", "e2-standard-4")
 NUM_WORKERS = int(os.getenv("NUM_WORKERS", 4))
 MAX_NUM_WORKERS = int(os.getenv("MAX_NUM_WORKERS", NUM_WORKERS))
-
+REQUIREMENTS_FILE = "./requirements.txt"
+SETUP_FILE = "./setup.py"
 # Google Cloud Configuration
 GCP_OPTIONS.project = PROJECT_ID
 GCP_OPTIONS.region = REGION
@@ -65,18 +68,22 @@ GCP_OPTIONS.job_name = f"clean-weather-data-{int(time.time()) % 100000}"
 
 # Runner-specific Configuration
 if RUNNER == "DataflowRunner":
+    PIPELINE_OPTIONS.view_as(PipelineOptions).set_default(
+    'extra_packages', ['dist/cocoa_code-0.1.tar.gz'])
+    STANDARD_OPTIONS.prebuild_sdk_container = True
     WORKER_OPTIONS = PIPELINE_OPTIONS.view_as(WorkerOptions)
     WORKER_OPTIONS.num_workers = NUM_WORKERS
     WORKER_OPTIONS.max_num_workers = MAX_NUM_WORKERS
     WORKER_OPTIONS.machine_type = WORKER_MACHINE_TYPE
 
     SETUP_OPTIONS = PIPELINE_OPTIONS.view_as(SetupOptions)
-    SETUP_OPTIONS.requirements_file = os.getenv("REQUIREMENTS_FILE", "requirements.txt")
+    SETUP_OPTIONS.requirements_file = os.getenv("REQUIREMENTS_FILE", "./requirements.txt")
     SETUP_OPTIONS.setup_file = os.getenv("SETUP_FILE", "./setup.py")
 
 
 def run():
     logging.info("Pipeline is starting...")
+    logging.info(f"Runner = {RUNNER}")
     with beam.Pipeline(options=PIPELINE_OPTIONS) as p:
         parsed_records = (
             p
