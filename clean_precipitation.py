@@ -24,16 +24,6 @@ from apache_beam.options.pipeline_options import (
     WorkerOptions,
 )
 
-# from src.weather_package import (
-#     ValidateAndTransform,
-#     check_valid_record,
-#     clean_and_transform,
-#     filter_missing_data,
-#     filter_unique_dates,
-#     key_by_date,
-#     parse_csv,
-# )
-
 ##################
 # Configuration #
 ################
@@ -68,7 +58,7 @@ GCP_OPTIONS.temp_location = TEMP_LOCATION
 GCP_OPTIONS.job_name = f"clean-weather-data-{int(time.time()) % 100000}"
 
 if RUNNER == "DataflowRunner":
-    
+
     WORKER_OPTIONS = PIPELINE_OPTIONS.view_as(WorkerOptions)
     WORKER_OPTIONS.num_workers = NUM_WORKERS
     WORKER_OPTIONS.max_num_workers = MAX_NUM_WORKERS
@@ -76,17 +66,16 @@ if RUNNER == "DataflowRunner":
 
     SETUP_OPTIONS = PIPELINE_OPTIONS.view_as(SetupOptions)
     SETUP_OPTIONS.save_main_session = True
-    
-    # SETUP_OPTIONS.extra_packages = ['dist/cocoa_code-0.1.tar.gz']
-    # SETUP_OPTIONS.requirements_file = os.getenv("REQUIREMENTS_FILE", "./requirements.txt")
-    # SETUP_OPTIONS.setup_file = os.getenv("SETUP_FILE", "./setup.py")
+    SETUP_OPTIONS.requirements_file = os.getenv(
+        "REQUIREMENTS_FILE", "./requirements.txt"
+    )
 
 ###############
 # Transforms #
 #############$
 
-def parse_csv(line):
 
+def parse_csv(line):
     """
     Parses a CSV line into a structured dictionary.
 
@@ -104,7 +93,7 @@ def parse_csv(line):
     Raises:
         ValueError: If the line does not have enough fields or contains invalid data.
     """
-  
+
     row = line.split(",")
     try:
 
@@ -131,8 +120,8 @@ def parse_csv(line):
         logging.warning(f"Skipping line due to parsing error: {line}, Error: {e}")
         return None
 
-def clean_and_transform(element):
 
+def clean_and_transform(element):
     """
     Cleans and transforms raw parsed data into a final structured format.
 
@@ -164,8 +153,8 @@ def clean_and_transform(element):
         "soil_moisture": element.get("soil_moisture"),
     }
 
-def filter_missing_data(element):
 
+def filter_missing_data(element):
     """
     Filters out rows with missing data fields.
 
@@ -185,8 +174,8 @@ def filter_missing_data(element):
     logging.warning(f"Filtering out missing data: {element}")
     return False
 
-class ValidateAndTransform(beam.DoFn):
 
+class ValidateAndTransform(beam.DoFn):
     """
     A DoFn class for validating and transforming records into valid or invalid outputs.
 
@@ -196,7 +185,6 @@ class ValidateAndTransform(beam.DoFn):
     """
 
     def __init__(self):
-
         """
         Initializes validation rules and date range for the transformation.
         """
@@ -209,9 +197,9 @@ class ValidateAndTransform(beam.DoFn):
         """
         Validates and transforms a single record.
 
-        This method performs schema validation, data type validation, range checks, and missing 
-        value handling for a given record. If the record passes all validations, it yields a valid 
-        record. If any validation fails, it tags the record as "invalid" and attaches a list of 
+        This method performs schema validation, data type validation, range checks, and missing
+        value handling for a given record. If the record passes all validations, it yields a valid
+        record. If any validation fails, it tags the record as "invalid" and attaches a list of
         validation errors.
 
         Validation Steps:
@@ -248,7 +236,7 @@ class ValidateAndTransform(beam.DoFn):
 
             Input: {"date": "invalid-date", "precipitation": "N/A", "soil_moisture": 0.8}
             Output: Yields a tagged output with validation errors.
-        """        
+        """
         valid = True
         errors = []
 
@@ -300,6 +288,7 @@ class ValidateAndTransform(beam.DoFn):
             element["Errors"] = "; ".join(errors)
             yield beam.pvalue.TaggedOutput("invalid", element)
 
+
 def key_by_date(record):
     """
     Creates a key-value pair using the record's date as the key.
@@ -317,6 +306,7 @@ def key_by_date(record):
         logging.error(f"Missing 'date' in record: {record}")
         return None
     return (record["date"], record)
+
 
 def filter_unique_dates(element):
     """
@@ -337,6 +327,7 @@ def filter_unique_dates(element):
         for record in records:
             record["Errors"] = "Duplicate date"
             yield beam.pvalue.TaggedOutput("invalid", record)
+
 
 # Check valid records before writing to BigQuery
 def check_valid_record(record):
@@ -360,9 +351,11 @@ def check_valid_record(record):
         raise ValueError(f"Invalid record: {record}")
     return record
 
+
 #############
 # Pipeline #
 ###########
+
 
 def run():
     logging.info("Pipeline is starting...")
