@@ -5,6 +5,17 @@ import apache_beam as beam
 
 
 def parse_csv(line):
+    """
+    Parses a CSV line into a dictionary with selected fields.
+
+    Args:
+        line (str): A single line of CSV data.
+
+    Returns:
+        dict: A dictionary containing:
+            - "Date" (str): The date field from the CSV, with leading/trailing quotes removed.
+            - "Euro_Price" (str): The price field from the CSV, with leading/trailing quotes removed.
+    """
     reader = csv.reader([line])
     row = next(reader)
     return {
@@ -14,6 +25,24 @@ def parse_csv(line):
 
 
 class ValidateAndTransform(beam.DoFn):
+    """
+    A DoFn class for validating and transforming parsed records.
+
+    Validation:
+        - Ensures the "Date" field is in the format "dd/mm/yyyy" and converts it to "yyyy-mm-dd".
+        - Ensures the "Euro_Price" field is a positive float. If invalid, stores errors in an "Errors" field.
+
+    Yields:
+        - Valid records as-is.
+        - Invalid records tagged with "invalid".
+
+    Example:
+        Input: {"Date": "31/12/2023", "Euro_Price": "1,234.56"}
+        Output:
+            - Valid: {"Date": "2023-12-31", "Euro_Price": 1234.56}
+            - Invalid: {"Date": "invalid", "Euro_Price": "", "Errors": "Invalid date format"}
+    """
+
     def process(self, element):
         valid = True
         errors = []
@@ -47,6 +76,29 @@ class ValidateAndTransform(beam.DoFn):
 
 
 class CheckDuplicates(beam.DoFn):
+    """
+    A DoFn class for identifying and handling duplicate records.
+
+    Process:
+        - For a given key (e.g., "Date"), yields the first record as unique.
+        - Tags subsequent records with "invalid" and annotates them with an error message.
+
+    Args:
+        element (tuple): A tuple containing:
+            - date (str): The key (e.g., "Date").
+            - records (list): A list of records with the same key.
+
+    Yields:
+        - Unique records as-is.
+        - Duplicate records tagged with "invalid" and annotated with an error message.
+
+    Example:
+        Input: ("2023-12-31", [{"Date": "2023-12-31", "Euro_Price": 1234.56}, {"Date": "2023-12-31", "Euro_Price": 1234.56}])
+        Output:
+            - Unique: {"Date": "2023-12-31", "Euro_Price": 1234.56}
+            - Invalid: {"Date": "2023-12-31", "Euro_Price": 1234.56, "Errors": "Duplicate record for date 2023-12-31"}
+    """
+
     def process(self, element):
         date, records = element
         # Yield the first record as unique

@@ -6,7 +6,7 @@ python clean_precipitation.py
 
 To run with DataFlow:
 
-python clean_precipitation.py --runner=DataflowRunner 
+python clean_precipitation.py --job_name="clean-weather-data-$(date +%s)" --runner=DataflowRunner --project=cocoa-prices-430315 --region=europe-west3 --temp_location=gs://raw-historic-data/temp --staging_location=gs://raw-historic-data/staging --requirements_file=./requirements.txt --worker_machine_type=e2-standard-4 --save_main_session
 
 """
 
@@ -19,9 +19,7 @@ import apache_beam as beam
 from apache_beam.options.pipeline_options import (
     GoogleCloudOptions,
     PipelineOptions,
-    SetupOptions,
     StandardOptions,
-    WorkerOptions,
 )
 
 ##################
@@ -41,38 +39,25 @@ RUNNER = STANDARD_OPTIONS.runner
 if RUNNER not in ["DirectRunner", "DataflowRunner"]:
     raise ValueError(f"Unsupported runner: {STANDARD_OPTIONS.runner}")
 
-PROJECT_ID = os.getenv("PROJECT_ID", "cocoa-prices-430315")
-REGION = os.getenv("REGION", "europe-west3")
-STAGING_LOCATION = os.getenv("STAGING_LOCATION", "gs://raw-historic-data/staging")
-TEMP_LOCATION = os.getenv("TEMP_LOCATION", "gs://raw-historic-data/temp")
-WORKER_MACHINE_TYPE = os.getenv("WORKER_MACHINE_TYPE", "e2-standard-4")
-NUM_WORKERS = int(os.getenv("NUM_WORKERS", 4))
-MAX_NUM_WORKERS = int(os.getenv("MAX_NUM_WORKERS", NUM_WORKERS))
-REQUIREMENTS_FILE = "./requirements.txt"
-SETUP_FILE = "./setup.py"
+if RUNNER == "DirectRunner":
 
-GCP_OPTIONS.project = PROJECT_ID
-GCP_OPTIONS.region = REGION
-GCP_OPTIONS.staging_location = STAGING_LOCATION
-GCP_OPTIONS.temp_location = TEMP_LOCATION
-GCP_OPTIONS.job_name = f"clean-weather-data-{int(time.time()) % 100000}"
-
-if RUNNER == "DataflowRunner":
-
-    WORKER_OPTIONS = PIPELINE_OPTIONS.view_as(WorkerOptions)
-    WORKER_OPTIONS.num_workers = NUM_WORKERS
-    WORKER_OPTIONS.max_num_workers = MAX_NUM_WORKERS
-    WORKER_OPTIONS.machine_type = WORKER_MACHINE_TYPE
-
-    SETUP_OPTIONS = PIPELINE_OPTIONS.view_as(SetupOptions)
-    SETUP_OPTIONS.save_main_session = True
-    SETUP_OPTIONS.requirements_file = os.getenv(
-        "REQUIREMENTS_FILE", "./requirements.txt"
-    )
+    PROJECT_ID = os.getenv("PROJECT_ID", "cocoa-prices-430315")
+    REGION = os.getenv("REGION", "europe-west3")
+    STAGING_LOCATION = os.getenv("STAGING_LOCATION", "gs://raw-historic-data/staging")
+    TEMP_LOCATION = os.getenv("TEMP_LOCATION", "gs://raw-historic-data/temp")
+    WORKER_MACHINE_TYPE = os.getenv("WORKER_MACHINE_TYPE", "e2-standard-4")
+    NUM_WORKERS = int(os.getenv("NUM_WORKERS", 4))
+    MAX_NUM_WORKERS = int(os.getenv("MAX_NUM_WORKERS", NUM_WORKERS))
+    REQUIREMENTS_FILE = "./requirements.txt"
+    GCP_OPTIONS.project = PROJECT_ID
+    GCP_OPTIONS.region = REGION
+    GCP_OPTIONS.staging_location = STAGING_LOCATION
+    GCP_OPTIONS.temp_location = TEMP_LOCATION
+    GCP_OPTIONS.job_name = f"clean-weather-data-{int(time.time()) % 100000}"
 
 ###############
 # Transforms #
-#############$
+#############
 
 
 def parse_csv(line):

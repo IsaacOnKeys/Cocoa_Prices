@@ -63,13 +63,11 @@ This script processes daily cocoa prices data.
 - **Data Validation**: Checks for invalid dates and prices, tagging invalid records.
 - **Data Loading**: Writes valid records to `cocoa_prices.cocoa` table and invalid records to `cocoa_prices.invalid_cocoa` table in BigQuery.
 
-#### Sample Code Snippet:
+## Development Setup
 
-```python
-def parse_csv(line):
-    reader = csv.reader([line])
-    row = next(reader)
-    return {
-        "Date": row[0].strip('"'),
-        "Euro_Price": row[4].strip('"'),
-    }
+### Code Linting
+This project uses [ruff](https://github.com/charliermarsh/ruff) for linting.
+
+#### Install
+```bash
+pip install ruff

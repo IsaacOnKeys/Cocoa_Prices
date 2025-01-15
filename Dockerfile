@@ -23,6 +23,9 @@ WORKDIR /app
 
 # Copy the pipeline code and requirements file into the image
 COPY clean_precipitation.py /app/clean_precipitation.py
+COPY clean_precipitation.py /app/clean_precipitation.py
+COPY clean_cocoa_prices.py /app/clean_cocoa_prices.py
+COPY clean_oil.py /app/clean_oil_three.py
 
 # Specify the entrypoint to run the pipeline
 ENTRYPOINT ["python", "clean_precipitation.py"]
