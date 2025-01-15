@@ -1,114 +1,158 @@
 """
 Usage:
 To run with DirectRunner (default):
-python clean_oil_fred.py
+python clean_oil_fred.py --runner=DirectRunner
 
 To run with DataFlow:
-python clean_oil_fred.py --runner=DataflowRunner
+python clean_oil_fred.py --runner=DataflowRunner --job_name="clean-oil-data-$(date +%s)" --project=cocoa-prices-430315 --region=europe-west3 --temp_location=gs://raw-historic-data/temp --staging_location=gs://raw-historic-data/staging --requirements_file=./requirements.txt --worker_machine_type=e2-standard-4 --save_main_session
 
 """
 
+import json
 import logging
 import os
 import time
+from datetime import datetime
 
 import apache_beam as beam
-from apache_beam.io import fileio
 from apache_beam.options.pipeline_options import (
     GoogleCloudOptions,
     PipelineOptions,
-    WorkerOptions,
-    SetupOptions,
     StandardOptions,
 )
 
-from src.oil_package import CheckUniqueness, ValidateAndTransform, extract_and_clean
+##################
+# Configuration #
+################
 
 logging.basicConfig(
     level=logging.INFO,
     format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
 )
 
-RUNNER = os.getenv("RUNNER", "DirectRunner")
-NUM_WORKERS = int(os.getenv("NUM_WORKERS", 4))
-MAX_NUM_WORKERS = int(os.getenv("MAX_NUM_WORKERS", NUM_WORKERS))
-PROJECT_ID = os.getenv("PROJECT_ID", "cocoa-prices-430315")
-REGION = os.getenv("REGION", "europe-west3")
-STAGING_LOCATION = os.getenv("STAGING_LOCATION", "gs://raw-historic-data/staging")
-TEMP_LOCATION = os.getenv("TEMP_LOCATION", "gs://raw-historic-data/temp")
-REGION = os.getenv("REGION", "europe-west3")
-WORKER_MACHINE_TYPE = os.getenv("WORKER_MACHINE_TYPE", "e2-standard-4")
-
-logging.info(f"Runner: {RUNNER}")
+PIPELINE_OPTIONS = PipelineOptions()
+STANDARD_OPTIONS = PIPELINE_OPTIONS.view_as(StandardOptions)
+GCP_OPTIONS = PIPELINE_OPTIONS.view_as(GoogleCloudOptions)
+RUNNER = STANDARD_OPTIONS.runner
 
 if RUNNER not in ["DirectRunner", "DataflowRunner"]:
-    raise ValueError(f"Unsupported runner: {RUNNER}")
+    raise ValueError(f"Unsupported runner: {STANDARD_OPTIONS.runner}")
+logging.info(f"Runner: {RUNNER}")
 
-logging.info(f"Number of workers: {NUM_WORKERS}")
-
-# Pipeline Options
-PIPELINE_OPTIONS = PipelineOptions()
-
-# Google Cloud Options
-GCP_OPTIONS = PIPELINE_OPTIONS.view_as(GoogleCloudOptions)
-GCP_OPTIONS.job_name = f"cleaning-oil-data-{int(time.time()) % 100000}"
-
-# Standard Options
-STANDARD_OPTIONS = PIPELINE_OPTIONS.view_as(StandardOptions)
-STANDARD_OPTIONS.runner = RUNNER
-
-# Runner-specific configuration
 if RUNNER == "DirectRunner":
-    DIRECT_OPTIONS = PIPELINE_OPTIONS.view_as(
-        beam.options.pipeline_options.DirectOptions
-    )
-    DIRECT_OPTIONS.direct_num_workers = NUM_WORKERS
 
-elif RUNNER == "DataflowRunner":
-    # Environment Validation for DataflowRunner
-    required_vars = {
-        "PROJECT_ID": PROJECT_ID,
-        "STAGING_LOCATION": STAGING_LOCATION,
-        "TEMP_LOCATION": TEMP_LOCATION,
-        "REGION": REGION,
-        "WORKER_MACHINE_TYPE": WORKER_MACHINE_TYPE,
-        "NUM_WORKERS": NUM_WORKERS,
-        "MAX_NUM_WORKERS": MAX_NUM_WORKERS,
-    }
-    logging.info(f"Project: {PROJECT_ID[:5]}***")
-    logging.info(f"Staging location: {STAGING_LOCATION.split('/')[2]}***")
-    logging.info(f"Temp location: {TEMP_LOCATION.split('/')[2]}***")
-    logging.info(f"Region: {REGION}")
-    logging.info(f"Worker machine type: {WORKER_MACHINE_TYPE}")
-
-    for name, value in required_vars.items():
-        if not value:
-            logging.error(f"Missing required environment variable: {name}")
-            raise ValueError(
-                f"Environment variable {name} must be set for DataflowRunner."
-            )
-    # Setup Options
-    SETUP_OPTIONS = PIPELINE_OPTIONS.view_as(SetupOptions)
-    SETUP_OPTIONS.requirements_file = os.getenv("REQUIREMENTS_FILE", "requirements.txt")
-    SETUP_OPTIONS.setup_file = os.getenv("SETUP_FILE", "./setup.py")
-    GCP_OPTIONS.worker_machine_type = WORKER_MACHINE_TYPE
-    GCP_OPTIONS.num_workers = NUM_WORKERS
-    GCP_OPTIONS.max_num_workers = MAX_NUM_WORKERS
+    PROJECT_ID = os.getenv("PROJECT_ID", "cocoa-prices-430315")
+    REGION = os.getenv("REGION", "europe-west3")
+    STAGING_LOCATION = os.getenv("STAGING_LOCATION", "gs://raw-historic-data/staging")
+    TEMP_LOCATION = os.getenv("TEMP_LOCATION", "gs://raw-historic-data/temp")
+    WORKER_MACHINE_TYPE = os.getenv("WORKER_MACHINE_TYPE", "e2-standard-4")
+    NUM_WORKERS = int(os.getenv("NUM_WORKERS", 4))
+    MAX_NUM_WORKERS = int(os.getenv("MAX_NUM_WORKERS", NUM_WORKERS))
+    REQUIREMENTS_FILE = "./requirements.txt"
     GCP_OPTIONS.project = PROJECT_ID
+    GCP_OPTIONS.region = REGION
     GCP_OPTIONS.staging_location = STAGING_LOCATION
     GCP_OPTIONS.temp_location = TEMP_LOCATION
-    GCP_OPTIONS.region = REGION
+    GCP_OPTIONS.job_name = f"clean-weather-data-{int(time.time()) % 100000}"
 
+###############
+# Transforms #
+#############
+
+def extract_and_clean(file_content):
+    """
+    Processes the JSON object, extracts each observation, converts the value
+    to a float if possible, and yields a dictionary with 'date' and 'brent_price_eu'.
+    """
+    observations = file_content.get("observations", [])
+    for obs in observations:
+        date = obs.get("date")
+        value = obs.get("value")
+        try:
+            value = float(value) if value != "." else None
+        except ValueError:
+            value = None
+        yield {"date": date, "brent_price_eu": value}
+
+
+class ValidateAndTransform(beam.DoFn):
+    """
+    Validates and transforms observations by checking date range,
+    verifying numeric fields, and tagging invalid records.
+    """
+
+    def __init__(self):
+        super(ValidateAndTransform, self).__init__()
+        self.start_date = datetime(2014, 1, 1)
+        self.end_date = datetime(2024, 12, 31)
+
+    def process(self, element):
+        """
+        Checks date formatting, range validity, and ensures brent_price_eu is float.
+        Yields valid records or tags invalid ones with an error message.
+        """
+        valid = True
+        errors = []
+        result = {}
+        if "date" not in element or "brent_price_eu" not in element:
+            valid = False
+            errors.append("Missing 'date' or 'brent_price_eu' field")
+        try:
+            date_obj = datetime.strptime(element["date"], "%Y-%m-%d")
+            result["date"] = date_obj
+            if not (self.start_date <= date_obj <= self.end_date):
+                valid = False
+                errors.append("Date out of range")
+        except (ValueError, TypeError):
+            valid = False
+            errors.append("Invalid date format")
+        brent_price = element.get("brent_price_eu")
+        if brent_price is None:
+            valid = False
+            errors.append("Missing Brent_Price")
+        elif not isinstance(brent_price, float):
+            valid = False
+            errors.append("Brent_Price is not a float")
+        if valid:
+            yield {
+                "date": result["date"].strftime("%Y-%m-%d"),
+                "brent_price_eu": brent_price,
+            }
+        else:
+            element["Errors"] = "; ".join(errors)
+            yield beam.pvalue.TaggedOutput("invalid", element)
+
+class CheckUniqueness(beam.DoFn):
+    """
+    Checks for duplicate records by grouping on the date key.
+    Yields valid records or tags duplicates as invalid.
+    """
+
+    def process(self, element):
+        """
+        If multiple records share the same date, tags them as invalid.
+        Otherwise yields the single valid record.
+        """
+        date, records = element
+        if len(records) > 1:
+            for record in records:
+                record["Errors"] = f"Duplicate record for date {date}"
+                yield beam.pvalue.TaggedOutput("invalid", record)
+        else:
+            yield records[0]
+
+#############
+# Pipeline #
+###########
 
 def run():
     logging.info("Pipeline is starting...")
     with beam.Pipeline(options=PIPELINE_OPTIONS) as p:
         validated_records = (
             p
-            | "Match Files"
-            >> fileio.MatchFiles("gs://raw-historic-data/brent_oil_fred.json")
-            | "Read Matches" >> fileio.ReadMatches()
-            | "Read File Content" >> beam.Map(lambda file: file.read_utf8())
+            | "Read Lines" >> beam.io.ReadFromText("gs://raw-historic-data/brent_oil_fred.json")
+            | "Combine Lines" >> beam.CombineGlobally(lambda lines: "\n".join(lines)).without_defaults()
+            | "Parse JSON" >> beam.Map(json.loads)
             | "Extract and Clean" >> beam.FlatMap(extract_and_clean)
             | "Validate and Transform"
             >> beam.ParDo(ValidateAndTransform()).with_outputs("invalid", main="valid")
@@ -138,7 +182,7 @@ def run():
                 schema="date:DATE, brent_price_eu:FLOAT",
                 write_disposition=beam.io.BigQueryDisposition.WRITE_TRUNCATE,
                 create_disposition=beam.io.BigQueryDisposition.CREATE_IF_NEEDED,
-                custom_gcs_temp_location="gs://cocoa-prices-temp-for-bq"
+                custom_gcs_temp_location="gs://cocoa-prices-temp-for-bq",
             )
         )
 
@@ -155,9 +199,10 @@ def run():
                 schema="date:STRING, brent_price_eu:STRING, Errors:STRING",
                 write_disposition=beam.io.BigQueryDisposition.WRITE_TRUNCATE,
                 create_disposition=beam.io.BigQueryDisposition.CREATE_IF_NEEDED,
-                custom_gcs_temp_location="gs://cocoa-prices-temp-for-bq"
+                custom_gcs_temp_location="gs://cocoa-prices-temp-for-bq",
             )
         )
+
 
 if __name__ == "__main__":
     run()

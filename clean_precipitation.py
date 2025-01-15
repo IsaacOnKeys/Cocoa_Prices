@@ -2,11 +2,13 @@
 Usage:
 To run with DirectRunner (default):
 
-python clean_precipitation.py
+python clean_cocoa_prices.py --runner=DirectRunner
 
 To run with DataFlow:
 
-python clean_precipitation.py --job_name="clean-weather-data-$(date +%s)" --runner=DataflowRunner --project=cocoa-prices-430315 --region=europe-west3 --temp_location=gs://raw-historic-data/temp --staging_location=gs://raw-historic-data/staging --requirements_file=./requirements.txt --worker_machine_type=e2-standard-4 --save_main_session
+python clean_precipitation.py  --runner=DataflowRunner
+--job_name="clean-weather-data-$(date +%s)"
+--project=cocoa-prices-430315 --region=europe-west3 --temp_location=gs://raw-historic-data/temp --staging_location=gs://raw-historic-data/staging --requirements_file=./requirements.txt --worker_machine_type=e2-standard-4 --save_main_session
 
 """
 
@@ -38,6 +40,7 @@ RUNNER = STANDARD_OPTIONS.runner
 
 if RUNNER not in ["DirectRunner", "DataflowRunner"]:
     raise ValueError(f"Unsupported runner: {STANDARD_OPTIONS.runner}")
+logging.info(f"Runner: {RUNNER}")
 
 if RUNNER == "DirectRunner":
 
@@ -54,6 +57,8 @@ if RUNNER == "DirectRunner":
     GCP_OPTIONS.staging_location = STAGING_LOCATION
     GCP_OPTIONS.temp_location = TEMP_LOCATION
     GCP_OPTIONS.job_name = f"clean-weather-data-{int(time.time()) % 100000}"
+
+
 
 ###############
 # Transforms #
@@ -312,7 +317,6 @@ def filter_unique_dates(element):
         for record in records:
             record["Errors"] = "Duplicate date"
             yield beam.pvalue.TaggedOutput("invalid", record)
-
 
 # Check valid records before writing to BigQuery
 def check_valid_record(record):

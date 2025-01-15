@@ -5,6 +5,10 @@ import apache_beam as beam
 
 
 def extract_and_clean(file_content):
+    """
+    Parses the input JSON string, extracts each observation, converts the value
+    to a float if possible, and yields a dictionary with 'date' and 'brent_price_eu'.
+    """
     data = json.loads(file_content)
     observations = data.get("observations", [])
     for obs in observations:
@@ -18,12 +22,21 @@ def extract_and_clean(file_content):
 
 
 class ValidateAndTransform(beam.DoFn):
+    """
+    Validates and transforms observations by checking date range,
+    verifying numeric fields, and tagging invalid records.
+    """
+
     def __init__(self):
         super(ValidateAndTransform, self).__init__()
         self.start_date = datetime(2014, 1, 1)
         self.end_date = datetime(2024, 12, 31)
 
     def process(self, element):
+        """
+        Checks date formatting, range validity, and ensures brent_price_eu is float.
+        Yields valid records or tags invalid ones with an error message.
+        """
         valid = True
         errors = []
         result = {}
@@ -57,7 +70,16 @@ class ValidateAndTransform(beam.DoFn):
 
 
 class CheckUniqueness(beam.DoFn):
+    """
+    Checks for duplicate records by grouping on the date key.
+    Yields valid records or tags duplicates as invalid.
+    """
+
     def process(self, element):
+        """
+        If multiple records share the same date, tags them as invalid.
+        Otherwise yields the single valid record.
+        """
         date, records = element
         if len(records) > 1:
             for record in records:

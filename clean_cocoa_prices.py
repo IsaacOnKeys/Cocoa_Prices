@@ -71,6 +71,7 @@ def parse_csv(line):
             - "Euro_Price" (str): The price field from the CSV, with leading/trailing quotes removed.
     """
     try:
+        reader = csv.reader([line])
         row = next(reader)
         return {
             "Date": row[0].strip('"'),
