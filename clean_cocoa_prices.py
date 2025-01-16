@@ -18,7 +18,6 @@ import apache_beam as beam
 from apache_beam.options.pipeline_options import (
     GoogleCloudOptions,
     PipelineOptions,
-    SetupOptions,
     StandardOptions,
 )
 

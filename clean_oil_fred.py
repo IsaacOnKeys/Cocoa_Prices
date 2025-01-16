@@ -72,7 +72,7 @@ def extract_and_clean(file_content):
             value = float(value) if value != "." else None
         except ValueError:
             value = None
-        yield {"date": date, "brent_price_eu": value}
+        yield {"date": date, "brent_price_eu": value} 
 
 
 class ValidateAndTransform(beam.DoFn):
@@ -144,7 +144,7 @@ class CheckUniqueness(beam.DoFn):
 #############
 # Pipeline #
 ###########
-
+ 
 def run():
     logging.info("Pipeline is starting...")
     with beam.Pipeline(options=PIPELINE_OPTIONS) as p:

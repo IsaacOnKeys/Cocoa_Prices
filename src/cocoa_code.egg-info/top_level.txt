@@ -1,3 +1,0 @@
-cocoa_package
-oil_package
-weather_package
