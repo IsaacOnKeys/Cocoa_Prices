@@ -20,6 +20,7 @@ This project is a comprehensive data engineering pipeline that tracks and analyz
   - **BigQuery**: For data storage and analytics
   - **Cloud Storage**: For data staging and temporary storage
 - **Logging**: Python's `logging` module for monitoring pipeline execution
+- **containerization**: Docker hosted on GCP Artifact Registry
 
 ## Data Sources
 ### Historical and ML model data  

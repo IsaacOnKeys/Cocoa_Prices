@@ -1,10 +1,28 @@
 """
 Usage:
 To run with DirectRunner (default):
-python clean_cocoa_prices.py
+
+docker run --rm europe-west3-docker.pkg.dev/cocoa-prices-430315/cocoa-code-project/dataflow-pipelines-batch:latest \
+    clean_cocoa_prices.py \
+    --runner=DirectRunner \
+    --project=cocoa-prices-430315 \
+    --region=europe-west3 \
+    --temp_location=gs://raw-historic-data/temp \
+    --staging_location=gs://raw-historic-data/staging \
+    --save_main_session
 
 To run with DataFlow:
-python clean_cocoa_prices.py --job_name="clean-cocoa-data-$(date +%s)" --runner=DataflowRunner --project=cocoa-prices-430315 --region=europe-west3 --temp_location=gs://raw-historic-data/temp --staging_location=gs://raw-historic-data/staging --requirements_file=./requirements.txt --worker_machine_type=e2-standard-4 --save_main_session
+
+ python clean_precipitation.py \
+    --runner=DataflowRunner \
+    --job_name="clean-weather-data-$(date +%s)" \
+    --project=cocoa-prices-430315 \
+    --region=europe-west3 \
+    --temp_location=gs://raw-historic-data/temp \
+    --staging_location=gs://raw-historic-data/staging \
+    --worker_machine_type=e2-standard-4 \
+    --save_main_session \
+    --worker_harness_container_image=europe-west3-docker.pkg.dev/cocoa-prices-430315/cocoa-code-project/dataflow-pipelines-batch:latest
 
 """
 

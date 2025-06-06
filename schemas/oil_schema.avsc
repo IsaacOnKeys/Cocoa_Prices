@@ -1,0 +1,10 @@
+{
+  "type": "record",
+  "name": "OilPrice",
+  "fields": [
+    { "name": "date", "type": "string" },
+    { "name": "oil_price", "type": "double" },
+    { "name": "ingestion_time", "type": "string" },
+    { "name": "raw_payload", "type": "string" }
+  ]
+}

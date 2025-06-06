@@ -13,6 +13,6 @@ RUN pip install --no-cache-dir apache-beam[gcp]==2.61.0
 
 WORKDIR /app
 
-COPY COPY clean_precipitation.py clean_oil_fred.py clean_cocoa_prices.py /app/
+COPY clean_precipitation.py clean_oil_fred.py clean_cocoa_prices.py /app/
 
-ENTRYPOINT ["python"] 
+ENTRYPOINT ["python"]
