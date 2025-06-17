@@ -1,0 +1,3 @@
+fastavro
+requests
+google-cloud-pubsub

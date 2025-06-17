@@ -2,4 +2,5 @@ CLEAN/
 TEST/
 RAW/
 env/
-scratch*git 
+scratch*git
+.env

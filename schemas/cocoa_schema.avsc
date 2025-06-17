@@ -2,9 +2,9 @@
   "type": "record",
   "name": "CocoaPrice",
   "fields": [
-    { "name": "date", "type": "string" },
-    { "name": "cocoa_price", "type": "double" },
-    { "name": "ingestion_time", "type": "string" },
-    { "name": "raw_payload", "type": "string" }
+    { "name": "date", "type": ["null", "string"], "default": null },
+    { "name": "cocoa_price", "type": ["null", "double"], "default": null },
+    { "name": "ingestion_time", "type": ["null", "string"], "default": null },
+    { "name": "raw_payload", "type": ["null", "string"], "default": null }
   ]
 }
