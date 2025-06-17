@@ -1,3 +1,4 @@
 requests
 google-cloud-pubsub
 fastavro
+google-cloud-secret-manager>=2.16.4

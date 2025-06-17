@@ -6,17 +6,27 @@ from datetime import datetime, timezone
 import fastavro
 import requests
 from dotenv import load_dotenv
-from google.cloud import pubsub_v1
+from google.cloud import pubsub_v1, secretmanager
 
 SCHEMA_FILE = "oil_schema.avsc"
 PROJECT = os.getenv("GCP_PROJECT", "cocoa-prices-430315")
 TOPIC = "oil-prices-topic"
+
 load_dotenv()
+
+def get_secret(secret_id, project_id="cocoa-prices-430315"):
+    client = secretmanager.SecretManagerServiceClient()
+    name = f"projects/{project_id}/secrets/{secret_id}/versions/latest"
+    response = client.access_secret_version(request={"name": name})
+    return response.payload.data.decode("UTF-8")
 
 
 def publish_fred_data(event=None, context=None):
 
-    API_KEY = os.getenv("FRED_OIL_API_KEY")
+    try:
+        API_KEY = get_secret("FRED_OIL_API_KEY")
+    except Exception:
+        API_KEY = os.getenv("FRED_OIL_API_KEY")
     url = "https://api.stlouisfed.org/fred/series/observations"
     params = {
         "series_id": "DCOILBRENTEU",
