@@ -12,7 +12,13 @@ SCHEMA_FILE = "oil_schema.avsc"
 PROJECT = os.getenv("GCP_PROJECT", "cocoa-prices-430315")
 TOPIC = "oil-prices-topic"
 
-load_dotenv()
+try:
+    from dotenv import load_dotenv
+
+    load_dotenv()
+except ImportError:
+    pass
+
 
 def get_secret(secret_id, project_id="cocoa-prices-430315"):
     client = secretmanager.SecretManagerServiceClient()

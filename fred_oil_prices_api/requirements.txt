@@ -1,4 +1,5 @@
 requests
 google-cloud-pubsub
 fastavro
-google-cloud-secret-manager>=2.16.4
+google-cloud-secret-manager>=2.24.0
+python-dotenv
