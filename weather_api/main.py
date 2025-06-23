@@ -6,7 +6,7 @@ from datetime import datetime
 import fastavro
 import requests
 from google.cloud import pubsub_v1
-
+ 
 SCHEMA_FILE = "weather_schema.avsc"
 PROJECT = os.getenv("GCP_PROJECT", "cocoa-prices-430315")
 TOPIC = "weather-topic"
