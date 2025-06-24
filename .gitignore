@@ -1,6 +1,5 @@
 CLEAN/
 TEST/
-RAW/
 env/
 scratch*git
 .env
