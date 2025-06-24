@@ -53,9 +53,6 @@ STANDARD_OPTIONS = PIPELINE_OPTIONS.view_as(StandardOptions)
 GCP_OPTIONS = PIPELINE_OPTIONS.view_as(GoogleCloudOptions)
 RUNNER = STANDARD_OPTIONS.runner
 
-if RUNNER not in ["DirectRunner", "DataflowRunner"]:
-    raise ValueError(f"Unsupported runner: {STANDARD_OPTIONS.runner}")
-logging.info(f"Runner: {RUNNER}")
 
 if RUNNER == "DirectRunner":
 
@@ -73,9 +70,11 @@ if RUNNER == "DirectRunner":
     GCP_OPTIONS.temp_location = TEMP_LOCATION
     GCP_OPTIONS.job_name = f"clean-weather-data-{int(time.time()) % 100000}"
 
+
 ###############
 # Transforms #
 #############
+
 
 def extract_and_clean(file_content):
     """
@@ -90,7 +89,7 @@ def extract_and_clean(file_content):
             value = float(value) if value != "." else None
         except ValueError:
             value = None
-        yield {"date": date, "brent_price_eu": value} 
+        yield {"date": date, "brent_price_eu": value}
 
 
 class ValidateAndTransform(beam.DoFn):
@@ -102,7 +101,7 @@ class ValidateAndTransform(beam.DoFn):
     def __init__(self):
         super(ValidateAndTransform, self).__init__()
         self.start_date = datetime(2014, 1, 1)
-        self.end_date = datetime(2024, 12, 31)
+        self.end_date = datetime(2025, 12, 31)
 
     def process(self, element):
         """
@@ -140,6 +139,7 @@ class ValidateAndTransform(beam.DoFn):
             element["Errors"] = "; ".join(errors)
             yield beam.pvalue.TaggedOutput("invalid", element)
 
+
 class CheckUniqueness(beam.DoFn):
     """
     Checks for duplicate records by grouping on the date key.
@@ -159,17 +159,21 @@ class CheckUniqueness(beam.DoFn):
         else:
             yield records[0]
 
+
 #############
 # Pipeline #
 ###########
- 
+
+
 def run():
     logging.info("Pipeline is starting...")
     with beam.Pipeline(options=PIPELINE_OPTIONS) as p:
         validated_records = (
             p
-            | "Read Lines" >> beam.io.ReadFromText("gs://raw-historic-data/brent_oil_fred.json")
-            | "Combine Lines" >> beam.CombineGlobally(lambda lines: "\n".join(lines)).without_defaults()
+            | "Read Lines"
+            >> beam.io.ReadFromText("gs://raw-historic-data/brent_oil_fred.json")
+            | "Combine Lines"
+            >> beam.CombineGlobally(lambda lines: "\n".join(lines)).without_defaults()
             | "Parse JSON" >> beam.Map(json.loads)
             | "Extract and Clean" >> beam.FlatMap(extract_and_clean)
             | "Validate and Transform"

@@ -197,7 +197,7 @@ def run():
             p
             | "Read CSV"
             >> beam.io.ReadFromText(
-                "gs://raw-historic-data/Daily Prices_Home.csv", skip_header_lines=1
+                "gs://raw-historic-data/Daily_Prices_Home.csv", skip_header_lines=1
             )
             | "Parse CSV" >> beam.Map(parse_csv)
         )

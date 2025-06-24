@@ -53,10 +53,6 @@ STANDARD_OPTIONS = PIPELINE_OPTIONS.view_as(StandardOptions)
 GCP_OPTIONS = PIPELINE_OPTIONS.view_as(GoogleCloudOptions)
 RUNNER = STANDARD_OPTIONS.runner
 
-if RUNNER not in ["DirectRunner", "DataflowRunner"]:
-    raise ValueError(f"Unsupported runner: {STANDARD_OPTIONS.runner}")
-logging.info(f"Runner: {RUNNER}")
-
 if RUNNER == "DirectRunner":
 
     PROJECT_ID = os.getenv("PROJECT_ID", "cocoa-prices-430315")
@@ -72,7 +68,6 @@ if RUNNER == "DirectRunner":
     GCP_OPTIONS.staging_location = STAGING_LOCATION
     GCP_OPTIONS.temp_location = TEMP_LOCATION
     GCP_OPTIONS.job_name = f"clean-weather-data-{int(time.time()) % 100000}"
-
 
 
 ###############
@@ -195,7 +190,7 @@ class ValidateAndTransform(beam.DoFn):
         """
         super(ValidateAndTransform, self).__init__()
         self.start_date = datetime(2014, 1, 1)
-        self.end_date = datetime(2024, 12, 31)
+        self.end_date = datetime(2025, 12, 31)
         self.__module__ = "__main__"
 
     def process(self, element):
@@ -333,6 +328,7 @@ def filter_unique_dates(element):
             record["Errors"] = "Duplicate date"
             yield beam.pvalue.TaggedOutput("invalid", record)
 
+
 # Check valid records before writing to BigQuery
 def check_valid_record(record):
     """
@@ -374,8 +370,8 @@ def run():
             )
             | "Parse CSV" >> beam.Map(parse_csv)
             | "Filter Parsed Data" >> beam.Filter(lambda x: x is not None)
+            | "Clean & Transform" >> beam.Map(clean_and_transform)
             | "Filter Missing Data" >> beam.Filter(filter_missing_data)
-            | "Clean and Transform" >> beam.Map(clean_and_transform)
         )
 
         validated_records = (
@@ -388,16 +384,20 @@ def run():
         valid_records = validated_records.valid
         invalid_records = validated_records.invalid
 
+        # ── deduplicate by date ─────────────────────────────────────────────
         unique_records = (
             valid_records
-            | "Key by Date" >> beam.Map(key_by_date)
-            | "Debug Before Reshuffle"
-            >> beam.Map(lambda x: logging.info(f"Before Reshuffle: {x}") or x)
-            | "Explicit Reshuffle" >> beam.Reshuffle()
-            | "Debug After Reshuffle"
-            >> beam.Map(lambda x: logging.info(f"After Reshuffle: {x}") or x)
-            | "Group by Date" >> beam.GroupByKey()
-            | "Filter Unique Dates"
+            | "Filter rows with date"
+            >> beam.Filter(
+                lambda r: r and r.get("date")  # keep only dicts that have a date
+            )
+            | "Key by date" >> beam.Map(lambda r: (r["date"], r))
+            | "Reshuffle" >> beam.Reshuffle()
+            # **hard guard** – only tuples reach GroupByKey
+            | "Keep KV tuples"
+            >> beam.Filter(lambda kv: isinstance(kv, tuple) and len(kv) == 2)
+            | "Group by date" >> beam.GroupByKey()
+            | "Filter unique dates"
             >> beam.ParDo(filter_unique_dates).with_outputs(
                 "invalid", main="valid_unique"
             )
