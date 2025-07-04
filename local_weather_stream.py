@@ -8,8 +8,8 @@ from apache_beam.options.pipeline_options import PipelineOptions
 # ---- Configurations ----
 PROJECT = "cocoa-prices-430315"
 SUBSCRIPTION = f"projects/{PROJECT}/subscriptions/weather-data-sub"
-BQ_TABLE = "cocoa-prices-430315:stream_staging.precipitation_moisture"
-AVRO_SCHEMA_PATH = "./schemas/weather_schema.avsc" 
+BQ_TABLE = "cocoa-prices-430315:cocoa_related.precipitation_temp"  # Updated temp sink
+AVRO_SCHEMA_PATH = "./schemas/weather_schema.avsc"
 
 
 # ---- Avro Decode DoFn ----
@@ -60,12 +60,11 @@ def run():
             >> beam.io.WriteToBigQuery(
                 BQ_TABLE,
                 schema=(
-                    "date:DATE,precipitation:FLOAT,soil_moisture:FLOAT,"
+                    "date:DATE,precipitation:FLOAT64,soil_moisture:FLOAT64,"
                     "ingestion_time:TIMESTAMP,raw_payload:STRING"
                 ),
                 write_disposition=beam.io.BigQueryDisposition.WRITE_APPEND,
                 create_disposition=beam.io.BigQueryDisposition.CREATE_NEVER,
-                row_id_fn=lambda row: row["date"],
             )
         )
 

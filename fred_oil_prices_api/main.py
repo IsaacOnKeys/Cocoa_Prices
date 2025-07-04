@@ -28,18 +28,23 @@ def get_secret(secret_id, project_id="cocoa-prices-430315"):
 
 
 def publish_fred_data(event=None, context=None):
-
     try:
         API_KEY = get_secret("FRED_OIL_API_KEY")
     except Exception:
         API_KEY = os.getenv("FRED_OIL_API_KEY")
+
+    today = datetime.date.today()
+    start_date = (today - datetime.timedelta(days=7)).strftime("%Y-%m-%d")
+    end_date = today.strftime("%Y-%m-%d")
+
     url = "https://api.stlouisfed.org/fred/series/observations"
     params = {
         "series_id": "DCOILBRENTEU",
         "api_key": API_KEY,
         "file_type": "json",
         "sort_order": "desc",
-        "limit": "1",
+        "observation_start": start_date,
+        "observation_end": end_date,
     }
 
     response = requests.get(url, params=params)

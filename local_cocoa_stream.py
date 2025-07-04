@@ -8,7 +8,7 @@ from apache_beam.options.pipeline_options import PipelineOptions
 # ---- Configurations ----
 PROJECT = "cocoa-prices-430315"
 SUBSCRIPTION = f"projects/{PROJECT}/subscriptions/cocoa-prices-sub"
-BQ_TABLE = "cocoa-prices-430315:stream_staging.cocoa_prices"
+BQ_TABLE = "cocoa-prices-430315:cocoa_related.cocoa_temp"  # Updated temp sink
 AVRO_SCHEMA_PATH = "./schemas/cocoa_schema.avsc"
 
 
@@ -32,8 +32,8 @@ class ToBQRow(beam.DoFn):
     def process(self, record):
         print("Processing record for BigQuery:", record)
         yield {
-            "date": record.get("date"),
-            "cocoa_price": record.get("cocoa_price"),
+            "Date": record.get("date"),               # Capitalized to match schema
+            "Euro_Price": record.get("cocoa_price"),  # Match temp schema field
             "ingestion_time": record.get("ingestion_time"),
             "raw_payload": record.get("raw_payload"),
         }
@@ -58,10 +58,9 @@ def run():
             | "WriteToBigQuery"
             >> beam.io.WriteToBigQuery(
                 BQ_TABLE,
-                schema="date:DATE,cocoa_price:FLOAT,ingestion_time:TIMESTAMP,raw_payload:STRING",
+                schema="Date:DATE,Euro_Price:FLOAT64,ingestion_time:TIMESTAMP,raw_payload:STRING",
                 write_disposition=beam.io.BigQueryDisposition.WRITE_APPEND,
                 create_disposition=beam.io.BigQueryDisposition.CREATE_NEVER,
-                row_id_fn=lambda row: row["date"],
             )
         )
 
