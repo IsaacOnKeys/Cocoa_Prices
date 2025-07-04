@@ -65,6 +65,7 @@ def run():
                 ),
                 write_disposition=beam.io.BigQueryDisposition.WRITE_APPEND,
                 create_disposition=beam.io.BigQueryDisposition.CREATE_NEVER,
+                row_id_fn=lambda row: row["date"],
             )
         )
 

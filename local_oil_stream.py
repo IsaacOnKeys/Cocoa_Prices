@@ -8,7 +8,7 @@ from apache_beam.options.pipeline_options import PipelineOptions
 PROJECT = "cocoa-prices-430315"
 SUBSCRIPTION = f"projects/{PROJECT}/subscriptions/oil-prices-sub"
 BQ_TABLE = "cocoa-prices-430315:stream_staging.oil_prices"
-AVRO_SCHEMA_PATH = "./schemas/oil_schema.avsc" 
+AVRO_SCHEMA_PATH = "./schemas/oil_schema.avsc"
 
 
 class DecodeAvro(beam.DoFn):
@@ -58,6 +58,7 @@ def run():
                 schema="date:DATE,oil_price:FLOAT,ingestion_time:TIMESTAMP,raw_payload:STRING",
                 write_disposition=beam.io.BigQueryDisposition.WRITE_APPEND,
                 create_disposition=beam.io.BigQueryDisposition.CREATE_NEVER,
+                row_id_fn=lambda row: row["date"],
             )
         )
 
