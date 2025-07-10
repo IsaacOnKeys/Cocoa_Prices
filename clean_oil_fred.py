@@ -1,15 +1,7 @@
 """
 Usage:
-To run with DirectRunner (default):
-
-docker run --rm europe-west3-docker.pkg.dev/cocoa-prices-430315/cocoa-code-project/dataflow-pipelines-batch:latest \
-    clean_oil_fred.py \
-    --runner=DirectRunner \
-    --project=cocoa-prices-430315 \
-    --region=europe-west3 \
-    --temp_location=gs://raw-historic-data/temp \
-    --staging_location=gs://raw-historic-data/staging \
-    --save_main_session
+To refresh raw data from source:
+curl -s "https://api.stlouisfed.org/fred/series/observations?series_id=DCOILBRENTEU&realtime_start=2014-01-01&realtime_end=2025-06-21&observation_start=2014-01-011&observation_end=2025-06-21&units=lin&output_type=1&file_type=json&order_by=observation_date&sort_order=asc&offset=0&limit=100000&api_key=FRED_OIL_API_KEY" -o RAW/brent_oil_fred.json
 
 To run with DataFlow:
 

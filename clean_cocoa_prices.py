@@ -1,28 +1,24 @@
 """
 Usage:
-To run with DirectRunner (default):
 
-docker run --rm europe-west3-docker.pkg.dev/cocoa-prices-430315/cocoa-code-project/dataflow-pipelines-batch:latest \
-    clean_cocoa_prices.py \
-    --runner=DirectRunner \
-    --project=cocoa-prices-430315 \
-    --region=europe-west3 \
-    --temp_location=gs://raw-historic-data/temp \
-    --staging_location=gs://raw-historic-data/staging \
-    --save_main_session
+COCOA DATA MUST BE DOWNLOADED 
+from icco.org/statistics
+	filter for start and end dates
+	set to "show all"
+	download
 
 To run with DataFlow:
 
- python clean_precipitation.py \
-    --runner=DataflowRunner \
-    --job_name="clean-weather-data-$(date +%s)" \
-    --project=cocoa-prices-430315 \
-    --region=europe-west3 \
-    --temp_location=gs://raw-historic-data/temp \
-    --staging_location=gs://raw-historic-data/staging \
-    --worker_machine_type=e2-standard-4 \
-    --save_main_session \
-    --worker_harness_container_image=europe-west3-docker.pkg.dev/cocoa-prices-430315/cocoa-code-project/dataflow-pipelines-batch:latest
+python clean_precipitation.py \
+--runner=DataflowRunner \
+--job_name="clean-weather-data-$(date +%s)" \
+--project=cocoa-prices-430315 \
+--region=europe-west3 \
+--temp_location=gs://raw-historic-data/temp \
+--staging_location=gs://raw-historic-data/staging \
+--worker_machine_type=e2-standard-4 \
+--save_main_session \
+--worker_harness_container_image=europe-west3-docker.pkg.dev/cocoa-prices-430315/cocoa-code-project/dataflow-pipelines-batch:latest
 
 """
 

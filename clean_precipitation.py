@@ -1,16 +1,8 @@
 """
 Usage:
-To run with DirectRunner (default):
-
-docker run --rm -v /c/Users/iamno/AppData/Roaming/gcloud:/root/.config/gcloud \
-     europe-west3-docker.pkg.dev/cocoa-prices-430315/cocoa-code-project/dataflow-pipelines-batch:latest \
-    clean_precipitation.py \
-    --runner=DirectRunner \
-    --project=cocoa-prices-430315 \
-    --region=europe-west3 \
-    --temp_location=gs://raw-historic-data/temp \
-    --staging_location=gs://raw-historic-data/staging \
-    --save_main_session
+To refresh raw data from source:
+curl -s "https://power.larc.nasa.gov/api/temporal/daily/point?parameters=PRECTOTCORR,GWETROOT&community=ag&longitude=-6.635&latitude=4.745&start=20140101&end=$(date +%Y%m%d)&format=CSV" \ 
+>   -o RAW/POWER_Point_Daily.csv
 
 To run with DataFlow:
 
