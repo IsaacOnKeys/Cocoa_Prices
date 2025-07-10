@@ -1,7 +1,8 @@
 import io
 import json
 import os
-from datetime import datetime, timezone
+import datetime
+from datetime import timezone
 
 import fastavro
 import requests
@@ -57,7 +58,7 @@ def publish_fred_data(event=None, context=None):
             if data.get("value") not in (".", None, "")
             else None
         ),
-        "ingestion_time": datetime.now(timezone.utc).isoformat(),
+        "ingestion_time": datetime.datetime.now(timezone.utc).isoformat(),
         "raw_payload": json.dumps(data) if data else None,
     }
 

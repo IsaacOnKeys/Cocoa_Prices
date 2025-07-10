@@ -3,3 +3,5 @@ TEST/
 env/
 scratch*git
 .env
+*.log
+stream_pids.txt

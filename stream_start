@@ -1,0 +1,7 @@
+#!/usr/bin/env bash
+( python local_cocoa_stream.py   > cocoa.log   2>&1 & echo $! ) >  stream_pids.txt
+( python local_oil_stream.py     > oil.log     2>&1 & echo $! ) >> stream_pids.txt
+( python local_weather_stream.py > weather.log 2>&1 & echo $! ) >> stream_pids.txt
+
+
+# FOR LOCAL STREAMING OF BEAM PIPELINES

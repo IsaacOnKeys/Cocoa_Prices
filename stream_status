@@ -1,0 +1,6 @@
+#!/usr/bin/env bash
+if ps aux | grep '[p]ython' >/dev/null; then
+    ps aux | grep '[p]ython'
+else
+    echo "no jobs are displayed"
+fi
