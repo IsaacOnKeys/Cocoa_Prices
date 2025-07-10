@@ -1,7 +1,9 @@
 """
 Usage:
 To refresh raw data from source:
-curl -s "https://api.stlouisfed.org/fred/series/observations?series_id=DCOILBRENTEU&realtime_start=2014-01-01&realtime_end=2025-06-21&observation_start=2014-01-011&observation_end=2025-06-21&units=lin&output_type=1&file_type=json&order_by=observation_date&sort_order=asc&offset=0&limit=100000&api_key=FRED_OIL_API_KEY" -o RAW/brent_oil_fred.json
+END_DATE=$(date +%Y-%m-%d)
+curl -s "https://api.stlouisfed.org/fred/series/observations?series_id=DCOILBRENTEU&realtime_start=2014-01-01&realtime_end=${END_DATE}&observation_start=2014-01-01&observation_end=${END_DATE}&units=lin&output_type=1&file_type=json&order_by=observation_date&sort_order=asc&offset=0&limit=100000&api_key=18510cdba5385495f9235c4e99508c38" -o RAW/brent_oil_fred.json
+
 
 To run with DataFlow:
 

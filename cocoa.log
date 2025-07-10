@@ -1,4 +1,5 @@
 WARNING: Could not find a Python project for directory c:\users\iamno\sync\isaac cv\cv stuff\gcp projects\cocoa prices\cocoa_code (tried all parent directories)
 WARNING: All log messages before absl::InitializeLog() is called are written to STDERR
-I0000 00:00:1752149362.633108   13328 config.cc:230] gRPC experiments enabled: call_status_override_on_cancellation, event_engine_client, event_engine_dns, event_engine_listener, http2_stats_fix, monitoring_experiment, pick_first_new, trace_record_callops, work_serializer_clears_time_cache
+I0000 00:00:1752177560.950150   22268 config.cc:230] gRPC experiments enabled: call_status_override_on_cancellation, event_engine_client, event_engine_dns, event_engine_listener, http2_stats_fix, monitoring_experiment, pick_first_new, trace_record_callops, work_serializer_clears_time_cache
 WARNING: Could not find a Python project for directory c:\users\iamno\sync\isaac cv\cv stuff\gcp projects\cocoa prices\cocoa_code (tried all parent directories)
+WARNING:google.auth._default:No project ID could be determined. Consider running `gcloud config set project` or setting the GOOGLE_CLOUD_PROJECT environment variable
