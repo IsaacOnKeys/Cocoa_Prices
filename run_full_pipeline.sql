@@ -46,7 +46,14 @@ WHEN NOT MATCHED THEN
 CREATE OR REPLACE TABLE `cocoa-prices-430315.cocoa_related.joined_daily_cocoa_oil_weather` AS
 WITH cal AS (
   SELECT d
-  FROM UNNEST(GENERATE_DATE_ARRAY(DATE '2014-01-01', CURRENT_DATE())) AS d
+  FROM UNNEST(GENERATE_DATE_ARRAY(
+    DATE '2014-01-01',
+    COALESCE((SELECT MAX(mx) FROM UNNEST([
+      (SELECT MAX(Date) FROM `cocoa-prices-430315.cocoa_related.cocoa`),
+      (SELECT MAX(date) FROM `cocoa-prices-430315.cocoa_related.brent_prices`),
+      (SELECT MAX(date) FROM `cocoa-prices-430315.cocoa_related.precipitation`)
+    ]) AS mx), CURRENT_DATE())
+  )) AS d
 ),
 j AS (
   SELECT
@@ -56,9 +63,23 @@ j AS (
     p.precipitation,
     p.soil_moisture
   FROM cal
-  LEFT JOIN `cocoa-prices-430315.cocoa_related.cocoa`         c ON cal.d = c.Date
-  LEFT JOIN `cocoa-prices-430315.cocoa_related.brent_prices`  o ON cal.d = o.date
-  LEFT JOIN `cocoa-prices-430315.cocoa_related.precipitation` p ON cal.d = p.date
+  LEFT JOIN (
+    SELECT Date, ANY_VALUE(Euro_Price) AS Euro_Price
+    FROM `cocoa-prices-430315.cocoa_related.cocoa`
+    GROUP BY Date
+  ) c ON cal.d = c.Date
+  LEFT JOIN (
+    SELECT date, ANY_VALUE(brent_price_eu) AS brent_price_eu
+    FROM `cocoa-prices-430315.cocoa_related.brent_prices`
+    GROUP BY date
+  ) o ON cal.d = o.date
+  LEFT JOIN (
+    SELECT date,
+           ANY_VALUE(precipitation) AS precipitation,
+           ANY_VALUE(soil_moisture) AS soil_moisture
+    FROM `cocoa-prices-430315.cocoa_related.precipitation`
+    GROUP BY date
+  ) p ON cal.d = p.date
 )
 SELECT
   date,
@@ -70,8 +91,8 @@ SELECT
     ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW) AS precipitation,
   LAST_VALUE(soil_moisture   IGNORE NULLS) OVER (ORDER BY date
     ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW) AS soil_moisture
-FROM j
-ORDER BY date;
+FROM j;
+
 
 -- 3) Features (lags + 7-day MAs) + target_40
 CREATE OR REPLACE VIEW `cocoa-prices-430315.cocoa_related.features_live` AS
@@ -98,59 +119,64 @@ SELECT
   LEAD(y, 40) OVER (ORDER BY date) AS target_40
 FROM s;
 
--- 4) Model (ridge; no tuning)
-CREATE OR REPLACE MODEL `cocoa-prices-430315.models.cocoa_linreg_40`
-OPTIONS(
-  model_type = 'linear_reg',
-  input_label_cols = ['target_40'],
-  l2_reg = 1.0,
-  data_split_method = 'AUTO_SPLIT'
-) AS
-SELECT *
-EXCEPT(date)
-FROM `cocoa-prices-430315.cocoa_related.features_live`
-WHERE target_40 IS NOT NULL;
+-- 4–7) Model + forecasts + backtest + metric (guarded)
+IF (SELECT COUNT(*) FROM `cocoa-prices-430315.cocoa_related.features_live` WHERE target_40 IS NOT NULL) > 0 THEN
 
--- 5) Forecasts (40-day ahead) for Looker
-CREATE OR REPLACE TABLE `cocoa-prices-430315.cocoa_related.forecast_40d` AS
-SELECT
-  DATE_ADD(p.date, INTERVAL 40 DAY) AS forecast_date,
-  p.predicted_target_40             AS forecast_cocoa_price
-FROM ML.PREDICT(
-      MODEL `cocoa-prices-430315.models.cocoa_linreg_40`,
-      (SELECT *
-        FROM `cocoa-prices-430315.cocoa_related.features_live`
-        WHERE date >= DATE_SUB(
-          (SELECT MAX(date)
-          FROM `cocoa-prices-430315.cocoa_related.features_live`),
-          INTERVAL 39 DAY)))
-ORDER BY forecast_date;
+  -- 4) Model (ridge; no tuning)
+  CREATE OR REPLACE MODEL `cocoa-prices-430315.models.cocoa_linreg_40`
+  OPTIONS(
+    model_type = 'linear_reg',
+    input_label_cols = ['target_40'],
+    l2_reg = 1.0,
+    data_split_method = 'AUTO_SPLIT'
+  ) AS
+  SELECT * EXCEPT(date)
+  FROM `cocoa-prices-430315.cocoa_related.features_live`
+  WHERE target_40 IS NOT NULL;
 
--- 6) Backtest history + MAPE
-CREATE OR REPLACE TABLE `cocoa-prices-430315.cocoa_related.pred_hist_40d` AS
-WITH raw_preds AS (
+  -- 5) Forecasts (40-day ahead) for Looker
+  CREATE OR REPLACE TABLE `cocoa-prices-430315.cocoa_related.forecast_40d` AS
   SELECT
-    date AS prediction_date,
-    DATE_ADD(date, INTERVAL 40 DAY) AS forecast_date,
-    predicted_target_40 AS yhat_40
+    DATE_ADD(p.date, INTERVAL 40 DAY) AS forecast_date,
+    p.predicted_target_40             AS forecast_cocoa_price
   FROM ML.PREDICT(
-          MODEL `cocoa-prices-430315.models.cocoa_linreg_40`,
-          (SELECT * FROM `cocoa-prices-430315.cocoa_related.features_live`))
-)
-SELECT
-  r.prediction_date,
-  r.forecast_date,
-  r.yhat_40,
-  f.y AS actual
-FROM raw_preds r
-LEFT JOIN `cocoa-prices-430315.cocoa_related.features_live` f
-  ON r.forecast_date = f.date
-ORDER BY r.forecast_date;
+         MODEL `cocoa-prices-430315.models.cocoa_linreg_40`,
+         (SELECT * EXCEPT(target_40)
+          FROM `cocoa-prices-430315.cocoa_related.features_live`
+          WHERE date >= DATE_SUB(
+            (SELECT MAX(date)
+             FROM `cocoa-prices-430315.cocoa_related.features_live`),
+            INTERVAL 39 DAY))
+  ) AS p;
 
--- 7) Single-value metric: MAPE over 40-day backtest
-CREATE OR REPLACE VIEW `cocoa-prices-430315.cocoa_related.mape_40d` AS
-SELECT
-  AVG(ABS(actual - yhat_40) / NULLIF(actual, 0)) * 100 AS mape_40d
-FROM `cocoa-prices-430315.cocoa_related.pred_hist_40d`
-WHERE actual IS NOT NULL;
+  -- 6) Backtest history + MAPE
+  CREATE OR REPLACE TABLE `cocoa-prices-430315.cocoa_related.pred_hist_40d` AS
+  WITH raw_preds AS (
+    SELECT
+      date AS prediction_date,
+      DATE_ADD(date, INTERVAL 40 DAY) AS forecast_date,
+      predicted_target_40 AS yhat_40
+    FROM ML.PREDICT(
+            MODEL `cocoa-prices-430315.models.cocoa_linreg_40`,
+            (SELECT * EXCEPT(target_40)
+             FROM `cocoa-prices-430315.cocoa_related.features_live`))
+  )
+  SELECT
+    r.prediction_date,
+    r.forecast_date,
+    r.yhat_40,
+    f.y AS actual
+  FROM raw_preds r
+  LEFT JOIN `cocoa-prices-430315.cocoa_related.features_live` f
+    ON r.forecast_date = f.date
+  ORDER BY r.forecast_date;
+
+  -- 7) Single-value metric: MAPE over 40-day backtest
+  CREATE OR REPLACE VIEW `cocoa-prices-430315.cocoa_related.mape_40d` AS
+  SELECT
+    AVG(SAFE_DIVIDE(ABS(actual - yhat_40), actual))*100 AS mape_40d
+  FROM `cocoa-prices-430315.cocoa_related.pred_hist_40d`
+  WHERE actual IS NOT NULL;
+
+END IF;
 END;
