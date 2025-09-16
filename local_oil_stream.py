@@ -7,7 +7,7 @@ from apache_beam.options.pipeline_options import PipelineOptions
 
 PROJECT = "cocoa-prices-430315"
 SUBSCRIPTION = f"projects/{PROJECT}/subscriptions/oil-prices-sub"
-BQ_TABLE = "cocoa-prices-430315.stream_staging.oil_prices"
+BQ_TABLE = "cocoa-prices-430315:stream_staging.oil_prices"
 AVRO_SCHEMA_PATH = "./schemas/oil_schema.avsc"
 
 

@@ -9,7 +9,7 @@ from apache_beam.options.pipeline_options import PipelineOptions
 PROJECT = "cocoa-prices-430315"
 SUBSCRIPTION = f"projects/{PROJECT}/subscriptions/weather-data-sub"
 BQ_TABLE = (
-    "ccocoa-prices-430315.stream_staging.precipitation_moisture"  # Updated temp sink
+    "ccocoa-prices-430315:stream_staging.precipitation_moisture" 
 )
 AVRO_SCHEMA_PATH = "./schemas/weather_schema.avsc"
 
