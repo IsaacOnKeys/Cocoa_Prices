@@ -1,76 +1,83 @@
 import io
 import json
-from datetime import date as date_cls
-from datetime import datetime, timezone
+import os
+from datetime import date, datetime, timedelta, timezone
 
 import apache_beam as beam
 import fastavro
 from apache_beam.options.pipeline_options import PipelineOptions
 
-PROJECT = "cocoa-prices-430315"
-SUBSCRIPTION = f"projects/{PROJECT}/subscriptions/oil-prices-sub"
-BQ_TABLE = "cocoa-prices-430315:stream_staging.oil_prices"
-AVRO_SCHEMA_PATH = "./schemas/oil_schema.avsc"
+# ---- Config (env-first with safe defaults) -----------------------------------
+PROJECT = os.environ.get("PROJECT", "cocoa-prices-430315")
 
+SUBSCRIPTION = os.environ.get(
+    "OIL_SUBSCRIPTION",
+    os.environ.get(
+        "PUBSUB_SUBSCRIPTION_OIL",
+        f"projects/{PROJECT}/subscriptions/oil-prices-sub",
+    ),
+)
 
-def _to_ts(v):
-    if isinstance(v, (int, float)):
-        if v > 1e12:  # millis -> secs
-            v /= 1000.0
-        return datetime.fromtimestamp(v, tz=timezone.utc)
-    if isinstance(v, str):
+BQ_TABLE = os.environ.get(
+    "OIL_BQ_TABLE",
+    os.environ.get(
+        "BQ_TABLE_OIL",
+        "cocoa-prices-430315:stream_staging.oil_prices",
+    ),
+)
+
+AVRO_SCHEMA_PATH = os.environ.get(
+    "OIL_AVRO_SCHEMA_PATH",
+    "./schemas/oil_schema.avsc",
+)
+
+# ---- Helpers (shared style) --------------------------------------------------
+_EPOCH = date(1970, 1, 1)
+
+def _to_float(v):
+    try:
+        return float(v) if v not in (None, "", ".") else None
+    except Exception:
+        return None
+
+def _avro_date_to_str(v):
+    # Avro logicalType 'date' => int days since epoch
+    if isinstance(v, int):
         try:
-            return datetime.fromisoformat(v.replace("Z", "+00:00")).astimezone(timezone.utc)
+            return (_EPOCH + timedelta(days=v)).isoformat()
         except Exception:
-            pass
-    if isinstance(v, datetime):
-        return v.astimezone(timezone.utc)
-    return datetime.now(timezone.utc)
-
-
-def _to_date(v):
-    if isinstance(v, (int, float)):
-        if v > 1e12:
-            v /= 1000.0
-        return datetime.utcfromtimestamp(v).date().isoformat()
-    if isinstance(v, datetime):
-        return v.date().isoformat()
-    if isinstance(v, date_cls):
-        return v.isoformat()
+            return None
     if isinstance(v, str):
-        return v[:10]  # assume YYYY-MM-DD...
-    return datetime.now(timezone.utc).date().isoformat()
+        return v[:10]
+    return None
 
+def _now_utc_rfc3339():
+    return datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")
 
+# ---- DoFns -------------------------------------------------------------------
 class DecodeAvro(beam.DoFn):
     def __init__(self, schema_path):
-        with open(schema_path, "r") as f:
+        with open(schema_path, "r", encoding="utf-8") as f:
             self.schema = fastavro.parse_schema(json.load(f))
 
     def process(self, element):
+        # element is bytes from Pub/Sub (BINARY Avro payload)
         buf = io.BytesIO(element)
         try:
             yield fastavro.schemaless_reader(buf, self.schema)
         except Exception as e:
             print("Avro decode error:", e)
 
-
 class ToBQRow(beam.DoFn):
-    def process(self, rec):
-        def _to_float(v):
-            try:
-                return float(v) if v not in (None, "", ".") else None
-            except Exception:
-                return None
-
+    def process(self, record):
         yield {
-            "date": _to_date(rec.get("date")),
-            "oil_price": _to_float(rec.get("oil_price")),
-            "ingestion_time": _to_ts(rec.get("ingestion_time")),
-            "raw_payload": rec.get("raw_payload") or json.dumps(rec, ensure_ascii=False),
+            "date": _avro_date_to_str(record.get("date")),
+            "oil_price": _to_float(record.get("oil_price")),
+            "ingestion_time": _now_utc_rfc3339(),  # RFC3339 UTC
+            "raw_payload": record.get("raw_payload") or json.dumps(record, ensure_ascii=False),
         }
 
-
+# ---- Pipeline ----------------------------------------------------------------
 def run():
     options = PipelineOptions(
         ["--runner=DirectRunner", "--streaming", f"--project={PROJECT}"]
@@ -78,19 +85,16 @@ def run():
     with beam.Pipeline(options=options) as p:
         (
             p
-            | "ReadFromPubSub" >> beam.io.ReadFromPubSub(subscription=SUBSCRIPTION)
+            | "Read" >> beam.io.ReadFromPubSub(subscription=SUBSCRIPTION)
             | "Decode Avro" >> beam.ParDo(DecodeAvro(AVRO_SCHEMA_PATH))
             | "ToBQRow" >> beam.ParDo(ToBQRow())
-            | "WriteToBigQuery"
-            >> beam.io.WriteToBigQuery(
+            | "WriteToBigQuery" >> beam.io.WriteToBigQuery(
                 table=BQ_TABLE,
                 schema="date:DATE,oil_price:FLOAT64,ingestion_time:TIMESTAMP,raw_payload:STRING",
                 write_disposition=beam.io.BigQueryDisposition.WRITE_APPEND,
                 create_disposition=beam.io.BigQueryDisposition.CREATE_NEVER,
-                method=beam.io.WriteToBigQuery.Method.STREAMING_INSERTS,
             )
         )
-
 
 if __name__ == "__main__":
     run()
