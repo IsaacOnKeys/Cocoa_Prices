@@ -1,5 +1,6 @@
 import io
 import json
+from datetime import date as date_cls
 from datetime import datetime, timezone
 
 import apache_beam as beam
@@ -13,19 +14,32 @@ AVRO_SCHEMA_PATH = "./schemas/oil_schema.avsc"
 
 
 def _to_ts(v):
-    def fmt(dt):
-        return dt.astimezone(timezone.utc).strftime("%Y-%m-%d %H:%M:%S.%f UTC")
+    if isinstance(v, (int, float)):
+        if v > 1e12:  # millis -> secs
+            v /= 1000.0
+        return datetime.fromtimestamp(v, tz=timezone.utc)
+    if isinstance(v, str):
+        try:
+            return datetime.fromisoformat(v.replace("Z", "+00:00")).astimezone(timezone.utc)
+        except Exception:
+            pass
+    if isinstance(v, datetime):
+        return v.astimezone(timezone.utc)
+    return datetime.now(timezone.utc)
 
+
+def _to_date(v):
     if isinstance(v, (int, float)):
         if v > 1e12:
             v /= 1000.0
-        return fmt(datetime.fromtimestamp(v, tz=timezone.utc))
+        return datetime.utcfromtimestamp(v).date().isoformat()
+    if isinstance(v, datetime):
+        return v.date().isoformat()
+    if isinstance(v, date_cls):
+        return v.isoformat()
     if isinstance(v, str):
-        try:
-            return fmt(datetime.fromisoformat(v.replace("Z", "+00:00")))
-        except Exception:
-            pass
-    return fmt(datetime.now(timezone.utc))
+        return v[:10]  # assume YYYY-MM-DD...
+    return datetime.now(timezone.utc).date().isoformat()
 
 
 class DecodeAvro(beam.DoFn):
@@ -50,11 +64,10 @@ class ToBQRow(beam.DoFn):
                 return None
 
         yield {
-            "date": rec.get("date"),
+            "date": _to_date(rec.get("date")),
             "oil_price": _to_float(rec.get("oil_price")),
             "ingestion_time": _to_ts(rec.get("ingestion_time")),
-            "raw_payload": rec.get("raw_payload")
-            or json.dumps(rec, ensure_ascii=False),
+            "raw_payload": rec.get("raw_payload") or json.dumps(rec, ensure_ascii=False),
         }
 
 
@@ -65,7 +78,7 @@ def run():
     with beam.Pipeline(options=options) as p:
         (
             p
-            | "Read from PubSub" >> beam.io.ReadFromPubSub(subscription=SUBSCRIPTION)
+            | "ReadFromPubSub" >> beam.io.ReadFromPubSub(subscription=SUBSCRIPTION)
             | "Decode Avro" >> beam.ParDo(DecodeAvro(AVRO_SCHEMA_PATH))
             | "ToBQRow" >> beam.ParDo(ToBQRow())
             | "WriteToBigQuery"
@@ -74,6 +87,7 @@ def run():
                 schema="date:DATE,oil_price:FLOAT64,ingestion_time:TIMESTAMP,raw_payload:STRING",
                 write_disposition=beam.io.BigQueryDisposition.WRITE_APPEND,
                 create_disposition=beam.io.BigQueryDisposition.CREATE_NEVER,
+                method=beam.io.WriteToBigQuery.Method.STREAMING_INSERTS,
             )
         )
 
