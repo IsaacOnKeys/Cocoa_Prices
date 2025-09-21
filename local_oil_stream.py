@@ -7,8 +7,10 @@ import apache_beam as beam
 import fastavro
 from apache_beam.options.pipeline_options import PipelineOptions
 
-# ---- Config (env-first with safe defaults) -----------------------------------
-PROJECT = os.environ.get("PROJECT", "cocoa-prices-430315")
+# ---- Config (env-first with safe defaults)
+PROJECT = os.environ.get("GOOGLE_CLOUD_PROJECT") or os.environ.get(
+    "PROJECT", "cocoa-prices-430315"
+)
 
 SUBSCRIPTION = os.environ.get(
     "OIL_SUBSCRIPTION",
@@ -20,19 +22,19 @@ SUBSCRIPTION = os.environ.get(
 
 BQ_TABLE = os.environ.get(
     "OIL_BQ_TABLE",
-    os.environ.get(
-        "BQ_TABLE_OIL",
-        "cocoa-prices-430315:stream_staging.oil_prices",
-    ),
+    os.environ.get("BQ_TABLE_OIL", f"{PROJECT}:stream_staging.oil_prices"),
 )
 
 AVRO_SCHEMA_PATH = os.environ.get(
     "OIL_AVRO_SCHEMA_PATH",
-    "./schemas/oil_schema.avsc",
+    "/opt/beam/oil/schemas/oil_schema.avsc",
 )
+if not os.path.exists(AVRO_SCHEMA_PATH):
+    AVRO_SCHEMA_PATH = "./schemas/oil_schema.avsc"
 
-# ---- Helpers (shared style) --------------------------------------------------
+# ---- Helpers (shared)
 _EPOCH = date(1970, 1, 1)
+
 
 def _to_float(v):
     try:
@@ -40,8 +42,8 @@ def _to_float(v):
     except Exception:
         return None
 
+
 def _avro_date_to_str(v):
-    # Avro logicalType 'date' => int days since epoch
     if isinstance(v, int):
         try:
             return (_EPOCH + timedelta(days=v)).isoformat()
@@ -51,33 +53,37 @@ def _avro_date_to_str(v):
         return v[:10]
     return None
 
+
 def _now_utc_rfc3339():
     return datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")
 
-# ---- DoFns -------------------------------------------------------------------
+
+# ---- DoFns
 class DecodeAvro(beam.DoFn):
     def __init__(self, schema_path):
         with open(schema_path, "r", encoding="utf-8") as f:
             self.schema = fastavro.parse_schema(json.load(f))
 
     def process(self, element):
-        # element is bytes from Pub/Sub (BINARY Avro payload)
         buf = io.BytesIO(element)
         try:
             yield fastavro.schemaless_reader(buf, self.schema)
         except Exception as e:
             print("Avro decode error:", e)
 
+
 class ToBQRow(beam.DoFn):
     def process(self, record):
         yield {
             "date": _avro_date_to_str(record.get("date")),
             "oil_price": _to_float(record.get("oil_price")),
-            "ingestion_time": _now_utc_rfc3339(),  # RFC3339 UTC
-            "raw_payload": record.get("raw_payload") or json.dumps(record, ensure_ascii=False),
+            "ingestion_time": _now_utc_rfc3339(),
+            "raw_payload": record.get("raw_payload")
+            or json.dumps(record, ensure_ascii=False),
         }
 
-# ---- Pipeline ----------------------------------------------------------------
+
+# ---- Pipeline
 def run():
     options = PipelineOptions(
         ["--runner=DirectRunner", "--streaming", f"--project={PROJECT}"]
@@ -88,13 +94,15 @@ def run():
             | "Read" >> beam.io.ReadFromPubSub(subscription=SUBSCRIPTION)
             | "Decode Avro" >> beam.ParDo(DecodeAvro(AVRO_SCHEMA_PATH))
             | "ToBQRow" >> beam.ParDo(ToBQRow())
-            | "WriteToBigQuery" >> beam.io.WriteToBigQuery(
+            | "WriteToBigQuery"
+            >> beam.io.WriteToBigQuery(
                 table=BQ_TABLE,
                 schema="date:DATE,oil_price:FLOAT64,ingestion_time:TIMESTAMP,raw_payload:STRING",
                 write_disposition=beam.io.BigQueryDisposition.WRITE_APPEND,
                 create_disposition=beam.io.BigQueryDisposition.CREATE_NEVER,
             )
         )
+
 
 if __name__ == "__main__":
     run()

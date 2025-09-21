@@ -7,23 +7,36 @@ import apache_beam as beam
 import fastavro
 from apache_beam.options.pipeline_options import PipelineOptions
 
-# --- Config
-PROJECT = os.environ.get("GOOGLE_CLOUD_PROJECT", "cocoa-prices-430315")
-SUBSCRIPTION = os.environ.get(
-    "WEATHER_SUB",
-    f"projects/{PROJECT}/subscriptions/weather-data-sub",
-)
-BQ_TABLE = os.environ.get(
-    "WEATHER_TABLE",
-    f"{PROJECT}:stream_staging.precipitation_moisture",
+# ---- Config (env-first with safe defaults)
+PROJECT = os.environ.get("GOOGLE_CLOUD_PROJECT") or os.environ.get(
+    "PROJECT", "cocoa-prices-430315"
 )
 
-AVRO_SCHEMA_PATH = "/opt/beam/weather/schemas/weather_schema.avsc"
+SUBSCRIPTION = os.environ.get(
+    "WEATHER_SUBSCRIPTION",
+    os.environ.get(
+        "PUBSUB_SUBSCRIPTION_WEATHER",
+        f"projects/{PROJECT}/subscriptions/weather-data-sub",
+    ),
+)
+
+BQ_TABLE = os.environ.get(
+    "WEATHER_BQ_TABLE",
+    os.environ.get(
+        "BQ_TABLE_WEATHER", f"{PROJECT}:stream_staging.precipitation_moisture"
+    ),
+)
+
+AVRO_SCHEMA_PATH = os.environ.get(
+    "WEATHER_AVRO_SCHEMA_PATH",
+    "/opt/beam/weather/schemas/weather_schema.avsc",
+)
 if not os.path.exists(AVRO_SCHEMA_PATH):
     AVRO_SCHEMA_PATH = "./schemas/weather_schema.avsc"
 
-
+# ---- Helpers (shared)
 _EPOCH = date(1970, 1, 1)
+
 
 def _to_float(v):
     try:
@@ -31,8 +44,8 @@ def _to_float(v):
     except Exception:
         return None
 
-def _avro_date_to_str(v):
 
+def _avro_date_to_str(v):
     if isinstance(v, int):
         try:
             return (_EPOCH + timedelta(days=v)).isoformat()
@@ -42,10 +55,12 @@ def _avro_date_to_str(v):
         return v[:10]
     return None
 
+
 def _now_utc_rfc3339():
     return datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")
 
 
+# ---- DoFns
 class DecodeAvro(beam.DoFn):
     def __init__(self, schema_path):
         with open(schema_path, "r", encoding="utf-8") as f:
@@ -54,10 +69,10 @@ class DecodeAvro(beam.DoFn):
     def process(self, element):
         buf = io.BytesIO(element)
         try:
-            record = fastavro.schemaless_reader(buf, self.schema)
-            yield record
+            yield fastavro.schemaless_reader(buf, self.schema)
         except Exception as e:
             print("Avro decode error:", e)
+
 
 class ToBQRow(beam.DoFn):
     def process(self, record):
@@ -66,10 +81,12 @@ class ToBQRow(beam.DoFn):
             "precipitation": _to_float(record.get("precipitation")),
             "soil_moisture": _to_float(record.get("soil_moisture")),
             "ingestion_time": _now_utc_rfc3339(),
-            "raw_payload": record.get("raw_payload") or json.dumps(record, ensure_ascii=False),
+            "raw_payload": record.get("raw_payload")
+            or json.dumps(record, ensure_ascii=False),
         }
 
 
+# ---- Pipeline
 def run():
     options = PipelineOptions(
         ["--runner=DirectRunner", "--streaming", f"--project={PROJECT}"]
@@ -80,13 +97,15 @@ def run():
             | "Read" >> beam.io.ReadFromPubSub(subscription=SUBSCRIPTION)
             | "Decode Avro" >> beam.ParDo(DecodeAvro(AVRO_SCHEMA_PATH))
             | "ToBQRow" >> beam.ParDo(ToBQRow())
-            | "WriteToBigQuery" >> beam.io.WriteToBigQuery(
+            | "WriteToBigQuery"
+            >> beam.io.WriteToBigQuery(
                 table=BQ_TABLE,
                 schema="date:DATE,precipitation:FLOAT64,soil_moisture:FLOAT64,ingestion_time:TIMESTAMP,raw_payload:STRING",
                 write_disposition=beam.io.BigQueryDisposition.WRITE_APPEND,
                 create_disposition=beam.io.BigQueryDisposition.CREATE_NEVER,
             )
         )
+
 
 if __name__ == "__main__":
     run()
