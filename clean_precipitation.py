@@ -1,8 +1,7 @@
 """
 Usage:
 To refresh raw data from source:
-curl -s "https://power.larc.nasa.gov/api/temporal/daily/point?parameters=PRECTOTCORR,GWETROOT&community=ag&longitude=-6.635&latitude=4.745&start=20140101&end=$(date +%Y%m%d)&format=CSV" \ 
->   -o RAW/POWER_Point_Daily.csv
+curl -s "https://power.larc.nasa.gov/api/temporal/daily/point?parameters=PRECTOTCORR,GWETROOT&community=ag&longitude=-6.635&latitude=4.745&start=20140101&end=$(date +%Y%m%d)&format=CSV" -o RAW/POWER_Point_Daily.csv
 
 To run with DataFlow:
 
