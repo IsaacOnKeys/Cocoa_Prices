@@ -11,6 +11,9 @@ SCHEMA_FILE = "weather_schema.avsc"
 PROJECT = os.getenv("GCP_PROJECT", "cocoa-prices-430315")
 TOPIC = "weather-topic"
 
+# NASA POWER sometimes uses -999 (or <= -999) for "missing"
+SENTINEL_MISSING_MAX = -999.0
+
 
 def safe_float(x):
     """Convert to float, but return None if NaN or Infinity."""
@@ -21,6 +24,17 @@ def safe_float(x):
         return f
     except Exception:
         return None
+
+
+def scrub_weather_val(x):
+    """
+    Convert input to float via safe_float, then map NASA missing sentinels to None.
+    Treat any value <= -999 as missing (covers -999, -999.0, sometimes -9999).
+    """
+    f = safe_float(x)
+    if f is not None and f <= SENTINEL_MISSING_MAX:
+        return None
+    return f
 
 
 def publish_weather_data(event=None, context=None):
@@ -59,17 +73,19 @@ def publish_weather_data(event=None, context=None):
         schema = fastavro.parse_schema(json.load(f))
 
     published = 0
-    for date_str in precips.keys():
-        precipitation = safe_float(precips[date_str])
-        soil_moisture = safe_float(moistures[date_str])
+    # Use the intersection of keys in case one series is missing a date
+    for date_str in sorted(set(precips.keys()) & set(moistures.keys())):
+        # Scrub sentinels to None (NULL in Avro)
+        precipitation = scrub_weather_val(precips[date_str])
+        soil_moisture = scrub_weather_val(moistures[date_str])
 
         date_obj = datetime.strptime(date_str, "%Y%m%d")
         date_bq = date_obj.strftime("%Y-%m-%d")
 
         payload = {
             "date": date_bq,
-            "precipitation": precipitation,
-            "soil_moisture": soil_moisture,
+            "precipitation": precipitation,   # None if missing
+            "soil_moisture": soil_moisture,   # None if missing
             "ingestion_time": datetime.utcnow().isoformat(),
             "raw_payload": json.dumps(data),
         }
