@@ -5,4 +5,4 @@ scratch*git
 .env*
 *.log
 stream_pids.txt
-.test_bucket_access.py
+.test_bucket_access.py__pycache__/
