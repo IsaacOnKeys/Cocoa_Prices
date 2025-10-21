@@ -1,5 +1,6 @@
 # $AIRFLOW_HOME/dags/cocoa_daily_dag.py
 from datetime import datetime, timedelta, timezone
+from typing import Union
 
 import pendulum
 from airflow import DAG
@@ -112,9 +113,9 @@ def _bq_count_since(table_fqn: str, baseline_ts):
     return (
         _bq_scalar(
             f"""
-        SELECT COUNT(*) FROM `{table_fqn}`
-        WHERE ingestion_time >= TIMESTAMP('{ts_str}')
-    """
+            SELECT COUNT(*) FROM `{table_fqn}`
+            WHERE ingestion_time >= TIMESTAMP('{ts_str}')
+            """
         )
         or 0
     )
@@ -122,8 +123,7 @@ def _bq_count_since(table_fqn: str, baseline_ts):
 
 def capture_baseline_fn(ti):
     ti.xcom_push(
-        key="baseline",
-        value={f["key"]: _bq_max_ts(f["table"]) for f in FEEDS},
+        key="baseline", value={f["key"]: _bq_max_ts(f["table"]) for f in FEEDS}
     )
 
 
@@ -139,16 +139,15 @@ def _invoke_or_skip(feed_key: str, url: str | None):
         token = id_token.fetch_id_token(Request(), url)
         headers = {"Authorization": f"Bearer {token}"}
 
-        # best-effort probe
+        # best-effort probe (HEAD only). If 404, skip; otherwise proceed.
         try:
             r = rq.head(url, headers=headers, timeout=15)
-            if r.status_code == 405:
-                r = rq.get(url, headers=headers, timeout=15)
             if r.status_code == 404:
                 raise AirflowSkipException(f"{feed_key}: endpoint 404 — skipping.")
         except Exception:
             pass
 
+        # single invocation (POST only)
         resp = rq.post(url, headers=headers, timeout=120)
         if resp.status_code == 404:
             raise AirflowSkipException(f"{feed_key}: endpoint 404 on POST — skipping.")
@@ -208,7 +207,6 @@ with DAG(
             task_id=f"start_beam_{f['key']}",
             ssh_conn_id=SSH_CONN_ID,
             command=f"sudo systemctl start {f['service']}",
-            # Default trigger_rule=ALL_SUCCESS ⇒ auto-skip if trigger is skipped/failed
         )
 
         # 3) Wait for at least N new rows since baseline.
@@ -244,8 +242,8 @@ with DAG(
     # Quiet period to let late messages flush through writers
     sleep_after_ingest = TimeDeltaSensor(
         task_id="sleep_after_ingest",
-        delta=timedelta(seconds=int(Variable.get("PROGRESS_QUIET_SEC", 120))),
-        mode="reschedule",  # frees the worker slot while waiting
+        delta=timedelta(seconds=PROGRESS_QUIET_SEC),
+        mode="reschedule",
     )
 
     run_bq_pipeline = BigQueryInsertJobOperator(

@@ -2,7 +2,7 @@ CLEAN/
 TEST/
 env/
 scratch*git
-.env
+.env*
 *.log
 stream_pids.txt
 .test_bucket_access.py
