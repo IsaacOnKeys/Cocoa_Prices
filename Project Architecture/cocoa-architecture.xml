@@ -1,0 +1,280 @@
+<mxfile host="app.diagrams.net" modified="2025-10-11T10:00:00.000Z" agent="GPT-5 Thinking" version="22.0.0">
+  <diagram id="cocoa-arch" name="Cocoa Architecture (Wide)">
+    <mxGraphModel dx="1422" dy="794" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1920" pageHeight="1080" math="0" shadow="0">
+      <root>
+        <mxCell id="0"/>
+        <mxCell id="1" parent="0"/>
+
+        <!-- Title -->
+        <mxCell id="t1" value="Cocoa Prices Streaming &amp; Forecasting — Architecture  •  Region: europe-west3 (Frankfurt)" style="text;html=1;align=left;verticalAlign=top;fontSize=16;fontStyle=1;fontFamily=Roboto;" vertex="1" parent="1">
+          <mxGeometry x="30" y="20" width="1200" height="30" as="geometry"/>
+        </mxCell>
+
+        <!-- Lane headings -->
+        <mxCell id="lane_sources" value="Sources" style="text;html=1;align=center;verticalAlign=middle;fontSize=12;fontStyle=1;fontFamily=Roboto;opacity=60" vertex="1" parent="1">
+          <mxGeometry x="30" y="80" width="190" height="20" as="geometry"/>
+        </mxCell>
+        <mxCell id="lane_ingest" value="Ingestion" style="text;html=1;align=center;verticalAlign=middle;fontSize=12;fontStyle=1;fontFamily=Roboto;opacity=60" vertex="1" parent="1">
+          <mxGeometry x="240" y="80" width="190" height="20" as="geometry"/>
+        </mxCell>
+        <mxCell id="lane_processing" value="Processing" style="text;html=1;align=center;verticalAlign=middle;fontSize=12;fontStyle=1;fontFamily=Roboto;opacity=60" vertex="1" parent="1">
+          <mxGeometry x="450" y="80" width="190" height="20" as="geometry"/>
+        </mxCell>
+        <mxCell id="lane_build" value="Build (Curate &amp; Features)" style="text;html=1;align=center;verticalAlign=middle;fontSize=12;fontStyle=1;fontFamily=Roboto;opacity=60" vertex="1" parent="1">
+          <mxGeometry x="870" y="80" width="190" height="20" as="geometry"/>
+        </mxCell>
+        <mxCell id="lane_model" value="Model" style="text;html=1;align=center;verticalAlign=middle;fontSize=12;fontStyle=1;fontFamily=Roboto;opacity=60" vertex="1" parent="1">
+          <mxGeometry x="1080" y="80" width="190" height="20" as="geometry"/>
+        </mxCell>
+        <mxCell id="lane_viz" value="Visualization" style="text;html=1;align=center;verticalAlign=middle;fontSize=12;fontStyle=1;fontFamily=Roboto;opacity=60" vertex="1" parent="1">
+          <mxGeometry x="1500" y="80" width="190" height="20" as="geometry"/>
+        </mxCell>
+
+        <!-- SOURCES -->
+        <mxCell id="src_icco" value="ICCO.org (scraping)" style="rounded=1;whiteSpace=wrap;html=1;fontFamily=Roboto;fontSize=12;fillColor=#E3F2FD;strokeColor=#1E88E5;strokeWidth=2" vertex="1" parent="1">
+          <mxGeometry x="30" y="140" width="190" height="60" as="geometry"/>
+        </mxCell>
+        <mxCell id="src_fred" value="FRED Brent Oil (API)" style="rounded=1;whiteSpace=wrap;html=1;fontFamily=Roboto;fontSize=12;fillColor=#E3F2FD;strokeColor=#1E88E5;strokeWidth=2" vertex="1" parent="1">
+          <mxGeometry x="30" y="210" width="190" height="60" as="geometry"/>
+        </mxCell>
+        <mxCell id="src_nasa" value="NASA POWER (API)" style="rounded=1;whiteSpace=wrap;html=1;fontFamily=Roboto;fontSize=12;fillColor=#E3F2FD;strokeColor=#1E88E5;strokeWidth=2" vertex="1" parent="1">
+          <mxGeometry x="30" y="280" width="190" height="60" as="geometry"/>
+        </mxCell>
+
+        <!-- INGESTION: Cloud Functions -->
+        <mxCell id="cf_cocoa" value="Cloud Function&#10;publish_price (HTTP, Gen2)" style="rounded=1;whiteSpace=wrap;html=1;fontFamily=Roboto;fontSize=12;fillColor=#FFF8E1;strokeColor=#FFB300;strokeWidth=2" vertex="1" parent="1">
+          <mxGeometry x="240" y="160" width="190" height="60" as="geometry"/>
+        </mxCell>
+        <mxCell id="cf_fred" value="Cloud Function&#10;publish_fred_data (Gen2)" style="rounded=1;whiteSpace=wrap;html=1;fontFamily=Roboto;fontSize=12;fillColor=#FFF8E1;strokeColor=#FFB300;strokeWidth=2" vertex="1" parent="1">
+          <mxGeometry x="240" y="230" width="190" height="60" as="geometry"/>
+        </mxCell>
+        <mxCell id="cf_weather" value="Cloud Function&#10;publish_weather_data (Gen2)" style="rounded=1;whiteSpace=wrap;html=1;fontFamily=Roboto;fontSize=12;fillColor=#FFF8E1;strokeColor=#FFB300;strokeWidth=2" vertex="1" parent="1">
+          <mxGeometry x="240" y="300" width="190" height="60" as="geometry"/>
+        </mxCell>
+
+        <!-- INGESTION: Pub/Sub topics + DLQs -->
+        <mxCell id="topic_cocoa" value="Pub/Sub Topic&#10;cocoa-prices-topic&#10;(Avro enforced)" style="rounded=1;whiteSpace=wrap;html=1;fontFamily=Roboto;fontSize=12;fillColor=#FFF3E0;strokeColor=#FB8C00;strokeWidth=2" vertex="1" parent="1">
+          <mxGeometry x="450" y="160" width="190" height="60" as="geometry"/>
+        </mxCell>
+        <mxCell id="topic_oil" value="Pub/Sub Topic&#10;oil-prices-topic&#10;(Avro enforced)" style="rounded=1;whiteSpace=wrap;html=1;fontFamily=Roboto;fontSize=12;fillColor=#FFF3E0;strokeColor=#FB8C00;strokeWidth=2" vertex="1" parent="1">
+          <mxGeometry x="450" y="230" width="190" height="60" as="geometry"/>
+        </mxCell>
+        <mxCell id="topic_weather" value="Pub/Sub Topic&#10;weather-topic&#10;(Avro enforced)" style="rounded=1;whiteSpace=wrap;html=1;fontFamily=Roboto;fontSize=12;fillColor=#FFF3E0;strokeColor=#FB8C00;strokeWidth=2" vertex="1" parent="1">
+          <mxGeometry x="450" y="300" width="190" height="60" as="geometry"/>
+        </mxCell>
+
+        <mxCell id="dlq_cocoa" value="DLQ&#10;cocoa-prices-dlq" style="rounded=1;whiteSpace=wrap;html=1;fontFamily=Roboto;fontSize=11;fillColor=#FFEBEE;strokeColor=#E53935;strokeWidth=2" vertex="1" parent="1">
+          <mxGeometry x="660" y="165" width="160" height="40" as="geometry"/>
+        </mxCell>
+        <mxCell id="dlq_oil" value="DLQ&#10;oil-prices-dlq" style="rounded=1;whiteSpace=wrap;html=1;fontFamily=Roboto;fontSize=11;fillColor=#FFEBEE;strokeColor=#E53935;strokeWidth=2" vertex="1" parent="1">
+          <mxGeometry x="660" y="235" width="160" height="40" as="geometry"/>
+        </mxCell>
+        <mxCell id="dlq_weather" value="DLQ&#10;weather-dlq" style="rounded=1;whiteSpace=wrap;html=1;fontFamily=Roboto;fontSize=11;fillColor=#FFEBEE;strokeColor=#E53935;strokeWidth=2" vertex="1" parent="1">
+          <mxGeometry x="660" y="305" width="160" height="40" as="geometry"/>
+        </mxCell>
+
+        <!-- PROCESSING: Beam -->
+        <mxCell id="beam_stream" value="Apache Beam (streaming)&#10;DirectRunner on VM" style="rounded=1;whiteSpace=wrap;html=1;fontFamily=Roboto;fontSize=12;fillColor=#E8F5E9;strokeColor=#43A047;strokeWidth=2" vertex="1" parent="1">
+          <mxGeometry x="870" y="200" width="190" height="80" as="geometry"/>
+        </mxCell>
+
+        <!-- STORAGE: BigQuery staging -->
+        <mxCell id="bq_staging" value="BigQuery — stream_staging&#10;WRITE_APPEND" style="rounded=1;whiteSpace=wrap;html=1;fontFamily=Roboto;fontSize=12;fillColor=#E8F5E9;strokeColor=#2E7D32;strokeWidth=2" vertex="1" parent="1">
+          <mxGeometry x="1080" y="200" width="190" height="80" as="geometry"/>
+        </mxCell>
+        <mxCell id="stg_cocoa" value="stg.cocoa_prices" style="rounded=1;whiteSpace=wrap;html=1;fontFamily=Roboto;fontSize=11;fillColor=#F1F8E9;strokeColor=#7CB342" vertex="1" parent="1">
+          <mxGeometry x="1085" y="290" width="180" height="30" as="geometry"/>
+        </mxCell>
+        <mxCell id="stg_oil" value="stg.oil_prices" style="rounded=1;whiteSpace=wrap;html=1;fontFamily=Roboto;fontSize=11;fillColor=#F1F8E9;strokeColor=#7CB342" vertex="1" parent="1">
+          <mxGeometry x="1085" y="325" width="180" height="30" as="geometry"/>
+        </mxCell>
+        <mxCell id="stg_weather" value="stg.precip_moisture" style="rounded=1;whiteSpace=wrap;html=1;fontFamily=Roboto;fontSize=11;fillColor=#F1F8E9;strokeColor=#7CB342" vertex="1" parent="1">
+          <mxGeometry x="1085" y="360" width="180" height="30" as="geometry"/>
+        </mxCell>
+
+        <!-- BUILD: curated + stored proc -->
+        <mxCell id="bq_curated" value="BigQuery — cocoa_related&#10;curated tables &amp; views" style="rounded=1;whiteSpace=wrap;html=1;fontFamily=Roboto;fontSize=12;fillColor=#E0F7FA;strokeColor=#00838F;strokeWidth=2" vertex="1" parent="1">
+          <mxGeometry x="870" y="320" width="190" height="70" as="geometry"/>
+        </mxCell>
+        <mxCell id="proc_build" value="Stored Procedure&#10;run_daily_pipeline()" style="rounded=1;whiteSpace=wrap;html=1;fontFamily=Roboto;fontSize=12;fillColor=#E0F7FA;strokeColor=#006064;strokeWidth=2" vertex="1" parent="1">
+          <mxGeometry x="1080" y="410" width="190" height="60" as="geometry"/>
+        </mxCell>
+        <mxCell id="view_join" value="joined_daily_cocoa_oil_weather" style="rounded=1;whiteSpace=wrap;html=1;fontFamily=Roboto;fontSize=11;fillColor=#E0F2F1;strokeColor=#26A69A" vertex="1" parent="1">
+          <mxGeometry x="870" y="395" width="190" height="25" as="geometry"/>
+        </mxCell>
+        <mxCell id="view_feat" value="features_live" style="rounded=1;whiteSpace=wrap;html=1;fontFamily=Roboto;fontSize=11;fillColor=#E0F2F1;strokeColor=#26A69A" vertex="1" parent="1">
+          <mxGeometry x="870" y="425" width="190" height="25" as="geometry"/>
+        </mxCell>
+
+        <!-- MODEL: BQML -->
+        <mxCell id="bqml" value="BigQuery ML&#10;Forecast + Evaluation" style="rounded=1;whiteSpace=wrap;html=1;fontFamily=Roboto;fontSize=12;fillColor=#F3E5F5;strokeColor=#8E24AA;strokeWidth=2" vertex="1" parent="1">
+          <mxGeometry x="1290" y="200" width="190" height="80" as="geometry"/>
+        </mxCell>
+        <mxCell id="tbl_forecast" value="forecast_40d" style="rounded=1;whiteSpace=wrap;html=1;fontFamily=Roboto;fontSize=11;fillColor=#F8BBD0;strokeColor=#AD1457" vertex="1" parent="1">
+          <mxGeometry x="1295" y="290" width="180" height="30" as="geometry"/>
+        </mxCell>
+        <mxCell id="tbl_predhist" value="pred_hist_40d" style="rounded=1;whiteSpace=wrap;html=1;fontFamily=Roboto;fontSize=11;fillColor=#F8BBD0;strokeColor=#AD1457" vertex="1" parent="1">
+          <mxGeometry x="1295" y="325" width="180" height="30" as="geometry"/>
+        </mxCell>
+        <mxCell id="tbl_mape" value="mape_hist" style="rounded=1;whiteSpace=wrap;html=1;fontFamily=Roboto;fontSize=11;fillColor=#F8BBD0;strokeColor=#AD1457" vertex="1" parent="1">
+          <mxGeometry x="1295" y="360" width="180" height="30" as="geometry"/>
+        </mxCell>
+
+        <!-- VIZ: Looker -->
+        <mxCell id="looker" value="Looker Studio&#10;Cocoa Prices &amp; Drivers (Live)" style="rounded=1;whiteSpace=wrap;html=1;fontFamily=Roboto;fontSize=12;fillColor=#E1F5FE;strokeColor=#0277BD;strokeWidth=2" vertex="1" parent="1">
+          <mxGeometry x="1500" y="200" width="190" height="80" as="geometry"/>
+        </mxCell>
+
+        <!-- ORCHESTRATION: Airflow VM -->
+        <mxCell id="airflow_vm" value="Airflow on GCE VM (Docker Compose)&#10;Scheduler + Webserver + Postgres" style="rounded=1;whiteSpace=wrap;html=1;fontFamily=Roboto;fontSize=12;fillColor=#FFFDE7;strokeColor=#F9A825;strokeWidth=2" vertex="1" parent="1">
+          <mxGeometry x="240" y="460" width="1240" height="70" as="geometry"/>
+        </mxCell>
+
+        <!-- CROSS-CUTTING -->
+        <mxCell id="iam" value="IAM (least privilege)" style="rounded=1;whiteSpace=wrap;html=1;fontFamily=Roboto;fontSize=11;fillColor=#ECEFF1;strokeColor=#546E7A" vertex="1" parent="1">
+          <mxGeometry x="1500" y="400" width="190" height="34" as="geometry"/>
+        </mxCell>
+        <mxCell id="secrets" value="Secret Manager" style="rounded=1;whiteSpace=wrap;html=1;fontFamily=Roboto;fontSize=11;fillColor=#ECEFF1;strokeColor=#546E7A" vertex="1" parent="1">
+          <mxGeometry x="1500" y="440" width="190" height="34" as="geometry"/>
+        </mxCell>
+        <mxCell id="logging" value="Cloud Logging" style="rounded=1;whiteSpace=wrap;html=1;fontFamily=Roboto;fontSize=11;fillColor=#ECEFF1;strokeColor=#546E7A" vertex="1" parent="1">
+          <mxGeometry x="1500" y="480" width="190" height="34" as="geometry"/>
+        </mxCell>
+        <mxCell id="gcs_temp" value="GCS temp&#10;gs://cocoa-prices-temp-for-bq" style="rounded=1;whiteSpace=wrap;html=1;fontFamily=Roboto;fontSize=11;fillColor=#E3F2FD;strokeColor=#1565C0" vertex="1" parent="1">
+          <mxGeometry x="1500" y="520" width="190" height="48" as="geometry"/>
+        </mxCell>
+
+        <!-- HISTORICAL BACKFILL CONTAINER -->
+        <mxCell id="backfill_box" value="Historical backfill (one-time / occasional)" style="rounded=1;whiteSpace=wrap;html=1;dashed=1;strokeDashpattern=4 4;fontFamily=Roboto;fontSize=11;fillColor=#FAFAFA;strokeColor=#9E9E9E" vertex="1" parent="1">
+          <mxGeometry x="240" y="560" width="1240" height="180" as="geometry"/>
+        </mxCell>
+
+        <!-- Backfill nodes inside -->
+        <mxCell id="bf_icco" value="ICCO historical CSV (download)" style="rounded=1;whiteSpace=wrap;html=1;fontFamily=Roboto;fontSize=11;fillColor=#FFFDE7;strokeColor=#F9A825" vertex="1" parent="1">
+          <mxGeometry x="260" y="590" width="220" height="50" as="geometry"/>
+        </mxCell>
+        <mxCell id="bf_apis" value="FRED/NASA historical API pull" style="rounded=1;whiteSpace=wrap;html=1;fontFamily=Roboto;fontSize=11;fillColor=#FFFDE7;strokeColor=#F9A825" vertex="1" parent="1">
+          <mxGeometry x="490" y="590" width="220" height="50" as="geometry"/>
+        </mxCell>
+        <mxCell id="bf_beam" value="Apache Beam — batch scripts" style="rounded=1;whiteSpace=wrap;html=1;fontFamily=Roboto;fontSize=11;fillColor=#E8F5E9;strokeColor=#43A047" vertex="1" parent="1">
+          <mxGeometry x="720" y="590" width="220" height="50" as="geometry"/>
+        </mxCell>
+        <mxCell id="bf_gcs" value="Cloud Storage (gsutil upload)" style="rounded=1;whiteSpace=wrap;html=1;fontFamily=Roboto;fontSize=11;fillColor=#E3F2FD;strokeColor=#1565C0" vertex="1" parent="1">
+          <mxGeometry x="950" y="590" width="220" height="50" as="geometry"/>
+        </mxCell>
+        <mxCell id="bf_bq" value="BigQuery load → dedup / MERGE" style="rounded=1;whiteSpace=wrap;html=1;fontFamily=Roboto;fontSize=11;fillColor=#E0F7FA;strokeColor=#00838F" vertex="1" parent="1">
+          <mxGeometry x="1180" y="590" width="220" height="50" as="geometry"/>
+        </mxCell>
+        <mxCell id="bf_caption" value="Seeds the model with 2014–2024 history; daily freshness comes from the streaming path above." style="text;html=1;align=left;verticalAlign=top;fontSize=10;fontFamily=Roboto;opacity=70" vertex="1" parent="1">
+          <mxGeometry x="260" y="650" width="1140" height="30" as="geometry"/>
+        </mxCell>
+
+        <!-- DATA FLOW edges -->
+        <mxCell id="e_src_icco_cf" style="endArrow=block;strokeWidth=2;strokeColor=#1E88E5" edge="1" parent="1" source="src_icco" target="cf_cocoa">
+          <mxGeometry relative="1" as="geometry"><mxPoint x="0" y="0" as="offset"/></mxGeometry>
+        </mxCell>
+        <mxCell id="e_src_fred_cf" style="endArrow=block;strokeWidth=2;strokeColor=#1E88E5" edge="1" parent="1" source="src_fred" target="cf_fred">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        <mxCell id="e_src_nasa_cf" style="endArrow=block;strokeWidth=2;strokeColor=#1E88E5" edge="1" parent="1" source="src_nasa" target="cf_weather">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+
+        <mxCell id="e_cf_cocoa_topic" style="endArrow=block;strokeWidth=2;strokeColor=#FB8C00" edge="1" parent="1" source="cf_cocoa" target="topic_cocoa">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        <mxCell id="e_cf_fred_topic" style="endArrow=block;strokeWidth=2;strokeColor=#FB8C00" edge="1" parent="1" source="cf_fred" target="topic_oil">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        <mxCell id="e_cf_weather_topic" style="endArrow=block;strokeWidth=2;strokeColor=#FB8C00" edge="1" parent="1" source="cf_weather" target="topic_weather">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+
+        <mxCell id="e_topic_cocoa_dlq" style="dashed=1;dashPattern=1 4;endArrow=block;strokeWidth=2;strokeColor=#E53935" edge="1" parent="1" source="topic_cocoa" target="dlq_cocoa">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        <mxCell id="e_topic_oil_dlq" style="dashed=1;dashPattern=1 4;endArrow=block;strokeWidth=2;strokeColor=#E53935" edge="1" parent="1" source="topic_oil" target="dlq_oil">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        <mxCell id="e_topic_weather_dlq" style="dashed=1;dashPattern=1 4;endArrow=block;strokeWidth=2;strokeColor=#E53935" edge="1" parent="1" source="topic_weather" target="dlq_weather">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+
+        <mxCell id="e_topics_beam1" style="endArrow=block;strokeWidth=2;strokeColor=#43A047" edge="1" parent="1" source="topic_cocoa" target="beam_stream">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        <mxCell id="e_topics_beam2" style="endArrow=block;strokeWidth=2;strokeColor=#43A047" edge="1" parent="1" source="topic_oil" target="beam_stream">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        <mxCell id="e_topics_beam3" style="endArrow=block;strokeWidth=2;strokeColor=#43A047" edge="1" parent="1" source="topic_weather" target="beam_stream">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+
+        <mxCell id="e_beam_bqstg" style="endArrow=block;strokeWidth=2;strokeColor=#2E7D32" edge="1" parent="1" source="beam_stream" target="bq_staging">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+
+        <mxCell id="e_bqstg_curated" style="endArrow=block;strokeWidth=2;strokeColor=#00838F" edge="1" parent="1" source="bq_staging" target="bq_curated">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        <mxCell id="e_proc_curated" style="endArrow=block;strokeWidth=2;strokeColor=#00838F" edge="1" parent="1" source="proc_build" target="bq_curated">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+
+        <mxCell id="e_curated_bqml" style="endArrow=block;strokeWidth=2;strokeColor=#8E24AA" edge="1" parent="1" source="bq_curated" target="bqml">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+
+        <mxCell id="e_bqml_looker" style="endArrow=block;strokeWidth=2;strokeColor=#0277BD" edge="1" parent="1" source="bqml" target="looker">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        <mxCell id="e_curated_looker" style="endArrow=block;strokeWidth=2;strokeColor=#0277BD" edge="1" parent="1" source="bq_curated" target="looker">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+
+        <!-- ORCHESTRATION control edges (dashed) -->
+        <mxCell id="e_airflow_cf1" style="dashed=1;endArrow=open;strokeWidth=2;strokeColor=#757575" edge="1" parent="1" source="airflow_vm" target="cf_cocoa">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        <mxCell id="e_airflow_cf2" style="dashed=1;endArrow=open;strokeWidth=2;strokeColor=#757575" edge="1" parent="1" source="airflow_vm" target="cf_fred">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        <mxCell id="e_airflow_cf3" style="dashed=1;endArrow=open;strokeWidth=2;strokeColor=#757575" edge="1" parent="1" source="airflow_vm" target="cf_weather">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        <mxCell id="e_airflow_proc" style="dashed=1;endArrow=open;strokeWidth=2;strokeColor=#757575" edge="1" parent="1" source="airflow_vm" target="proc_build">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+
+        <!-- Cross-cutting thin dotted connectors -->
+        <mxCell id="e_iam_stack" style="dashed=1;dashPattern=3 3;endArrow=none;strokeWidth=1.5;strokeColor=#546E7A;opacity=70" edge="1" parent="1" source="iam" target="bq_staging">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        <mxCell id="e_secrets_funcs" style="dashed=1;dashPattern=3 3;endArrow=none;strokeWidth=1.5;strokeColor=#546E7A;opacity=70" edge="1" parent="1" source="secrets" target="cf_cocoa">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        <mxCell id="e_logging_beam" style="dashed=1;dashPattern=3 3;endArrow=none;strokeWidth=1.5;strokeColor=#546E7A;opacity=70" edge="1" parent="1" source="logging" target="beam_stream">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+
+        <!-- Backfill edges -->
+        <mxCell id="e_bf_icco_api" style="endArrow=block;strokeWidth=2;strokeColor=#9E9E9E" edge="1" parent="1" source="bf_icco" target="bf_beam">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        <mxCell id="e_bf_api_beam" style="endArrow=block;strokeWidth=2;strokeColor=#9E9E9E" edge="1" parent="1" source="bf_apis" target="bf_beam">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        <mxCell id="e_bf_beam_gcs" style="endArrow=block;strokeWidth=2;strokeColor=#1565C0" edge="1" parent="1" source="bf_beam" target="bf_gcs">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        <mxCell id="e_bf_gcs_bq" style="endArrow=block;strokeWidth=2;strokeColor=#00838F" edge="1" parent="1" source="bf_gcs" target="bf_bq">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        <mxCell id="e_airflow_bf" style="dashed=1;endArrow=open;strokeWidth=2;strokeColor=#757575" edge="1" parent="1" source="airflow_vm" target="bf_beam">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+
+      </root>
+    </mxGraphModel>
+  </diagram>
+</mxfile>
