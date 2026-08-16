@@ -9,8 +9,8 @@ from airflow.models import Variable
 from airflow.models.baseoperator import chain
 from airflow.operators.python import PythonOperator
 from airflow.providers.google.cloud.hooks.bigquery import BigQueryHook
+from airflow.providers.google.cloud.hooks.pubsub import PubSubHook
 from airflow.providers.google.cloud.operators.bigquery import BigQueryInsertJobOperator
-from airflow.providers.ssh.operators.ssh import SSHOperator
 from airflow.sensors.python import PythonSensor
 from airflow.sensors.time_delta import TimeDeltaSensor
 from airflow.utils.trigger_rule import TriggerRule
@@ -45,28 +45,32 @@ PROGRESS_REQUIRE_ALL = (
 PROGRESS_QUIET_SEC = int(Variable.get("PROGRESS_QUIET_SEC", default_var="120"))
 PROGRESS_MIN_NEW_ROWS = int(Variable.get("PROGRESS_MIN_NEW_ROWS", default_var="1"))
 
-# Producer endpoints (missing URL => soft-skip)
+# Producer triggers
 COCOA_FN_URL = Variable.get("COCOA_FN_URL", default_var=None)
-OIL_FN_URL = Variable.get("OIL_FN_URL", default_var=None)
-WEATHER_FN_URL = Variable.get("WEATHER_FN_URL", default_var=None)
+OIL_TRIGGER_TOPIC = Variable.get("OIL_TRIGGER_TOPIC", default_var="oil-trigger")
+WEATHER_TRIGGER_TOPIC = Variable.get(
+    "WEATHER_TRIGGER_TOPIC", default_var="weather-trigger"
+)
 
-# SSH connection (Airflow Connection ID)
-SSH_CONN_ID = Variable.get("SSH_CONN_ID", default_var="ssh_vm")
-
-# Feed registry (with host systemd service names)
+# Feed registry. Beam consumers are systemd-enabled and start with the VM.
 FEEDS = [
     {
         "key": "cocoa",
         "table": BQ_STG["cocoa"],
         "url": COCOA_FN_URL,
-        "service": "beam-cocoa",
+        "trigger_topic": None,
     },
-    {"key": "oil", "table": BQ_STG["oil"], "url": OIL_FN_URL, "service": "beam-oil"},
+    {
+        "key": "oil",
+        "table": BQ_STG["oil"],
+        "url": None,
+        "trigger_topic": OIL_TRIGGER_TOPIC,
+    },
     {
         "key": "weather",
         "table": BQ_STG["weather"],
-        "url": WEATHER_FN_URL,
-        "service": "beam-weather",
+        "url": None,
+        "trigger_topic": WEATHER_TRIGGER_TOPIC,
     },
 ]
 
@@ -114,7 +118,7 @@ def _bq_count_since(table_fqn: str, baseline_ts):
         _bq_scalar(
             f"""
             SELECT COUNT(*) FROM `{table_fqn}`
-            WHERE ingestion_time >= TIMESTAMP('{ts_str}')
+            WHERE ingestion_time > TIMESTAMP('{ts_str}')
             """
         )
         or 0
@@ -127,9 +131,22 @@ def capture_baseline_fn(ti):
     )
 
 
-def _invoke_or_skip(feed_key: str, url: str | None):
+def _invoke_or_skip(
+    feed_key: str, url: str | None = None, trigger_topic: str | None = None
+):
+    if trigger_topic:
+        hook = PubSubHook(gcp_conn_id="gcp_default")
+        hook.publish(
+            project_id=GCP_PROJECT,
+            topic=trigger_topic,
+            messages=[{"data": b"{}"}],
+        )
+        return {"invoked": True, "topic": trigger_topic}
+
     if not url:
-        raise AirflowSkipException(f"{feed_key}: no URL configured — skipping.")
+        raise AirflowSkipException(
+            f"{feed_key}: no URL or trigger topic configured — skipping."
+        )
 
     import requests as rq
     from google.auth.transport.requests import Request
@@ -193,23 +210,18 @@ with DAG(
         python_callable=capture_baseline_fn,
     )
 
-    trigger_tasks, wait_tasks, stop_tasks = [], [], []
+    wait_tasks = []
 
     for f in FEEDS:
-        # 1) Trigger the producer (HTTP). Missing URL => SKIPPED.
+        # 1) Trigger the producer via HTTP or its Eventarc Pub/Sub topic.
         trigger = PythonOperator(
             task_id=f"trigger_{f['key']}",
-            python_callable=lambda f=f: _invoke_or_skip(f["key"], f["url"]),
+            python_callable=lambda f=f: _invoke_or_skip(
+                f["key"], f["url"], f["trigger_topic"]
+            ),
         )
 
-        # 2) Start ONLY this feed's Beam service on the VM (via SSH) if trigger succeeded.
-        start_beam = SSHOperator(
-            task_id=f"start_beam_{f['key']}",
-            ssh_conn_id=SSH_CONN_ID,
-            command=f"sudo systemctl start {f['service']}",
-        )
-
-        # 3) Wait for at least N new rows since baseline.
+        # 2) Wait for at least N new rows since baseline.
         wait_rows = PythonSensor(
             task_id=f"wait_{f['key']}_rows",
             python_callable=make_wait_callable(f["key"], f["table"]),
@@ -219,20 +231,10 @@ with DAG(
             soft_fail=True,  # timeout => SKIPPED
         )
 
-        # 4) Stop this Beam service regardless of branch outcome.
-        stop_beam = SSHOperator(
-            task_id=f"stop_beam_{f['key']}",
-            ssh_conn_id=SSH_CONN_ID,
-            command=f"sudo systemctl stop {f['service']}",
-            trigger_rule=TriggerRule.ALL_DONE,
-        )
+        # Beam consumers start with the VM, so no in-DAG SSH lifecycle is needed.
+        capture_baseline >> trigger >> wait_rows
 
-        # Wire the branch: baseline → trigger → start → wait → stop
-        capture_baseline >> trigger >> start_beam >> wait_rows >> stop_beam
-
-        trigger_tasks.append(trigger)
         wait_tasks.append(wait_rows)
-        stop_tasks.append(stop_beam)
 
     # Proceed if at least one feed produced rows (configurable)
     settle_trigger_rule = (
@@ -244,6 +246,7 @@ with DAG(
         task_id="sleep_after_ingest",
         delta=timedelta(seconds=PROGRESS_QUIET_SEC),
         mode="reschedule",
+        trigger_rule=settle_trigger_rule,
     )
 
     run_bq_pipeline = BigQueryInsertJobOperator(
@@ -254,7 +257,6 @@ with DAG(
         },
         location=BQ_LOC,
         retries=2,
-        trigger_rule=settle_trigger_rule,
     )
 
     def summarize(**ctx):
@@ -269,15 +271,6 @@ with DAG(
     summary = PythonOperator(
         task_id="summary",
         python_callable=summarize,
-        trigger_rule=TriggerRule.ALL_DONE,
     )
 
-    # Final safety stop (cheap & idempotent)
-    stop_all_streams = SSHOperator(
-        task_id="stop_beam_all",
-        ssh_conn_id=SSH_CONN_ID,
-        command="sudo systemctl stop beam-cocoa beam-oil beam-weather",
-        trigger_rule=TriggerRule.ALL_DONE,
-    )
-
-    chain(wait_tasks, sleep_after_ingest, run_bq_pipeline, summary, stop_all_streams)
+    chain(wait_tasks, sleep_after_ingest, run_bq_pipeline, summary)
