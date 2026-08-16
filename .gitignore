@@ -6,3 +6,20 @@ scratch*git
 *.log
 stream_pids.txt
 .test_bucket_access.py__pycache__/
+
+# Local tools
+.tools/
+
+# Terraform runtime files and private inputs
+**/.terraform/*
+*.tfstate
+*.tfstate.*
+*.tfvars
+!*.tfvars.example
+*.tfplan
+crash.log
+crash.*.log
+override.tf
+override.tf.json
+*_override.tf
+*_override.tf.json
