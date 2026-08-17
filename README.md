@@ -4,6 +4,19 @@
 
 This project is a comprehensive data engineering pipeline that tracks and analyzes historical cocoa prices in Switzerland from 2014 to 2023. By integrating various datasets—including cocoa prices, Brent oil prices, and weather data from Côte d'Ivoire—the project aims to uncover patterns and factors influencing cocoa price fluctuations.
 
+## Description
+
+This project explores the relationship between oil prices, precipitation, soil moisture, and Swiss chocolate prices. It combines historical cocoa data with economic and environmental signals to identify patterns that may influence price movement and support analytics workflows.
+
+## Installation
+
+To set up the project locally, follow these steps:
+
+```bash
+git clone https://github.com/username/repo.git
+pip install -r requirements.txt
+```
+
 ## Project Objectives
 
 - **Data Integration**: Combine multiple data sources to provide a holistic view of factors affecting cocoa prices.
