@@ -1,8 +1,7 @@
 # Terraform
 
 This directory manages the existing Google Cloud infrastructure for project
-`cocoa-prices-430315`. The resources were imported in place; application data
-and deployed services were not rebuilt during adoption.
+`cocoa-prices-430315`.
 
 ## Structure
 
@@ -10,8 +9,6 @@ and deployed services were not rebuilt during adoption.
   stored at prefix `terraform/main`.
 - [`bootstrap/`](bootstrap/) manages the private, versioned GCS state bucket.
   Its remote state is stored at prefix `terraform/bootstrap` in that bucket.
-- [`imports.sh`](imports.sh) is the idempotent audit record of the one-time
-  existing-resource imports.
 - `terraform.tfvars` contains the current operator firewall CIDR and is ignored.
   [`terraform.tfvars.example`](terraform.tfvars.example) is safe to commit.
 
@@ -29,8 +26,8 @@ gcloud config set project cocoa-prices-430315
 terraform version
 ```
 
-For the portable Windows binary installed during migration, start at the
-repository root and add it to the current Git Bash session:
+For the portable Windows binary in the local development environment, start at
+the repository root and add it to the current Git Bash session:
 
 ```bash
 export PATH="$PWD/.tools/terraform:$PATH"
@@ -51,8 +48,8 @@ terraform plan
 terraform apply
 ```
 
-Only apply a saved or freshly reviewed plan. If a plan proposes replacement or
-deletion of an adopted resource, stop and reconcile configuration first.
+Only apply a saved or freshly reviewed plan. If a plan proposes an unexpected
+replacement or deletion, stop and reconcile configuration first.
 
 Run the backend check separately from `terraform/bootstrap/`:
 
@@ -76,7 +73,7 @@ invoker grants on the generated Cloud Run services.
 
 The Airflow VM's metadata is intentionally ignored because it includes
 externally managed SSH entries and runtime bootstrap settings. Destructive
-resources use `prevent_destroy` as a migration safety guard.
+resources use `prevent_destroy` as a safety guard.
 
-See the [migration record](../docs/terraform-migration.md) for the complete
-inventory, exclusions, import evidence, and final plan results.
+See the [infrastructure reference](../docs/terraform-infrastructure.md) for the
+complete inventory, ownership boundaries, and verification results.

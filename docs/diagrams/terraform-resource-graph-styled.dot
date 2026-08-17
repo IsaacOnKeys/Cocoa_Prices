@@ -1,0 +1,246 @@
+digraph terraform_infrastructure {
+  graph [
+    rankdir=LR,
+    bgcolor="#07111F",
+    pad=0.45,
+    nodesep=0.42,
+    ranksep=0.85,
+    splines=ortho,
+    compound=true,
+    fontname="Arial",
+    fontcolor="#E5E7EB",
+    label="COCOA PRICES  /  TERRAFORM RESOURCE GRAPH\ncocoa-prices-430315  •  europe-west3",
+    labelloc=t,
+    labeljust=l,
+    fontsize=24
+  ];
+
+  node [
+    shape=box,
+    style="rounded,filled",
+    fontname="Arial",
+    fontsize=10,
+    fontcolor="#F8FAFC",
+    color="#475569",
+    fillcolor="#111C2E",
+    penwidth=1.5,
+    margin="0.18,0.12"
+  ];
+
+  edge [
+    color="#64748B",
+    fontname="Arial",
+    fontcolor="#94A3B8",
+    fontsize=9,
+    penwidth=1.4,
+    arrowsize=0.75
+  ];
+
+  subgraph cluster_state {
+    label="STATE";
+    labeljust=l;
+    fontcolor="#93C5FD";
+    color="#1D4ED8";
+    fillcolor="#0B1730";
+    style="rounded,filled";
+    penwidth=1.4;
+
+    backend [
+      label="Remote State Bucket\n1 bucket\nterraform/bootstrap",
+      color="#3B82F6",
+      fillcolor="#172554"
+    ];
+    main_state [
+      label="Main Terraform State\n83 managed entries\nterraform/main",
+      color="#60A5FA",
+      fillcolor="#172554"
+    ];
+  }
+
+  subgraph cluster_identity {
+    label="IDENTITY & ACCESS";
+    labeljust=l;
+    fontcolor="#FCD34D";
+    color="#B45309";
+    fillcolor="#241707";
+    style="rounded,filled";
+    penwidth=1.4;
+
+    service_accounts [
+      label="Custom Service Accounts\n3 accounts\ngoogle_service_account.custom",
+      color="#F59E0B",
+      fillcolor="#422006"
+    ];
+    project_iam [
+      label="Project IAM\n32 additive grants\ngoogle_project_iam_member.application",
+      color="#F59E0B",
+      fillcolor="#422006"
+    ];
+  }
+
+  subgraph cluster_operations {
+    label="OPERATIONS";
+    labeljust=l;
+    fontcolor="#FDA4AF";
+    color="#BE123C";
+    fillcolor="#281018";
+    style="rounded,filled";
+    penwidth=1.4;
+
+    scheduler [
+      label="Cloud Scheduler\n2 start / stop jobs\ngoogle_cloud_scheduler_job.airflow",
+      color="#FB7185",
+      fillcolor="#4C0519"
+    ];
+  }
+
+  subgraph cluster_compute {
+    label="COMPUTE & NETWORKING";
+    labeljust=l;
+    fontcolor="#67E8F9";
+    color="#0E7490";
+    fillcolor="#07242D";
+    style="rounded,filled";
+    penwidth=1.4;
+
+    airflow_vm [
+      label="Airflow VM\n1 instance\ngoogle_compute_instance.airflow",
+      color="#22D3EE",
+      fillcolor="#083344"
+    ];
+    firewalls [
+      label="Airflow Firewall Rules\n8 rules\ngoogle_compute_firewall.airflow",
+      color="#22D3EE",
+      fillcolor="#083344"
+    ];
+    default_network [
+      label="Default VPC\ndata source\ndata.google_compute_network.default",
+      color="#06B6D4",
+      fillcolor="#164E63",
+      style="rounded,filled,dashed"
+    ];
+    default_subnetwork [
+      label="Default Subnetwork\ndata source\ndata.google_compute_subnetwork.default",
+      color="#06B6D4",
+      fillcolor="#164E63",
+      style="rounded,filled,dashed"
+    ];
+  }
+
+  subgraph cluster_serverless {
+    label="MESSAGING & SERVERLESS";
+    labeljust=l;
+    fontcolor="#C4B5FD";
+    color="#6D28D9";
+    fillcolor="#1D1237";
+    style="rounded,filled";
+    penwidth=1.4;
+
+    run_iam [
+      label="Cloud Run Invoker IAM\n3 additive grants\ngoogle_cloud_run_v2_service_iam_member",
+      color="#A78BFA",
+      fillcolor="#2E1065"
+    ];
+    functions [
+      label="Gen2 Cloud Functions\n3 functions\ngoogle_cloudfunctions2_function.functions",
+      color="#A78BFA",
+      fillcolor="#2E1065"
+    ];
+    subscriptions [
+      label="Pub/Sub Subscriptions\n3 subscriptions\ngoogle_pubsub_subscription.subscriptions",
+      color="#A78BFA",
+      fillcolor="#2E1065"
+    ];
+    topics [
+      label="Pub/Sub Topics\n8 topics\ngoogle_pubsub_topic.topics",
+      color="#A78BFA",
+      fillcolor="#2E1065"
+    ];
+    schemas [
+      label="Avro Schemas\n3 schemas\ngoogle_pubsub_schema.schemas",
+      color="#A78BFA",
+      fillcolor="#2E1065"
+    ];
+  }
+
+  subgraph cluster_data {
+    label="DATA & SECRETS";
+    labeljust=l;
+    fontcolor="#6EE7B7";
+    color="#047857";
+    fillcolor="#08251F";
+    style="rounded,filled";
+    penwidth=1.4;
+
+    bucket_iam [
+      label="Bucket IAM\n4 additive grants\ngoogle_storage_bucket_iam_member.application",
+      color="#34D399",
+      fillcolor="#064E3B"
+    ];
+    buckets [
+      label="Application Buckets\n2 buckets\ngoogle_storage_bucket.application",
+      color="#34D399",
+      fillcolor="#064E3B"
+    ];
+    dataset_iam [
+      label="BigQuery Dataset IAM\n3 additive grants\ngoogle_bigquery_dataset_iam_member",
+      color="#34D399",
+      fillcolor="#064E3B"
+    ];
+    datasets [
+      label="BigQuery Datasets\n4 datasets\ngoogle_bigquery_dataset.datasets",
+      color="#34D399",
+      fillcolor="#064E3B"
+    ];
+    secret_iam [
+      label="Secret IAM\n2 additive grants\ngoogle_secret_manager_secret_iam_member",
+      color="#34D399",
+      fillcolor="#064E3B"
+    ];
+    secrets [
+      label="Secret Containers\n2 secrets, zero payloads\ngoogle_secret_manager_secret.secrets",
+      color="#34D399",
+      fillcolor="#064E3B"
+    ];
+  }
+
+  backend -> main_state [label="stores", color="#60A5FA"];
+
+  project_iam -> service_accounts [
+    label="grants roles",
+    style=dashed,
+    color="#F59E0B",
+    constraint=false
+  ];
+  scheduler -> airflow_vm [
+    label="runtime start / stop",
+    style=dashed,
+    color="#FB7185"
+  ];
+
+  airflow_vm -> default_network;
+  airflow_vm -> default_subnetwork;
+  firewalls -> default_network;
+
+  run_iam -> functions;
+  functions -> topics;
+  subscriptions -> topics;
+  topics -> schemas;
+
+  bucket_iam -> buckets;
+  dataset_iam -> datasets;
+  secret_iam -> secrets;
+
+  legend [
+    shape=plain,
+    fontcolor="#CBD5E1",
+    label=<
+      <TABLE BORDER="0" CELLBORDER="0" CELLSPACING="5" CELLPADDING="3">
+        <TR><TD ALIGN="LEFT"><FONT COLOR="#CBD5E1"><B>LEGEND</B></FONT></TD></TR>
+        <TR><TD ALIGN="LEFT"><FONT COLOR="#94A3B8">solid arrow  = Terraform dependency</FONT></TD></TR>
+        <TR><TD ALIGN="LEFT"><FONT COLOR="#94A3B8">dashed arrow = runtime or IAM relationship</FONT></TD></TR>
+        <TR><TD ALIGN="LEFT"><FONT COLOR="#94A3B8">dashed node  = referenced data source</FONT></TD></TR>
+      </TABLE>
+    >
+  ];
+}

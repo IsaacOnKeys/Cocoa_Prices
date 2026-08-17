@@ -90,9 +90,8 @@ pip install ruff
 ## Infrastructure as Code
 
 The deployed Google Cloud infrastructure is managed with Terraform under
-[`terraform/`](terraform/). Existing resources were adopted through imports
-rather than rebuilt. Both the main infrastructure and remote-state bootstrap
-currently produce no-op plans.
+[`terraform/`](terraform/). Both the main infrastructure and remote-state
+bootstrap currently produce no-op plans.
 
 - [Terraform usage and workflow](terraform/README.md)
-- [Existing-resource migration record](docs/terraform-migration.md)
+- [Terraform infrastructure reference](docs/terraform-infrastructure.md)

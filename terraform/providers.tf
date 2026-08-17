@@ -3,7 +3,6 @@ provider "google" {
   region  = var.region
   zone    = var.zone
 
-  # Existing resources should not receive a provider-generated label merely
-  # because they were adopted by Terraform.
+  # Keep labels explicitly controlled by this configuration.
   add_terraform_attribution_label = false
 }
