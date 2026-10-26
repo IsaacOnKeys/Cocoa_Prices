@@ -18,24 +18,34 @@
 - Clean Python 3.12 environment with only pinned development dependencies: 55 tests passed; Ruff passed; 20 Python source files and five shell scripts passed syntax checks.
 - Tests block network connections. Consumer tests use real fastavro and actual mapper code with fake Beam boundaries, not a real cloud pipeline.
 - Source comparisons used checksummed copies retrieved from the VM. The collector restored the VM to stopped; subsequent GCP inspection confirmed TERMINATED. Schedules were not changed.
-- GitHub API confirms the public repository default branch is master. No hosted CI run is claimed before publication.
+- GitHub API confirms the public repository default branch is master. The [hosted PR run](https://github.com/IsaacOnKeys/Cocoa_Prices/actions/runs/40370821417) passed Ruff, syntax, packaging, whitespace checks and 55 tests on each of Python 3.11 and 3.12. The initial fresh-checkout test-directory failure was fixed by preparing artifacts before tests.
 - Publication checks preserve the procedure's verified CRLF working-copy bytes
   through a narrow .gitattributes rule. Its canonical Git blob remains identical
   to the checkpoint. Source-format CSV/JSON sample bytes are also preserved.
 - Initial tool approval failures were transient; a normal approved retry succeeded. An initial sandbox-only Bash test failed to launch; elevated checks subsequently passed without skipping the test.
 
-## Remaining release actions
+## Approved release results
 
 The user explicitly approved publishing the reviewed repository changes through
 a branch/PR into master and deploying the tested oil logging fix. The source
 and local verification above were prepared before these release actions.
 
-Approved release: publish a review branch and open a PR into master, activating
-CI. Deploy only publish_fred_data from its prepared self-contained root;
-preserve python311, publish_fred_data entry point and oil-trigger. The inspected
-pre-release source generation was 1758719904960528. Hosted CI and deployment
-results will be recorded after verification. No consumer installation, secret
-rotation or Terraform apply is included in this release.
+[PR #3](https://github.com/IsaacOnKeys/Cocoa_Prices/pull/3) publishes the reviewed
+changes from codex/portfolio-reliability into master. It remains open for review;
+the default branch was not changed.
+
+Only publish_fred_data was deployed. The initial directory upload omitted
+main.py and failed its build; the previous revision remained active. Deployment
+then succeeded from the validated three-file ZIP (SHA-256
+185a68a7b909572c22acfd4a0d75119af6e8bceba13e28fc438b78a8e8c80d6d).
+
+- Function state: ACTIVE; Cloud Run revision publish-fred-data-00020-sep is Ready and receives 100% of traffic.
+- Source generation: 1793036345024607, replacing inspected generation 1758719904960528.
+- The retrieved deployed archive contains exactly main.py, requirements.txt and oil_schema.avsc; all three match the approved repository bytes.
+- Pre/post contract comparison confirms unchanged python311 runtime, entry point, event trigger, service settings, service accounts and environment fingerprints.
+- No production event was injected. This verifies source/configuration and serving readiness; it does not establish end-to-end ingestion or dependency equivalence.
+
+No consumer installation, secret rotation or Terraform apply was included.
 
 The prepared oil source uses the existing requirements unchanged; those requirements contain unpinned packages, so a fresh cloud build can resolve newer dependency versions. A source patch alone does not establish deployment/runtime equivalence.
 

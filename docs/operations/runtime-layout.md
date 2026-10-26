@@ -93,10 +93,12 @@ All three deployed functions are Gen2, python311, in europe-west3.
 Future source-directory deployments must use the prepared root, which includes
 the canonical schema beside main.py. Separate requirements and all existing
 deployment/resource/authentication contracts are preserved. Terraform ignores
-function source drift. Local artifacts were not asserted equal to deployed ZIPs.
+function source drift. Cocoa/weather local artifacts were not asserted equal
+to deployed ZIPs. The deployed oil source files match the approved artifact.
 
-Observed deployed source generations were 1757954320101566 (cocoa),
-1758719904960528 (oil), and 1759406696390100 (weather), under
+Observed deployed source generations are 1757954320101566 (cocoa),
+1793036345024607 (oil, logging fix deployed 2026-10-26), and
+1759406696390100 (weather), under
 `gcf-v2-sources-494039866722-europe-west3/<entry_point>/function-source.zip`.
 Historical notes referring to oil/weather data topics as invocation triggers
 are outdated; data publication topics remain unchanged.

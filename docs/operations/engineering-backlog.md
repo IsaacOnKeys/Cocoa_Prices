@@ -18,24 +18,26 @@ migration. They were not implemented.
 | Medium | Deployment is not fully reproducible from Git | Add controlled application/runtime deployment workflows. |
 | Medium | Dated raw snapshots now have verified recovery and object holds; original request/retrieval metadata is incomplete | Preserve the existing manifest and hold policy; capture full provenance for future acquisitions. Holds can be released by authorized administrators and are not a permanent retention lock. |
 | Future | Unit/contract coverage exists for logging and consumer transforms; broader runtime coverage remains absent | Add real-runner, integration, data-quality, and model-output tests. |
-| Future | CI is configured locally; continuous deployment is absent | Publish and verify the first hosted CI run; add separately reviewed deployment workflows. |
+| Future | Credential-free CI passes on GitHub; continuous deployment is absent | Add separately reviewed deployment workflows. |
 | Future | Observability configuration is outside source | Capture Ops Agent configuration and add reviewed monitoring resources and failure tests. |
 | Future | Feature expansion needs reliable evaluation | Compare temporal/exogenous feature sets after evaluation is corrected. |
 
-## Repository fixes prepared on 2026-10-26
+## Repository fixes released on 2026-10-26
 
 - Oil logs no longer print request parameters, HTTP error bodies, raw response
   payloads or arbitrary exception messages. Request failures retain a failure
   signal with a sanitized exception. Canary tests cover success/error/fallback
   paths. The deployed source matched the pre-fix repository bytes; the fixed
-  artifact is prepared but has not been deployed.
+  artifact is deployed as Ready revision publish-fred-data-00020-sep, with
+  retrieved source bytes and unchanged service configuration verified.
 - Consumer authority is established from captured deployed sources. Cocoa
   preserves producer timestamps; weather retains deployed override aliases.
   Tested row mapping agrees with deployed code while repository compatibility
   options remain. No installed consumer files were overwritten.
-- A read-only credential-free GitHub Actions workflow is prepared for Python
-  3.11/3.12. Hosted execution awaits commit/push.
+- A read-only credential-free GitHub Actions workflow passes on Python
+  3.11/3.12, including 55 tests per version. Repository changes are published
+  through [PR #3](https://github.com/IsaacOnKeys/Cocoa_Prices/pull/3).
 
-Production oil rollout and any historical log-exposure assessment remain
-separate operational steps. No secret values were printed or rotated.
+Historical log-exposure assessment remains a separate operational step.
+No secret values were printed or rotated.
 See the [reliability handoff](reliability-handoff-2026-10-26.md).
