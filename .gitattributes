@@ -1,0 +1,6 @@
+# Preserve the verified procedure working-copy bytes across platforms.
+sql/procedures/run_daily_pipeline.sql text eol=crlf
+
+# Preserve source-format sample bytes rather than applying text conversion.
+data/samples/*.csv -text whitespace=cr-at-eol
+data/samples/*.json -text

@@ -1,0 +1,19 @@
+# Captured 2026-10-26; environment values omitted if present.
+[Unit]
+Description=Beam Weather stream (Pub/Sub -> BigQuery)
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=beam
+Group=beam
+WorkingDirectory=/opt/beam/weather
+EnvironmentFile=/opt/beam/.env
+TimeoutStopSec=60
+ExecStart=/opt/beam/venv/bin/python /opt/beam/weather/local_weather_stream.py
+Restart=always
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target

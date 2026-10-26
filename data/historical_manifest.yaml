@@ -1,0 +1,76 @@
+snapshot_date: '2025-10-02'
+snapshot_date_basis: Original GCS upload date; exact acquisition dates were not recorded.
+archived_at: '2026-10-26'
+purpose: Historical warehouse bootstrap and occasional backfills; separate from automated daily ingestion.
+archive_policy:
+  protection: GCS temporary hold on each snapshot object and this archived manifest
+  scope: Object-scoped protection; authorized administrators can release holds. No bucket retention lock
+    was applied.
+  legacy_inputs_preserved: true
+datasets:
+  cocoa:
+    source: International Cocoa Organization
+    source_url: https://www.icco.org/
+    acquisition_method: manual web scrape
+    acquisition_date: null
+    file: Daily_Prices_Home.csv
+    gcs_uri: gs://raw-historic-data/snapshots/2025-10-02/icco/Daily_Prices_Home.csv
+    generation: '1793012110386226'
+    sha256: 77a2674c833b8028fdb0f1739f431dac3a3fc450d31d875cdd932d300c00f5ab
+    size_bytes: 175444
+    coverage_start: '2014-01-02'
+    coverage_end: '2025-10-01'
+    record_count: 3020
+    original_gcs_uri: gs://raw-historic-data/Daily_Prices_Home.csv
+    original_generation: '1759405389658710'
+    temporary_hold: true
+    recovery_verified_at: '2026-10-26'
+    repository_representation:
+      checkpoint_sha256: 5b51b24692fd73f686d326b960db84e7199ca6b9978574c3552439801ee6e411
+      working_copy_sha256: 77a2674c833b8028fdb0f1739f431dac3a3fc450d31d875cdd932d300c00f5ab
+      data_equivalence_verified: true
+  oil:
+    source: FRED
+    source_url: https://fred.stlouisfed.org/series/DCOILBRENTEU
+    acquisition_method: manual download
+    acquisition_date: null
+    file: brent_oil_fred.json
+    gcs_uri: gs://raw-historic-data/snapshots/2025-10-02/fred/brent_oil_fred.json
+    generation: '1793012128903759'
+    sha256: d7c2bbd86df77fdd73ba471f80800327838cc5a8f1f5fbde0be04d513c222d24
+    size_bytes: 299331
+    coverage_start: '2014-01-01'
+    coverage_end: '2025-09-22'
+    record_count: 3118
+    original_gcs_uri: gs://raw-historic-data/brent_oil_fred.json
+    original_generation: '1759405400300622'
+    temporary_hold: true
+    recovery_verified_at: '2026-10-26'
+    repository_representation:
+      checkpoint_sha256: 0efaae1dfc08c84a3d110cd318f23195b7279852bca2e58990ea19545d97a3f6
+      working_copy_sha256: 0d9b41d391eefe88afc1cbc5087dbc4e010d5814fd6e1b430a64a93b3e57ce38
+      data_equivalence_verified: true
+    series: DCOILBRENTEU
+  weather:
+    source: NASA POWER
+    source_url: https://power.larc.nasa.gov/
+    acquisition_method: manual download
+    acquisition_date: null
+    file: POWER_Point_Daily.csv
+    gcs_uri: gs://raw-historic-data/snapshots/2025-10-02/nasa_power/POWER_Point_Daily.csv
+    generation: '1793012155652020'
+    sha256: 343800b8580c089dbe8856c96da7821a31ca215bc544c63819e0c024d942680a
+    size_bytes: 80363
+    coverage_start: '2014-01-01'
+    coverage_end: '2025-09-29'
+    record_count: 4290
+    original_gcs_uri: gs://raw-historic-data/POWER_Point_Daily.csv
+    original_generation: '1759405393897835'
+    temporary_hold: true
+    recovery_verified_at: '2026-10-26'
+    repository_representation:
+      checkpoint_sha256: 343800b8580c089dbe8856c96da7821a31ca215bc544c63819e0c024d942680a
+      working_copy_sha256: 20df51c47a1de1433b9cd8e3ab9693a62720200435cafdf221fed17f5509461e
+      data_equivalence_verified: true
+    latitude: 4.745
+    longitude: -6.635

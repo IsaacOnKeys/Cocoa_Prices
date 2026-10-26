@@ -1,0 +1,9 @@
+#!/usr/bin/env bash
+REPO_ROOT="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/../.." && pwd)" || exit
+cd "$REPO_ROOT" || exit
+( python "$REPO_ROOT/pipelines/streaming/cocoa_stream.py"   > cocoa.log   2>&1 & echo $! ) >  stream_pids.txt
+( python "$REPO_ROOT/pipelines/streaming/oil_stream.py"     > oil.log     2>&1 & echo $! ) >> stream_pids.txt
+( python "$REPO_ROOT/pipelines/streaming/weather_stream.py" > weather.log 2>&1 & echo $! ) >> stream_pids.txt
+
+
+# FOR LOCAL STREAMING OF BEAM PIPELINES

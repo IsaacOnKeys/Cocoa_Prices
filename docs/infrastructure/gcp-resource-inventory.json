@@ -1,0 +1,427 @@
+{
+  "verified_at": "2026-10-26",
+  "verification": "Live refresh, no-change plans before and after source relocation; no apply or import.",
+  "managed_instance_count": 84,
+  "resources": [
+    {
+      "root": "main",
+      "address": "google_bigquery_dataset.datasets[\"cocoa_related\"]",
+      "id": "projects/cocoa-prices-430315/datasets/cocoa_related"
+    },
+    {
+      "root": "main",
+      "address": "google_bigquery_dataset.datasets[\"cocoa_related_studio\"]",
+      "id": "projects/cocoa-prices-430315/datasets/cocoa_related_studio"
+    },
+    {
+      "root": "main",
+      "address": "google_bigquery_dataset.datasets[\"models\"]",
+      "id": "projects/cocoa-prices-430315/datasets/models"
+    },
+    {
+      "root": "main",
+      "address": "google_bigquery_dataset.datasets[\"stream_staging\"]",
+      "id": "projects/cocoa-prices-430315/datasets/stream_staging"
+    },
+    {
+      "root": "main",
+      "address": "google_bigquery_dataset_iam_member.airflow_writer[\"cocoa_related\"]",
+      "id": "projects/cocoa-prices-430315/datasets/cocoa_related/roles/bigquery.dataEditor/serviceAccount:airflow-orchestrator@cocoa-prices-430315.iam.gserviceaccount.com"
+    },
+    {
+      "root": "main",
+      "address": "google_bigquery_dataset_iam_member.airflow_writer[\"models\"]",
+      "id": "projects/cocoa-prices-430315/datasets/models/roles/bigquery.dataEditor/serviceAccount:airflow-orchestrator@cocoa-prices-430315.iam.gserviceaccount.com"
+    },
+    {
+      "root": "main",
+      "address": "google_bigquery_dataset_iam_member.airflow_writer[\"stream_staging\"]",
+      "id": "projects/cocoa-prices-430315/datasets/stream_staging/roles/bigquery.dataEditor/serviceAccount:airflow-orchestrator@cocoa-prices-430315.iam.gserviceaccount.com"
+    },
+    {
+      "root": "main",
+      "address": "google_cloud_run_v2_service_iam_member.airflow_invoker[\"publish_fred_data\"]",
+      "id": "projects/cocoa-prices-430315/locations/europe-west3/services/publish-fred-data/roles/run.invoker/serviceAccount:airflow-orchestrator@cocoa-prices-430315.iam.gserviceaccount.com"
+    },
+    {
+      "root": "main",
+      "address": "google_cloud_run_v2_service_iam_member.airflow_invoker[\"publish_price\"]",
+      "id": "projects/cocoa-prices-430315/locations/europe-west3/services/publish-price/roles/run.invoker/serviceAccount:airflow-orchestrator@cocoa-prices-430315.iam.gserviceaccount.com"
+    },
+    {
+      "root": "main",
+      "address": "google_cloud_run_v2_service_iam_member.airflow_invoker[\"publish_weather_data\"]",
+      "id": "projects/cocoa-prices-430315/locations/europe-west3/services/publish-weather-data/roles/run.invoker/serviceAccount:airflow-orchestrator@cocoa-prices-430315.iam.gserviceaccount.com"
+    },
+    {
+      "root": "main",
+      "address": "google_cloud_scheduler_job.airflow[\"start-airflow-vm\"]",
+      "id": "projects/cocoa-prices-430315/locations/europe-west3/jobs/start-airflow-vm"
+    },
+    {
+      "root": "main",
+      "address": "google_cloud_scheduler_job.airflow[\"stop-airflow-vm\"]",
+      "id": "projects/cocoa-prices-430315/locations/europe-west3/jobs/stop-airflow-vm"
+    },
+    {
+      "root": "main",
+      "address": "google_cloudfunctions2_function.functions[\"publish_fred_data\"]",
+      "id": "projects/cocoa-prices-430315/locations/europe-west3/functions/publish_fred_data"
+    },
+    {
+      "root": "main",
+      "address": "google_cloudfunctions2_function.functions[\"publish_price\"]",
+      "id": "projects/cocoa-prices-430315/locations/europe-west3/functions/publish_price"
+    },
+    {
+      "root": "main",
+      "address": "google_cloudfunctions2_function.functions[\"publish_weather_data\"]",
+      "id": "projects/cocoa-prices-430315/locations/europe-west3/functions/publish_weather_data"
+    },
+    {
+      "root": "main",
+      "address": "google_compute_firewall.airflow[\"allow-airflow-ui-myip\"]",
+      "id": "projects/cocoa-prices-430315/global/firewalls/allow-airflow-ui-myip"
+    },
+    {
+      "root": "main",
+      "address": "google_compute_firewall.airflow[\"allow-iap-8080\"]",
+      "id": "projects/cocoa-prices-430315/global/firewalls/allow-iap-8080"
+    },
+    {
+      "root": "main",
+      "address": "google_compute_firewall.airflow[\"allow-iap-ssh\"]",
+      "id": "projects/cocoa-prices-430315/global/firewalls/allow-iap-ssh"
+    },
+    {
+      "root": "main",
+      "address": "google_compute_firewall.airflow[\"allow-ssh-from-myip\"]",
+      "id": "projects/cocoa-prices-430315/global/firewalls/allow-ssh-from-myip"
+    },
+    {
+      "root": "main",
+      "address": "google_compute_firewall.airflow[\"allow-ssh-myip-v4\"]",
+      "id": "projects/cocoa-prices-430315/global/firewalls/allow-ssh-myip-v4"
+    },
+    {
+      "root": "main",
+      "address": "google_compute_firewall.airflow[\"allow-ssh-myip-v4-2\"]",
+      "id": "projects/cocoa-prices-430315/global/firewalls/allow-ssh-myip-v4-2"
+    },
+    {
+      "root": "main",
+      "address": "google_compute_firewall.airflow[\"allow-ssh-myip-v4b\"]",
+      "id": "projects/cocoa-prices-430315/global/firewalls/allow-ssh-myip-v4b"
+    },
+    {
+      "root": "main",
+      "address": "google_compute_firewall.airflow[\"allow-ssh-myip-v4c\"]",
+      "id": "projects/cocoa-prices-430315/global/firewalls/allow-ssh-myip-v4c"
+    },
+    {
+      "root": "main",
+      "address": "google_compute_instance.airflow",
+      "id": "projects/cocoa-prices-430315/zones/europe-west3-c/instances/airflow-vm"
+    },
+    {
+      "root": "main",
+      "address": "google_project_iam_member.application[\"airflow_bigquery_job_user\"]",
+      "id": "cocoa-prices-430315/roles/bigquery.jobUser/serviceAccount:airflow-orchestrator@cocoa-prices-430315.iam.gserviceaccount.com"
+    },
+    {
+      "root": "main",
+      "address": "google_project_iam_member.application[\"airflow_bigquery_viewer\"]",
+      "id": "cocoa-prices-430315/roles/bigquery.dataViewer/serviceAccount:airflow-orchestrator@cocoa-prices-430315.iam.gserviceaccount.com"
+    },
+    {
+      "root": "main",
+      "address": "google_project_iam_member.application[\"airflow_cloudfunctions_viewer\"]",
+      "id": "cocoa-prices-430315/roles/cloudfunctions.viewer/serviceAccount:airflow-orchestrator@cocoa-prices-430315.iam.gserviceaccount.com"
+    },
+    {
+      "root": "main",
+      "address": "google_project_iam_member.application[\"airflow_eventarc_viewer\"]",
+      "id": "cocoa-prices-430315/roles/eventarc.viewer/serviceAccount:airflow-orchestrator@cocoa-prices-430315.iam.gserviceaccount.com"
+    },
+    {
+      "root": "main",
+      "address": "google_project_iam_member.application[\"airflow_logging_viewer\"]",
+      "id": "cocoa-prices-430315/roles/logging.viewer/serviceAccount:airflow-orchestrator@cocoa-prices-430315.iam.gserviceaccount.com"
+    },
+    {
+      "root": "main",
+      "address": "google_project_iam_member.application[\"airflow_logging_writer\"]",
+      "id": "cocoa-prices-430315/roles/logging.logWriter/serviceAccount:airflow-orchestrator@cocoa-prices-430315.iam.gserviceaccount.com"
+    },
+    {
+      "root": "main",
+      "address": "google_project_iam_member.application[\"airflow_monitoring_viewer\"]",
+      "id": "cocoa-prices-430315/roles/monitoring.viewer/serviceAccount:airflow-orchestrator@cocoa-prices-430315.iam.gserviceaccount.com"
+    },
+    {
+      "root": "main",
+      "address": "google_project_iam_member.application[\"airflow_monitoring_writer\"]",
+      "id": "cocoa-prices-430315/roles/monitoring.metricWriter/serviceAccount:airflow-orchestrator@cocoa-prices-430315.iam.gserviceaccount.com"
+    },
+    {
+      "root": "main",
+      "address": "google_project_iam_member.application[\"airflow_pubsub_editor\"]",
+      "id": "cocoa-prices-430315/roles/pubsub.editor/serviceAccount:airflow-orchestrator@cocoa-prices-430315.iam.gserviceaccount.com"
+    },
+    {
+      "root": "main",
+      "address": "google_project_iam_member.application[\"airflow_pubsub_publisher\"]",
+      "id": "cocoa-prices-430315/roles/pubsub.publisher/serviceAccount:airflow-orchestrator@cocoa-prices-430315.iam.gserviceaccount.com"
+    },
+    {
+      "root": "main",
+      "address": "google_project_iam_member.application[\"airflow_pubsub_subscriber\"]",
+      "id": "cocoa-prices-430315/roles/pubsub.subscriber/serviceAccount:airflow-orchestrator@cocoa-prices-430315.iam.gserviceaccount.com"
+    },
+    {
+      "root": "main",
+      "address": "google_project_iam_member.application[\"airflow_pubsub_viewer\"]",
+      "id": "cocoa-prices-430315/roles/pubsub.viewer/serviceAccount:airflow-orchestrator@cocoa-prices-430315.iam.gserviceaccount.com"
+    },
+    {
+      "root": "main",
+      "address": "google_project_iam_member.application[\"airflow_run_invoker\"]",
+      "id": "cocoa-prices-430315/roles/run.invoker/serviceAccount:airflow-orchestrator@cocoa-prices-430315.iam.gserviceaccount.com"
+    },
+    {
+      "root": "main",
+      "address": "google_project_iam_member.application[\"airflow_run_viewer\"]",
+      "id": "cocoa-prices-430315/roles/run.viewer/serviceAccount:airflow-orchestrator@cocoa-prices-430315.iam.gserviceaccount.com"
+    },
+    {
+      "root": "main",
+      "address": "google_project_iam_member.application[\"airflow_secret_accessor\"]",
+      "id": "cocoa-prices-430315/roles/secretmanager.secretAccessor/serviceAccount:airflow-orchestrator@cocoa-prices-430315.iam.gserviceaccount.com"
+    },
+    {
+      "root": "main",
+      "address": "google_project_iam_member.application[\"airflow_serviceusage_consumer\"]",
+      "id": "cocoa-prices-430315/roles/serviceusage.serviceUsageConsumer/serviceAccount:airflow-orchestrator@cocoa-prices-430315.iam.gserviceaccount.com"
+    },
+    {
+      "root": "main",
+      "address": "google_project_iam_member.application[\"airflow_storage_viewer\"]",
+      "id": "cocoa-prices-430315/roles/storage.objectViewer/serviceAccount:airflow-orchestrator@cocoa-prices-430315.iam.gserviceaccount.com"
+    },
+    {
+      "root": "main",
+      "address": "google_project_iam_member.application[\"appspot_secret_accessor\"]",
+      "id": "cocoa-prices-430315/roles/secretmanager.secretAccessor/serviceAccount:cocoa-prices-430315@appspot.gserviceaccount.com"
+    },
+    {
+      "root": "main",
+      "address": "google_project_iam_member.application[\"compute_artifact_reader\"]",
+      "id": "cocoa-prices-430315/roles/artifactregistry.reader/serviceAccount:494039866722-compute@developer.gserviceaccount.com"
+    },
+    {
+      "root": "main",
+      "address": "google_project_iam_member.application[\"compute_bigquery_editor\"]",
+      "id": "cocoa-prices-430315/roles/bigquery.dataEditor/serviceAccount:494039866722-compute@developer.gserviceaccount.com"
+    },
+    {
+      "root": "main",
+      "address": "google_project_iam_member.application[\"compute_bigquery_job_user\"]",
+      "id": "cocoa-prices-430315/roles/bigquery.jobUser/serviceAccount:494039866722-compute@developer.gserviceaccount.com"
+    },
+    {
+      "root": "main",
+      "address": "google_project_iam_member.application[\"compute_bigquery_viewer\"]",
+      "id": "cocoa-prices-430315/roles/bigquery.dataViewer/serviceAccount:494039866722-compute@developer.gserviceaccount.com"
+    },
+    {
+      "root": "main",
+      "address": "google_project_iam_member.application[\"compute_cloudbuild_builder\"]",
+      "id": "cocoa-prices-430315/roles/cloudbuild.builds.builder/serviceAccount:494039866722-compute@developer.gserviceaccount.com"
+    },
+    {
+      "root": "main",
+      "address": "google_project_iam_member.application[\"compute_cloudfunctions_invoke\"]",
+      "id": "cocoa-prices-430315/roles/cloudfunctions.invoker/serviceAccount:494039866722-compute@developer.gserviceaccount.com"
+    },
+    {
+      "root": "main",
+      "address": "google_project_iam_member.application[\"compute_dataflow_worker\"]",
+      "id": "cocoa-prices-430315/roles/dataflow.worker/serviceAccount:494039866722-compute@developer.gserviceaccount.com"
+    },
+    {
+      "root": "main",
+      "address": "google_project_iam_member.application[\"compute_instance_admin\"]",
+      "id": "cocoa-prices-430315/roles/compute.instanceAdmin/serviceAccount:494039866722-compute@developer.gserviceaccount.com"
+    },
+    {
+      "root": "main",
+      "address": "google_project_iam_member.application[\"compute_pubsub_publisher\"]",
+      "id": "cocoa-prices-430315/roles/pubsub.publisher/serviceAccount:494039866722-compute@developer.gserviceaccount.com"
+    },
+    {
+      "root": "main",
+      "address": "google_project_iam_member.application[\"compute_pubsub_subscriber\"]",
+      "id": "cocoa-prices-430315/roles/pubsub.subscriber/serviceAccount:494039866722-compute@developer.gserviceaccount.com"
+    },
+    {
+      "root": "main",
+      "address": "google_project_iam_member.application[\"compute_secret_accessor\"]",
+      "id": "cocoa-prices-430315/roles/secretmanager.secretAccessor/serviceAccount:494039866722-compute@developer.gserviceaccount.com"
+    },
+    {
+      "root": "main",
+      "address": "google_project_iam_member.application[\"compute_storage_creator\"]",
+      "id": "cocoa-prices-430315/roles/storage.objectCreator/serviceAccount:494039866722-compute@developer.gserviceaccount.com"
+    },
+    {
+      "root": "main",
+      "address": "google_project_iam_member.application[\"compute_storage_viewer\"]",
+      "id": "cocoa-prices-430315/roles/storage.objectViewer/serviceAccount:494039866722-compute@developer.gserviceaccount.com"
+    },
+    {
+      "root": "main",
+      "address": "google_project_iam_member.application[\"scheduler_instance_admin\"]",
+      "id": "cocoa-prices-430315/roles/compute.instanceAdmin.v1/serviceAccount:vm-scheduler-sa@cocoa-prices-430315.iam.gserviceaccount.com"
+    },
+    {
+      "root": "main",
+      "address": "google_pubsub_schema.schemas[\"cocoa-schema\"]",
+      "id": "projects/cocoa-prices-430315/schemas/cocoa-schema"
+    },
+    {
+      "root": "main",
+      "address": "google_pubsub_schema.schemas[\"oil-schema\"]",
+      "id": "projects/cocoa-prices-430315/schemas/oil-schema"
+    },
+    {
+      "root": "main",
+      "address": "google_pubsub_schema.schemas[\"weather-schema\"]",
+      "id": "projects/cocoa-prices-430315/schemas/weather-schema"
+    },
+    {
+      "root": "main",
+      "address": "google_pubsub_subscription.subscriptions[\"cocoa-prices-sub\"]",
+      "id": "projects/cocoa-prices-430315/subscriptions/cocoa-prices-sub"
+    },
+    {
+      "root": "main",
+      "address": "google_pubsub_subscription.subscriptions[\"oil-prices-sub\"]",
+      "id": "projects/cocoa-prices-430315/subscriptions/oil-prices-sub"
+    },
+    {
+      "root": "main",
+      "address": "google_pubsub_subscription.subscriptions[\"weather-data-sub\"]",
+      "id": "projects/cocoa-prices-430315/subscriptions/weather-data-sub"
+    },
+    {
+      "root": "main",
+      "address": "google_pubsub_topic.topics[\"cocoa-prices-dead-letter\"]",
+      "id": "projects/cocoa-prices-430315/topics/cocoa-prices-dead-letter"
+    },
+    {
+      "root": "main",
+      "address": "google_pubsub_topic.topics[\"cocoa-prices-topic\"]",
+      "id": "projects/cocoa-prices-430315/topics/cocoa-prices-topic"
+    },
+    {
+      "root": "main",
+      "address": "google_pubsub_topic.topics[\"oil-prices-dead-letter\"]",
+      "id": "projects/cocoa-prices-430315/topics/oil-prices-dead-letter"
+    },
+    {
+      "root": "main",
+      "address": "google_pubsub_topic.topics[\"oil-prices-topic\"]",
+      "id": "projects/cocoa-prices-430315/topics/oil-prices-topic"
+    },
+    {
+      "root": "main",
+      "address": "google_pubsub_topic.topics[\"oil-trigger\"]",
+      "id": "projects/cocoa-prices-430315/topics/oil-trigger"
+    },
+    {
+      "root": "main",
+      "address": "google_pubsub_topic.topics[\"weather-dead-letter\"]",
+      "id": "projects/cocoa-prices-430315/topics/weather-dead-letter"
+    },
+    {
+      "root": "main",
+      "address": "google_pubsub_topic.topics[\"weather-topic\"]",
+      "id": "projects/cocoa-prices-430315/topics/weather-topic"
+    },
+    {
+      "root": "main",
+      "address": "google_pubsub_topic.topics[\"weather-trigger\"]",
+      "id": "projects/cocoa-prices-430315/topics/weather-trigger"
+    },
+    {
+      "root": "main",
+      "address": "google_secret_manager_secret.secrets[\"FRED_OIL_API_KEY\"]",
+      "id": "projects/cocoa-prices-430315/secrets/FRED_OIL_API_KEY"
+    },
+    {
+      "root": "main",
+      "address": "google_secret_manager_secret.secrets[\"airflow-fernet-key\"]",
+      "id": "projects/cocoa-prices-430315/secrets/airflow-fernet-key"
+    },
+    {
+      "root": "main",
+      "address": "google_secret_manager_secret_iam_member.airflow_accessor[\"FRED_OIL_API_KEY\"]",
+      "id": "projects/cocoa-prices-430315/secrets/FRED_OIL_API_KEY/roles/secretmanager.secretAccessor/serviceAccount:airflow-orchestrator@cocoa-prices-430315.iam.gserviceaccount.com"
+    },
+    {
+      "root": "main",
+      "address": "google_secret_manager_secret_iam_member.airflow_accessor[\"airflow-fernet-key\"]",
+      "id": "projects/cocoa-prices-430315/secrets/airflow-fernet-key/roles/secretmanager.secretAccessor/serviceAccount:airflow-orchestrator@cocoa-prices-430315.iam.gserviceaccount.com"
+    },
+    {
+      "root": "main",
+      "address": "google_service_account.custom[\"airflow-orchestrator\"]",
+      "id": "projects/cocoa-prices-430315/serviceAccounts/airflow-orchestrator@cocoa-prices-430315.iam.gserviceaccount.com"
+    },
+    {
+      "root": "main",
+      "address": "google_service_account.custom[\"api-fetcher\"]",
+      "id": "projects/cocoa-prices-430315/serviceAccounts/api-fetcher@cocoa-prices-430315.iam.gserviceaccount.com"
+    },
+    {
+      "root": "main",
+      "address": "google_service_account.custom[\"vm-scheduler-sa\"]",
+      "id": "projects/cocoa-prices-430315/serviceAccounts/vm-scheduler-sa@cocoa-prices-430315.iam.gserviceaccount.com"
+    },
+    {
+      "root": "main",
+      "address": "google_storage_bucket.application[\"cocoa-prices-temp-for-bq\"]",
+      "id": "cocoa-prices-temp-for-bq"
+    },
+    {
+      "root": "main",
+      "address": "google_storage_bucket.application[\"raw-historic-data\"]",
+      "id": "raw-historic-data"
+    },
+    {
+      "root": "main",
+      "address": "google_storage_bucket_iam_member.application[\"raw_compute_object_creator\"]",
+      "id": "b/raw-historic-data/roles/storage.objectCreator/serviceAccount:494039866722-compute@developer.gserviceaccount.com"
+    },
+    {
+      "root": "main",
+      "address": "google_storage_bucket_iam_member.application[\"raw_compute_object_viewer\"]",
+      "id": "b/raw-historic-data/roles/storage.objectViewer/serviceAccount:494039866722-compute@developer.gserviceaccount.com"
+    },
+    {
+      "root": "main",
+      "address": "google_storage_bucket_iam_member.application[\"temp_airflow_object_viewer\"]",
+      "id": "b/cocoa-prices-temp-for-bq/roles/storage.objectViewer/serviceAccount:airflow-orchestrator@cocoa-prices-430315.iam.gserviceaccount.com"
+    },
+    {
+      "root": "main",
+      "address": "google_storage_bucket_iam_member.application[\"temp_compute_object_admin\"]",
+      "id": "b/cocoa-prices-temp-for-bq/roles/storage.objectAdmin/serviceAccount:494039866722-compute@developer.gserviceaccount.com"
+    },
+    {
+      "root": "bootstrap",
+      "address": "google_storage_bucket.terraform_state",
+      "id": "cocoa-prices-430315-terraform-state"
+    }
+  ]
+}

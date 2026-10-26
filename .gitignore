@@ -10,6 +10,16 @@ stream_pids.txt
 # Local tools
 .tools/
 
+# Generated Python and migration artifacts
+__pycache__/
+*.py[cod]
+*.egg-info/
+.pytest_cache/
+.ruff_cache/
+.venv/
+.build/
+data/raw/
+
 # Terraform runtime files and private inputs
 **/.terraform/*
 *.tfstate
