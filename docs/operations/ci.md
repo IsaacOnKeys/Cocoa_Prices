@@ -8,8 +8,9 @@ Each job performs:
 
 1. Ruff using the repository's existing E4/E7/E9/F rule scope.
 2. In-memory Python compilation and bash -n for the five shell helpers/installers.
-3. Unit/contract and migration tests.
-4. Preparation of all three complete function roots and deterministic ZIPs.
+3. Preparation of all three complete function roots and deterministic ZIPs,
+   creating the ignored .build/ directory needed by the configured test path.
+4. Unit/contract and migration tests.
 5. git diff --check.
 
 Checkout and Python setup are pinned to reviewed commit SHAs. Permissions are
@@ -39,8 +40,8 @@ end-to-end production execution.
 python -m pip install -r requirements-dev.txt
 python -m ruff check .
 python scripts/development/check_syntax.py
-python -m pytest -q --basetemp=.build/pytest
 python scripts/deploy/package_functions.py all
+python -m pytest -q --basetemp=.build/pytest
 git diff --check
 ~~~
 

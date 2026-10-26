@@ -40,11 +40,11 @@ jobs:
       - name: Python and shell syntax
         run: python scripts/development/check_syntax.py
 
-      - name: Unit and migration tests
-        run: python -m pytest -q --basetemp=.build/pytest-ci
-
       - name: Prepare self-contained function artifacts
         run: python scripts/deploy/package_functions.py all
+
+      - name: Unit and migration tests
+        run: python -m pytest -q --basetemp=.build/pytest-ci
 
       - name: Diff whitespace
         run: git diff --check

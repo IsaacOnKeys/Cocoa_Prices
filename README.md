@@ -81,10 +81,10 @@ is Python 3.11. Runtime dependencies remain separate for functions, Beam and Air
 
 ~~~bash
 python -m pip install -r requirements-dev.txt
-python -m pytest -q --basetemp=.build/pytest
 ruff check .
 python scripts/development/check_syntax.py
 python scripts/deploy/package_functions.py all
+python -m pytest -q --basetemp=.build/pytest
 ~~~
 
 These checks need no GCP credentials. The packager creates complete runtime
