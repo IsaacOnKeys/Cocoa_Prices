@@ -33,3 +33,6 @@ override.tf
 override.tf.json
 *_override.tf
 *_override.tf.json
+
+# Local checklist; normally kept in the parent directory
+/Cocoa_Production_Analytics_BI_Checklist.md
