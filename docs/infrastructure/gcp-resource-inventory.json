@@ -1,9 +1,9 @@
 {
   "status": "historical_inventory_pointer",
   "verified_at": "2026-10-26",
-  "baseline_git_commit": "8b2861236dcc7fbe6ac28bd59f8d67960ec8928b",
+  "baseline_git_commit": "0236abaad185d1f6b475aa6f4c4a105058c95aad",
   "baseline_git_path": "docs/infrastructure/gcp-resource-inventory.json",
-  "baseline_record": "https://github.com/IsaacOnKeys/Cocoa_Prices/blob/8b2861236dcc7fbe6ac28bd59f8d67960ec8928b/docs/infrastructure/gcp-resource-inventory.json",
+  "baseline_record": "https://github.com/IsaacOnKeys/Cocoa_Prices/blob/0236abaad185d1f6b475aa6f4c4a105058c95aad/docs/infrastructure/gcp-resource-inventory.json",
   "migration_status": "EIA candidate deployed and isolated cloud validation passed; legacy production retained pending explicit cutover approval.",
   "current_infrastructure_definition": "infra/terraform/",
   "cutover_approval_package": "docs/operations/eia-cutover.md",
