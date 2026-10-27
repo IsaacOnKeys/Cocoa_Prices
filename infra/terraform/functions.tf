@@ -6,13 +6,7 @@ locals {
       source_generation = 1757954320101566
       trigger_topic     = null
     }
-    publish_fred_data = {
-      entry_point       = "publish_fred_data"
-      source_object     = "publish_fred_data/function-source.zip"
-      source_generation = 1758719904960528
-      trigger_topic     = "oil-trigger"
-    }
-    # Parallel candidate; the legacy producer is retained until verified cutover.
+    # Serving EIA producer; cutover evidence: docs/operations/eia-cutover.md.
     publish_eia_data = {
       entry_point       = "publish_eia_data"
       source_object     = "publish_eia_data/eia-a020ce805a64b2a909b7489187d1b003ac1d79444d06ca0950b800bbdc84da34.zip"
@@ -68,8 +62,8 @@ resource "google_cloudfunctions2_function" "functions" {
     environment_variables = merge({
       LOG_EXECUTION_ID = "true"
       }, each.key == "publish_eia_data" ? {
-      # Production promotion requires explicit approval of the cutover sequence.
-      OIL_TOPIC = "eia-oil-validation"
+      # Owner-approved cutover; legacy invocation is disabled before promotion.
+      OIL_TOPIC = "oil-prices-topic"
     } : {})
   }
 

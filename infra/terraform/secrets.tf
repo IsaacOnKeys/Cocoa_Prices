@@ -1,6 +1,5 @@
 locals {
   secrets = toset([
-    "FRED_OIL_API_KEY",
     "EIA_OIL_API_KEY",
     "airflow-fernet-key",
   ])

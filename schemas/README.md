@@ -2,7 +2,7 @@
 
 Version 1 source definitions for checklist item 2, reviewed 2026-10-27. The
 owner accepted EIA published-table history with corroborated daily API
-acquisition. The candidate implements EIA validation and compatibility checks;
+acquisition. The serving producer implements EIA validation and compatibility checks;
 the remaining feed-wide publication gates are later checklist work. Existing
 Avro wire schemas remain unchanged.
 
@@ -133,9 +133,13 @@ for each acquisition route before claiming unrestricted redistribution.
   [migration evidence](../docs/operations/eia-migration.md); complete equivalence
   or completed historical warehouse replacement is not claimed.
 - NASA POWER: preserve dataset/parameter/community/point attribution, units
-  and response metadata. Record the applicable NASA data-use/citation terms
-  with acquired evidence; do not substitute unrelated commercial-satellite
-  licensing rules for POWER's own terms.
+  and response metadata. The [NASA-managed POWER dataset entry](https://registry.opendata.aws/nasa-power/),
+  checked 2026-10-27, states unrestricted use/access/download and requests
+  project citation; its listed license is CC BY 4.0. NASA's
+  [Earthdata acknowledgement guidance](https://forum.earthdata.nasa.gov/viewtopic.php?sid=5add98efddee206f660227f75298c45f&t=504)
+  also requests notification of redistribution and references to resulting
+  publications. Preserve the applicable terms/citation with acquired evidence;
+  do not substitute unrelated commercial-satellite licensing rules.
 
 Existing archives retain their original provenance. The accepted replacement
 has fresh acquisition metadata and a recovered/checksummed held cloud object;

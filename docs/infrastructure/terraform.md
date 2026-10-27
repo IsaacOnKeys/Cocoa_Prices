@@ -5,13 +5,13 @@ Terraform defines the Google Cloud infrastructure for project
 
 ## Current status
 
-Verified on 2026-10-26: both roots were relocated under infra/terraform/ after
-successful no-change baseline plans. Reinitialization, formatting, validation,
-and both post-move no-change plans passed with the same backends, workspace,
-provider versions and lockfiles. Initial ADC refresh failed; the successful
-checks used the existing gcloud session token only in the process environment.
-No Terraform apply or state import was performed. See the
-[current GCP ownership map](gcp-inventory.md) for all 84 state-tracked resources.
+Verified on 2026-10-27: both roots returned no-change plans after the approved
+EIA cutover. EIA resources were applied/adopted and obsolete resources retired;
+the prior credential remains outside active state for rollback. Backends,
+workspace, provider versions and lockfiles are unchanged. Authentication used
+the existing gcloud session token only in the process environment. See the
+[current GCP ownership map](gcp-inventory.md) for all 87 state-tracked resources
+and the [deployment receipt](../operations/eia-cutover.md).
 
 The `cocoa-prices-430315-terraform-state` bucket provides the GCS backend. It
 uses uniform bucket-level access, public-access prevention, versioning, 30-day
@@ -31,13 +31,13 @@ prefixes.
 | BigQuery datasets | 4 | `cocoa_related`, `cocoa_related_studio`, `models`, `stream_staging` |
 | BigQuery dataset IAM members | 3 | Additive Airflow writer grants |
 | Pub/Sub schemas | 3 | Cocoa, oil, and weather Avro schemas |
-| Pub/Sub topics | 8 | Data, dead-letter, and trigger topics |
-| Pub/Sub subscriptions | 3 | Application pull subscriptions |
+| Pub/Sub topics | 9 | Data, dead-letter, trigger and isolated validation topics |
+| Pub/Sub subscriptions | 4 | Application and isolated validation pull subscriptions |
 | Gen2 Cloud Functions | 3 | Cocoa, oil, and weather publishers |
-| Cloud Run IAM members | 3 | Explicit Airflow invoker grants only |
+| Cloud Run IAM members | 4 | Airflow and EIA Eventarc service-scoped invoker grants |
 | Cloud Scheduler jobs | 2 | Daily Airflow VM start and stop jobs |
 | Secret Manager containers | 2 | Secret metadata only; no versions or payloads |
-| Secret-level IAM members | 2 | Additive Airflow accessor grants |
+| Secret-level IAM members | 2 | Additive Airflow Fernet and EIA producer accessor grants |
 | Project-level IAM members | 32 | Application service accounts only |
 
 ## Ownership boundaries
@@ -78,7 +78,7 @@ Terraform resource graph.
 
 ## Verification
 
-Verified on 2026-08-16 with:
+Verified on 2026-10-27 with:
 
 - Terraform 1.15.8
 - Google provider 7.44.0, recorded in both dependency lock files

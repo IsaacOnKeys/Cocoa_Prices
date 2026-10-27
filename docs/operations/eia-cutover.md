@@ -1,105 +1,118 @@
-# EIA production cutover: approval package
+# EIA production cutover: deployment and rollback receipt
 
-Status: awaiting explicit production-cutover approval. Candidate checkpoint:
-`63cb0f7cb1b41d629a7cb352771fd2ce57861fda` on `codex/eia-oil-migration`.
+Completed 2026-10-27 on `codex/eia-oil-migration`. The owner explicitly selected
+option 1: disable the previous producer before promotion, verify a controlled
+daily cycle, then retire its function/trigger while retaining its credential
+and exact source for rollback. Implementation checkpoint: `63cb0f7`.
 
-Automatic approval review rejected promoting the candidate into the existing
-production oil topic while the legacy producer remained active. It identified
-possible duplicate/conflicting ingestion and required approval of the exact
-production sequence. The rejected command did not execute. Do not retry it
-through another CLI, wrapper or deployment mechanism without resolving this gate.
+## Deployment sequence and acceptance
 
-## Verified candidate
+The earlier automatic approval rejection required this explicit sequencing
+decision; its rejected command did not execute. After the owner approved:
 
-- EIA function `publish_eia_data` is ACTIVE with entry point publish_eia_data.
-- Input: `eia-oil-trigger`; current output: `eia-oil-validation`.
-- The real deployed trigger, schema-bound topic, real streaming Beam consumer
-  and temporary BigQuery sink produced six corroborated observations. The
-  successful validation dataset was deleted afterward.
-- Eventarc HTTP 403 was diagnosed and fixed with a service-scoped invocation
-  grant for its actual trigger account; the repeated cloud test passed.
-- The serving ZIP's three members match reviewed source/canonical schema bytes.
-- EIA published-table history is archived under a new held object, with exact
-  generation recovery and checksum verification. Existing warehouse history
-  has not been replaced or truncated.
-- 104 credential-free tests and Ruff passed. Python/shell syntax, XML diagrams,
-  JSON sample, YAML manifest and the installed-container DAG graph were checked.
-- The API key remains in Secret Manager; candidate/source-artifact scans found
-  no persisted matches. No secret versions are managed through Terraform state.
+1. Confirmed no running daily DAG and preserved its source/configuration.
+2. Removed only the previous Eventarc identity's service-scoped invocation
+   grant. Verified that identity had no legacy-service grant or public-access
+   substitute, while retaining its new-service grant.
+3. Reviewed and applied a saved Terraform plan containing exactly one update:
+   EIA's output environment changed from eia-oil-validation to oil-prices-topic.
+   The new trigger remained eia-oil-trigger. The function became ACTIVE at
+   20:30:46 UTC.
+4. Committed the DAG pause, installed the byte-verified candidate, parsed its
+   ten-task graph in the actual container, and restored its original unpaused
+   state. OIL_TRIGGER_TOPIC had no deployed Variable override. UID 1001,
+   GID 0 and mode 0644 were preserved.
+5. Triggered `eia_cutover__63cb0f7__20261027`, 20:32:45-20:34:01 UTC.
+   All ten tasks succeeded: baseline, three producer triggers, three fresh-row
+   sensors, settle task, BigQuery procedure and summary. None was skipped.
+6. Verified source/curated alignment, forecasts, features and BI serving views
+   as described below, before retiring any legacy function.
+7. Deleted the superseded function and its generated Cloud Run/Eventarc
+   resources. Verified its standalone trigger topic had zero subscriptions,
+   then deleted that topic. Preserved the old credential container/source.
+8. Detached only the retained credential container from active Terraform
+   ownership using a backed-up state. A reviewed retirement plan removed
+   exactly its unused service-scoped Airflow accessor grant. Refresh removed
+   state for the externally retired resources. Shared prevent_destroy guards
+   were unchanged. Both Terraform roots subsequently returned no-change plans.
+9. Verified Airflow database/scheduler/triggerer health, all three consumers
+   active with zero restarts, installed/rollback DAG hashes and permissions.
+   Recovered the receipt locally and restored the VM's original stopped state
+   outside its normal operating window. Existing schedules remain unchanged.
 
-## Preflight and rollback evidence
+The first preflight pause was reported inside a transaction that had not
+committed. A read-back before installation caught the unpaused state; the
+installation precheck was corrected to commit explicitly. No DAG was running
+and this occurred outside the scheduled run window. The old invocation stayed
+disabled throughout the promotion. The corrected installation passed.
 
-The actual installed Airflow DAG has SHA-256
-`40265cf6a43faaa2378e1a17020d2ef59be27d781bf3bc81cd521473c7b9b1ff`.
-The validated candidate DAG has SHA-256
+## Verified production results
+
+Six EIA rows, dated October 13-16 and 19-20, reached the existing production
+staging table. Every row identifies EIA/RBRTE, has published_verified=true,
+and matches both the accepted published-table archive and curated Brent price.
+There were six distinct dates, with no duplicate delivery in this test.
+Latest oil ingestion: 20:33:18 UTC; latest observation: October 20. Receipt
+freshness does not turn that observation into an October 27 quote.
+
+All thirteen read-only feature/calendar/forecast/evaluation checks returned
+zero violations. Joined data, features and historical predictions contained
+4,682 daily rows through October 27. Forecasts contained exactly forty unique,
+finite, positive values dated October 28-December 6. The KPI view returned one
+complete row; both indexed-series views returned 4,682 rows with no null
+outputs. All three freshness-view ingestion times advanced.
+
+BigQuery procedure job, location europe-west3:
+`airflow_cocoa_daily_run_bq_pipeline_2026_10_27T20_32_44_00_00_49cd90eb95c4cfb6c240fccdb73582ca`.
+
+This proves one controlled production cycle. Recurring source-quality gates,
+atomic all-product publication, chronological forecasting evaluation, sustained
+service targets and rendered-report acceptance remain later checklist work.
+Historical warehouse replacement/truncation was not performed. The accepted
+source-history differences remain documented in [migration evidence](eia-migration.md).
+
+## Serving identity and recovery evidence
+
+Serving function/entry point: publish_eia_data; trigger: eia-oil-trigger;
+output: oil-prices-topic; credential: Secret Manager EIA_OIL_API_KEY.
+The validation topic/subscription remain available for isolated testing, but
+the serving function currently publishes to production.
+
+The validated source bundle contains exactly main.py, requirements.txt and
+oil_schema.avsc. SHA-256:
+`a020ce805a64b2a909b7489187d1b003ac1d79444d06ca0950b800bbdc84da34`.
+Its serving archive members matched reviewed source and canonical schema.
+
+Installed DAG SHA-256:
 `c65aa41e2eee9cd417cfecd966d77e27da5f068eb1a21371db4fd3855922a8fc`.
-Its ten task IDs, dependency graph and schedule match the installed DAG. Only
-the default oil trigger changes to eia-oil-trigger. The deployed override
-Variable was absent, and there were no running cocoa_daily DAG runs.
+Previous DAG SHA-256:
+`40265cf6a43faaa2378e1a17020d2ef59be27d781bf3bc81cd521473c7b9b1ff`.
+VM recovery directory: `/opt/airflow/releases/eia-63cb0f7/`, including original
+and serving DAG bytes, approved preflight state and completed-cutover.json.
 
-The original pause state was unpaused. The temporary preflight pause was
-reversed after the rejection, and the original installed DAG hash was verified
-unchanged. The VM was started solely for preflight outside its normal window;
-its original stopped state is restored before the scheduled 18:30 Berlin start.
-Normal Cloud Scheduler and weekday DAG schedules are preserved.
-
-VM backup directory: `/opt/airflow/releases/eia-63cb0f7/`. It contains the
-original/candidate DAG bytes and ownership/mode receipt (UID 1001, GID 0, 0644).
-Local private evidence is under `.build/eia-migration/`, including original
-function source, non-secret configuration, invocation policy, pre-migration
-Terraform state, isolated plans and validation receipts. The original serving
-function source ZIP has SHA-256
+Private local evidence under `.build/eia-migration/` includes source/config/IAM
+backups, before/after state, reviewed plans/logs, the completed VM receipt,
+and production-output-validation.json with query jobs/results. The previous
+function source backup, legacy-function-source.zip, has SHA-256
 `185a68a7b909572c22acfd4a0d75119af6e8bceba13e28fc438b78a8e8c80d6d`.
+Its actual identifiers and deployment settings remain in the private metadata
+backup and unchanged [baseline resource record](https://github.com/IsaacOnKeys/Cocoa_Prices/blob/0236abaad185d1f6b475aa6f4c4a105058c95aad/docs/infrastructure/gcp-resource-inventory.json).
+The previous credential is retained; its value was not read during retirement.
+No secret versions are managed in Terraform state.
 
-Legacy identifiers in this migration-only approval package describe existing
-resources accurately. They are not names used by the new acquisition code.
-Current production is `publish_fred_data`, invoked from `oil-trigger`; its API
-credential is `FRED_OIL_API_KEY`. Preserve that credential and source artifact
-for rollback rather than deleting them as a cosmetic rename.
+## Rollback after retirement
 
-## Proposed approved sequence
+Pause the DAG and verify no active run. Disable EIA invocation before enabling
+any replacement production producer. Recover the checksummed previous source
+bundle and metadata, recreate its function/trigger with the retained credential
+and restore its service-scoped Eventarc invocation grant. Restore dag_before.py
+with its recorded ownership/mode and reconcile the trigger Variable if present.
+Re-adopt restored resources into reviewed Terraform configuration/state; do not
+remove unrelated lifecycle guards. Verify exactly one production producer and
+a complete controlled daily cycle, then restore the prior pause/VM state.
 
-1. Confirm the actual current VM/DAG/trigger state and no active daily run;
-   choose a controlled window that does not collide with the normal daily run.
-2. Pause cocoa_daily and preserve the current configuration/ownership receipt.
-3. Disable the legacy producer's Eventarc invocation first, using its backed-up
-   service-level invocation policy and actual trigger identity. Verify the
-   legacy route is quiescent before enabling EIA production publication.
-4. Review a plan scoped to the already verified EIA function's output change
-   from eia-oil-validation to oil-prices-topic. Its trigger stays eia-oil-trigger;
-   existing consumer, topic/schema and staging interfaces stay compatible.
-5. Apply that reviewed promotion, confirm ACTIVE/serving configuration, and
-   install the already parsed candidate DAG while preserving file owner/mode.
-   Reconcile any actual Airflow Variable override rather than assuming a default.
-6. Run one controlled daily cycle. Require explicit task-level evidence for all
-   three producer triggers and sensors, the BigQuery procedure and summary;
-   a green DAG with skipped required work is insufficient acceptance evidence.
-7. Verify EIA source/corroboration markers and expected dates/prices in the real
-   staging output, curated alignment, finite/unique correctly dated forecast
-   outputs, and consumer-facing data status. Record job/run/release identifiers
-   and the remaining evaluation/freshness limitations separately.
-8. On failure, restore the original DAG/pause/trigger policy, return EIA output
-   to validation and verify the legacy route is the sole production producer.
-   Source rollback does not erase acknowledged messages or warehouse writes;
-   assess and reconcile those effects explicitly.
-9. On success, restore the original unpaused state and normal VM scheduling.
-   Retire the superseded function/trigger and reconcile Terraform state and
-   protected-resource lifecycle handling without disabling unrelated guards.
-   Preserve the legacy API key and code for the agreed rollback window.
-10. Refresh inventory and all active provider references, document the final
-    deployment/rollback receipt and mark the source migration complete. Retain
-    original dated provenance through exact Git/archive references.
-
-This approval covers the producer/routing cutover and retirement of its
-superseded function after validation. Historical warehouse replacement,
-WRITE_TRUNCATE recovery, model redesign, API-key deletion and later checklist
-features are separate work. The 28 old-only dates remain an explicit new-source
-history difference governed by the accepted source policy.
-
-## Required owner decision
-
-Approve the sequence above, including disabling the legacy producer before
-promotion and retiring its superseded function after validation, while keeping
-the old credential and source for rollback; or leave the verified candidate
-isolated until a later cutover window. The production switch remains blocked
-until that decision is explicit.
+Recovery must account for messages already acknowledged and warehouse writes
+already made. Restoring source does not reverse those effects. Reconcile them
+through isolated, measured repair; never run an unrestricted historical
+WRITE_TRUNCATE as part of producer rollback. Credential deletion and historical
+warehouse replacement were outside this cutover approval.

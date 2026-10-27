@@ -6,9 +6,11 @@ automated daily ingestion, temporal/exogenous feature engineering, and a
 The inputs are ICCO cocoa prices, EIA Europe Brent oil observations, and NASA POWER
 precipitation and soil moisture.
 
-The EIA migration is being validated on a separate trigger and output route.
-Production cutover and historical warehouse replacement remain gated; see the
-[migration status and source-policy evidence](docs/operations/eia-migration.md).
+The EIA production cutover passed a controlled daily cycle on 2026-10-27;
+the previous producer was retired and its recovery material retained. See the
+[deployment receipt](docs/operations/eia-cutover.md) and
+[source-policy evidence](docs/operations/eia-migration.md). Historical warehouse
+replacement and the remaining production-readiness features are separate work.
 
 ## Architecture
 

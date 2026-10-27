@@ -12,7 +12,6 @@ locals {
     cocoa-prices-topic       = "cocoa-schema"
     oil-prices-topic         = "oil-schema"
     weather-topic            = "weather-schema"
-    oil-trigger              = null
     eia-oil-trigger          = null
     eia-oil-validation       = "oil-schema"
     weather-trigger          = null

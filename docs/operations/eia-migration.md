@@ -1,15 +1,12 @@
-# EIA oil-source migration: candidate and source-quality decision
+# EIA oil-source migration and source-quality decision
 
 Branch: `codex/eia-oil-migration`, based on `8b2861236dcc7fbe6ac28bd59f8d67960ec8928b`.
-Investigation date: 2026-10-27. Status: the owner accepted the source policy
-below; candidate implementation and isolated runtime validation are in progress.
-Production cutover and historical warehouse replacement are not yet completed.
-
-Production-cutover gate: automatic approval review rejected promotion into the
-existing oil topic while the legacy producer remained active. The rejected
-command did not execute. The temporary Airflow pause was reversed and the
-original installed source is unchanged; EIA remains routed to validation.
-See the concrete [cutover approval package](eia-cutover.md).
+Investigation/deployment date: 2026-10-27. The owner accepted the source policy
+below and explicitly approved the controlled production cutover. EIA now serves
+production; the previous producer/trigger were retired after a successful daily
+cycle. Historical warehouse replacement remains separate work. See the
+[deployment and rollback receipt](eia-cutover.md) for approval, task/query
+evidence, retained recovery material and operational limitations.
 
 ## Verified access and the earlier implementation
 
@@ -84,7 +81,7 @@ The JSON files are normalized, credential-free source representations. Their
 hashes do not claim byte identity with an entire HTTP response. Existing cloud
 archives and warehouse data have not been replaced.
 
-## Candidate behavior and safety boundaries
+## Serving behavior and safety boundaries
 
 `functions/oil/main.py` now defines `publish_eia_data`. It reads the new secret,
 uses bounded requests and publication waits, validates dates/series/units and
@@ -92,7 +89,7 @@ finite measurements, handles explicit nulls, checks pagination consistency,
 and acquires the full requested 14-day window. Exceptions propagate with
 sanitized messages; source responses and credential-bearing URLs are not logged.
 
-Before publishing any message, the candidate reconciles valid API observations
+Before publishing any message, the producer reconciles valid API observations
 with EIA's published weekday table over the same interval. A missing date,
 different price, unexpected page format or unavailable corroboration blocks
 the entire candidate batch. This introduces a deliberate published-table
@@ -148,9 +145,11 @@ was subsequently verified empty and removed.
 `.build/eia-migration/cloud-route-validation.json` records the passing run.
 The actual serving source ZIP, generation `1793114718746253`, contains exactly
 main.py, requirements.txt and oil_schema.avsc, all byte-identical to the
-reviewed source and canonical schema. Candidate function state is ACTIVE and
-its output environment setting is eia-oil-validation; production routing has
-not yet been switched.
+reviewed source and canonical schema. After explicit cutover approval, a
+reviewed one-update plan changed output to oil-prices-topic. Function state is
+ACTIVE, the installed DAG uses eia-oil-trigger, and all ten tasks plus the
+production output checks passed. The previous function/trigger are retired;
+its credential/source remain available for controlled rollback.
 
 ## Dependency checklist for the accepted migration
 
@@ -164,14 +163,15 @@ not yet been switched.
 - [x] Coordinate the new function identity, artifact/source generation, trigger,
   IAM, secret adoption and Terraform ownership without destroying protected
   legacy resources or double-triggering producers.
-- [ ] Validate the actual producer -> Pub/Sub -> Beam -> isolated BigQuery path,
+- [x] Validate the actual producer -> Pub/Sub -> Beam -> isolated BigQuery path,
   then the intended Airflow invocation and SQL/consumer outputs.
-  The isolated cloud path passed; installed Airflow/production cutover remains open.
-- [ ] Update all active source-provider references, paths, diagrams, inventory,
+  Both isolated and controlled production paths passed; see the deployment receipt.
+- [x] Update all active source-provider references, paths, diagrams, inventory,
   operations/deployment documentation and examples. Preserve dated provenance
   accurately through explicit archival/migration records; do not blind-replace
   old resource IDs or claim a new deployment that has not occurred.
-- [ ] Verify deployment/rollback sequencing and cutover during a controlled window;
+- [x] Verify deployment/rollback sequencing and cutover during a controlled window;
   retire superseded resources only after accepted end-to-end evidence.
 
-Local unit/static checks do not establish the unchecked runtime/deployment gates.
+Rollback source/configuration checks passed; recreating the retired producer
+was not rehearsed. One successful cycle does not establish ongoing reliability.

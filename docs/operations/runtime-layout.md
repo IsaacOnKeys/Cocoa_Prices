@@ -1,10 +1,10 @@
 # Runtime layout and EIA migration boundaries
 
-The EIA migration uses a separate deployed candidate and isolated output route.
-The original production producer and installed DAG remain in place until the
-controlled cutover is verified. See [migration evidence](eia-migration.md) for
-the active checkpoint and [service requirements](service-contract.md) for target
-behavior rather than measured guarantees.
+EIA serves production following the verified 2026-10-27 controlled cutover.
+The superseded function/trigger are retired; source/credential recovery material
+is retained. See the [deployment receipt](eia-cutover.md),
+[migration evidence](eia-migration.md) and [service requirements](service-contract.md).
+One passing cycle does not establish the target service guarantees.
 
 ## Stable VM and orchestration interfaces
 
@@ -35,7 +35,7 @@ claim that the runtime can be rebuilt without the remaining deployment work.
 
 ## EIA function and routing
 
-| Interface | Candidate configuration |
+| Interface | Serving configuration |
 | --- | --- |
 | Source/prepared root | functions/oil/ -> .build/functions/oil/ |
 | Function / entry point | publish_eia_data / publish_eia_data |
@@ -43,14 +43,15 @@ claim that the runtime can be rebuilt without the remaining deployment work.
 | Trigger | eia-oil-trigger, invoked through Eventarc |
 | API credential | Secret Manager EIA_OIL_API_KEY; values/versions remain outside Git and Terraform state ownership |
 | Isolated output topic/subscription | eia-oil-validation / eia-oil-validation-sub |
-| Intended production output | oil-prices-topic / oil-prices-sub, after accepted cutover |
+| Production output | oil-prices-topic / oil-prices-sub; active output of publish_eia_data |
 | Canonical wire schema | schemas/oil_schema.avsc; existing date/oil_price/ingestion_time/raw_payload fields |
 | Warehouse interface | stream_staging.oil_prices and existing curated key/date semantics |
 
-The repository DAG now defaults OIL_TRIGGER_TOPIC to eia-oil-trigger. A deployed
-Variable can override that default; the actual value and installed DAG must
-be reconciled during cutover. A separate trigger prevents both old and new
-producers from consuming one invocation while the candidate is being tested.
+The repository and installed DAG default OIL_TRIGGER_TOPIC to eia-oil-trigger.
+The deployed Variable was absent at cutover. Recheck overrides on deployment;
+a repository default does not establish the effective deployed route.
+The validation topic remains available, but testing it requires an isolated
+producer configuration; it is not a second output of the serving function.
 
 Eventarc requires its trigger service account to have roles/run.invoker on
 the new function's Cloud Run service. The isolated cloud test found HTTP 403
@@ -77,8 +78,7 @@ runtime captures and recovery receipts are preserved in Git commit
 The [historical handoff](portfolio-handoff-2026-10-26.md) points to that unchanged
 record. Do not rename those historical identities to imply an EIA deployment.
 
-The EIA migration keeps the legacy producer available during validation.
-Cutover must record the old/new trigger and DAG mappings, verify only the
-intended producer is invoked, preserve a rollback path and test the resulting
-warehouse/report outputs. Safe historical backfill and production-wide quality
-gates remain their separate checklist items.
+The completed cutover records routing, task/query results and recovery material
+in its [receipt](eia-cutover.md). The old producer was disabled before EIA
+promotion and retired only after acceptance. Safe historical backfill and
+production-wide quality gates remain their separate checklist items.
