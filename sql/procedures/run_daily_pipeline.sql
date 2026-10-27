@@ -42,26 +42,19 @@ WHEN NOT MATCHED THEN
   INSERT (date, precipitation, soil_moisture)
   VALUES (S.date, S.precipitation, S.soil_moisture);
 
--- 2) Join + forward-fill
+-- 2) Join + forward-fill (deployed calendar and weather sentinel handling)
 CREATE OR REPLACE TABLE `cocoa-prices-430315.cocoa_related.joined_daily_cocoa_oil_weather` AS
 WITH cal AS (
   SELECT d
-  FROM UNNEST(GENERATE_DATE_ARRAY(
-    DATE '2014-01-01',
-    COALESCE((SELECT MAX(mx) FROM UNNEST([
-      (SELECT MAX(Date) FROM `cocoa-prices-430315.cocoa_related.cocoa`),
-      (SELECT MAX(date) FROM `cocoa-prices-430315.cocoa_related.brent_prices`),
-      (SELECT MAX(date) FROM `cocoa-prices-430315.cocoa_related.precipitation`)
-    ]) AS mx), CURRENT_DATE())
-  )) AS d
+  FROM UNNEST(GENERATE_DATE_ARRAY(DATE '2014-01-02', CURRENT_DATE())) AS d
 ),
 j AS (
   SELECT
     cal.d AS date,
     c.Euro_Price     AS cocoa_price_raw,
     o.brent_price_eu AS oil_price_raw,
-    p.precipitation,
-    p.soil_moisture
+    NULLIF(p.precipitation, -999.0) AS precipitation_raw,
+    NULLIF(p.soil_moisture, -999.0) AS soil_moisture_raw
   FROM cal
   LEFT JOIN (
     SELECT Date, ANY_VALUE(Euro_Price) AS Euro_Price
@@ -87,9 +80,9 @@ SELECT
     ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW) AS cocoa_price,
   LAST_VALUE(oil_price_raw   IGNORE NULLS) OVER (ORDER BY date
     ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW) AS oil_price,
-  LAST_VALUE(precipitation   IGNORE NULLS) OVER (ORDER BY date
+  LAST_VALUE(precipitation_raw IGNORE NULLS) OVER (ORDER BY date
     ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW) AS precipitation,
-  LAST_VALUE(soil_moisture   IGNORE NULLS) OVER (ORDER BY date
+  LAST_VALUE(soil_moisture_raw IGNORE NULLS) OVER (ORDER BY date
     ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW) AS soil_moisture
 FROM j;
 
@@ -119,7 +112,7 @@ SELECT
   LEAD(y, 40) OVER (ORDER BY date) AS target_40
 FROM s;
 
--- 4–7) Model + forecasts + backtest + metric (guarded)
+-- 4Ã¢â‚¬â€œ7) Model + forecasts + backtest + metric (guarded)
 IF (SELECT COUNT(*) FROM `cocoa-prices-430315.cocoa_related.features_live` WHERE target_40 IS NOT NULL) > 0 THEN
 
   -- 4) Model (ridge; no tuning)

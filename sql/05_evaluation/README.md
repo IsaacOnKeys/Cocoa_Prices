@@ -3,8 +3,8 @@
 This directory makes the evaluation stage visible while distinguishing what
 the current SQL implements from a rigorous chronological backtest.
 
-**Implementation:** [historical predictions and actual-price join](../procedures/run_daily_pipeline.sql#L152-L172)
-and [MAPE view](../procedures/run_daily_pipeline.sql#L174-L179).
+**Implementation:** [historical predictions and actual-price join](../procedures/run_daily_pipeline.sql#L145-L165)
+and [MAPE view](../procedures/run_daily_pipeline.sql#L167-L172).
 
 ## Current implementation
 

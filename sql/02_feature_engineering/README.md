@@ -3,7 +3,7 @@
 This stage turns the aligned daily cocoa, oil, and weather series into the
 model's inputs and its 40-day-ahead supervised target.
 
-**Implementation:** [feature expressions in the canonical procedure](../procedures/run_daily_pipeline.sql#L97-L120).
+**Implementation:** [feature expressions in the canonical procedure](../procedures/run_daily_pipeline.sql#L90-L113).
 
 **Input:** cocoa_related.joined_daily_cocoa_oil_weather.
 **Output:** cocoa_related.features_live, a BigQuery view.

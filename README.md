@@ -107,12 +107,21 @@ Airflow 2.10.2 image with Google provider 10.22.0.
 
 The VM inspection and Docker startup outcome are recorded in the
 [runtime handoff](docs/operations/portfolio-handoff-2026-10-26.md).
-The [CI workflow](.github/workflows/ci.yml) is configured to run credential-free
-checks on Python 3.11 and 3.12 after publication; see the
+The [CI workflow](.github/workflows/ci.yml) runs credential-free
+checks on Python 3.11 and 3.12; see the
 [CI reference](docs/operations/ci.md) for test boundaries and commands.
+
+The [27 October production validation](docs/operations/release-validation-2026-10-27.md)
+deployed the reconciled cocoa/weather consumers and completed the daily DAG
+with all ten tasks successful. All three feeds delivered new records; thirteen
+BigQuery checks verified feature calculations, forecast alignment and valid
+outputs. Dashboard source views were also checked. The SQL source now matches
+the existing deployed procedure's calendar and weather sentinel handling.
+
 No forecasting accuracy, chronological out-of-sample evaluation, working
-dead-letter routing, or end-to-end production equivalence is claimed from these
-checks. The current historical-prediction MAPE has
+dead-letter routing, or rendered-dashboard verification is claimed from these
+checks. One successful production cycle does not establish ongoing reliability.
+The current historical-prediction MAPE has
 [documented evaluation limitations](sql/README.md).
 
 ## Operational reference
