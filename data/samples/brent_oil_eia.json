@@ -1,0 +1,50 @@
+{
+  "source": "U.S. Energy Information Administration",
+  "series": "RBRTE",
+  "frequency": "daily",
+  "units": "$/BBL",
+  "acquired_at": "2026-10-27T15:06:14.612085+00:00",
+  "acquisition_interface": "published-table",
+  "request": {
+    "route": "https://www.eia.gov/dnav/pet/hist/RBRTED.htm",
+    "start": "2014-01-01",
+    "end": "2026-10-27"
+  },
+  "response": {
+    "total": 5,
+    "data": [
+      {
+        "period": "2014-01-02",
+        "series": "RBRTE",
+        "value": "107.94",
+        "units": "$/BBL"
+      },
+      {
+        "period": "2014-01-03",
+        "series": "RBRTE",
+        "value": "106.57",
+        "units": "$/BBL"
+      },
+      {
+        "period": "2014-01-06",
+        "series": "RBRTE",
+        "value": "106.71",
+        "units": "$/BBL"
+      },
+      {
+        "period": "2014-01-07",
+        "series": "RBRTE",
+        "value": "107.01",
+        "units": "$/BBL"
+      },
+      {
+        "period": "2014-01-08",
+        "series": "RBRTE",
+        "value": "107.42",
+        "units": "$/BBL"
+      }
+    ]
+  },
+  "sample_selection": "First five published observations; response.total describes this sample only.",
+  "original_archive_record_count": 3249
+}

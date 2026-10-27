@@ -28,7 +28,7 @@ One accepted release contains:
 
 | Product | Contract |
 | --- | --- |
-| Curated source series | Traceable, validated ICCO cocoa, FRED oil and NASA POWER weather observations; distinguish source observations from calendar-filled values. |
+| Curated source series | Traceable, validated ICCO cocoa, EIA oil and NASA POWER weather observations; distinguish source observations from calendar-filled values. |
 | Daily analytical series and features | Consistent daily grain, units and source/as-of metadata; explicit missingness, imputation and value age. |
 | Forecasts and evaluation | Validated, consistently labeled forecast outputs, issued/model/input cutoffs, and an honest evaluation status; current historical rescoring must not be called chronological out-of-sample performance. |
 | BI serving outputs | Stable, documented outputs referencing the same accepted release, with release time, source coverage and quality/staleness status visible to consumers. |
@@ -78,15 +78,14 @@ maximum ages are conservative project limits, not upstream service promises:
 | Source | Expected availability and latest-observation rule | Maximum age at release |
 | --- | --- | --- |
 | ICCO cocoa | Use the actual dated EUR/tonne daily-price observations exposed by ICCO, including its published market-closure notes. Require the latest valid exposed observation; do not assume today's quote is already available or substitute the scrape date. | 7 calendar days |
-| FRED DCOILBRENTEU | Require the latest valid published observation available at the input cutoff and record release/availability evidence. Daily observation frequency does not mean daily FRED publication; an unchanged quote can be valid before the next release. | 14 calendar days |
+| EIA RBRTE | Require the latest valid observation available at the input cutoff, with API dates/values corroborated against EIA's published weekday table. Daily observation frequency does not mean daily publication; an unchanged quote can be valid before the next release. | 14 calendar days |
 | NASA POWER precipitation and root-zone wetness | Require the latest valid values available for the configured point and both parameters, reconcile the acquired window, and preserve each measurement's date. Meteorological data normally has a 2-3 day latency; a current-date missing sentinel is not a current valid value. | 7 calendar days per measurement |
 
 Source references checked on 2026-10-27:
 [ICCO dated quotes and market-closure notes](https://www.icco.org/),
-[FRED series and release metadata](https://fred.stlouisfed.org/series/DCOILBRENTEU),
-[FRED release-date availability caveat](https://fred.stlouisfed.org/docs/api/fred/release_dates.html),
+[EIA series and release metadata](https://www.eia.gov/dnav/pet/hist/RBRTED.htm),
 and [NASA POWER latency guidance](https://power.larc.nasa.gov/docs/faqs/data/).
-FRED release dates alone are not proof that the data has become available.
+Scheduled release dates alone are not proof that the data has become available.
 
 If a source response succeeds, its latest valid observation is unchanged,
 availability evidence explains the delay, and the age limit passes, classify
@@ -168,7 +167,7 @@ items are implemented and verified.
 Implementation evidence must identify the code/config version, source input
 cutoff, quality results, forecast/model identity, publication outcome and
 consumer-visible release. Source freshness examples must cover an ICCO
-previous-day quote, a FRED observation unchanged until its next release, NASA
+previous-day quote, an EIA observation unchanged until its next release, NASA
 latency/sentinels, a real acquisition failure and a source-age breach.
 
 Changes to service objectives or the all-or-nothing publication policy require

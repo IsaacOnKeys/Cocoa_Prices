@@ -3,14 +3,18 @@
 A Google Cloud data engineering project combining historical backfills,
 automated daily ingestion, temporal/exogenous feature engineering, and a
 40-day-ahead BigQuery ML cocoa price forecast.
-The inputs are ICCO cocoa prices, FRED Brent oil observations, and NASA POWER
+The inputs are ICCO cocoa prices, EIA Europe Brent oil observations, and NASA POWER
 precipitation and soil moisture.
+
+The EIA migration is being validated on a separate trigger and output route.
+Production cutover and historical warehouse replacement remain gated; see the
+[migration status and source-policy evidence](docs/operations/eia-migration.md).
 
 ## Architecture
 
 ~~~mermaid
 flowchart LR
-    Sources["ICCO · FRED · NASA POWER"] --> Functions["Gen2 Python functions"]
+    Sources["ICCO · EIA · NASA POWER"] --> Functions["Gen2 Python functions"]
     Functions --> PubSub["Pub/Sub · Avro contracts"]
     subgraph VM["Compute Engine VM"]
         Beam["Beam DirectRunner consumers"]

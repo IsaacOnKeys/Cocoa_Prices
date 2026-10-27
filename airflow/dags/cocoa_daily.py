@@ -47,7 +47,7 @@ PROGRESS_MIN_NEW_ROWS = int(Variable.get("PROGRESS_MIN_NEW_ROWS", default_var="1
 
 # Producer triggers
 COCOA_FN_URL = Variable.get("COCOA_FN_URL", default_var=None)
-OIL_TRIGGER_TOPIC = Variable.get("OIL_TRIGGER_TOPIC", default_var="oil-trigger")
+OIL_TRIGGER_TOPIC = Variable.get("OIL_TRIGGER_TOPIC", default_var="eia-oil-trigger")
 WEATHER_TRIGGER_TOPIC = Variable.get(
     "WEATHER_TRIGGER_TOPIC", default_var="weather-trigger"
 )

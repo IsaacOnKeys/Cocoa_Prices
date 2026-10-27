@@ -1,78 +1,96 @@
-# Historical bootstrap data
+# Historical source data and provenance
 
-This project has two acquisition modes:
+Historical acquisition and daily ingestion are separate workflows. The
+[manifest](historical_manifest.yaml) identifies each accepted snapshot by
+source, acquisition method, observed coverage, checksum and exact GCS generation.
 
-- Historical bootstrap: one-time source acquisition followed by Beam backfills
-  to seed warehouse/model history.
-- Operational ingestion: automated daily functions -> Pub/Sub -> Beam -> BigQuery.
+## Accepted snapshots
 
-The historical files were individually downloaded from the source websites,
-except cocoa data, which was scraped from ICCO. Manual acquisition is recorded
-explicitly; it is not presented as an automated ingestion workflow.
+| Dataset | Coverage | Records | Acquisition |
+| --- | --- | ---: | --- |
+| ICCO cocoa | 2014-01-02 to 2025-10-01 | 3,020 | Original manual web scrape; protected snapshot copied in October 2026. |
+| EIA RBRTE | 2014-01-02 to 2026-10-20 | 3,249 | New extraction of EIA's explicitly dated published weekday table on 2026-10-27. |
+| NASA POWER, 4.745 / -6.635 | 2014-01-01 to 2025-09-29 | 4,290 | Original manual download; protected snapshot copied in October 2026. |
 
-## Authoritative snapshots
+The manifest's original snapshot/upload date applies to the initial bootstrap.
+Each dataset's acquisition date, URI and generation govern its own provenance;
+the new oil acquisition is not represented as a 2025 upload or a manual download.
 
-[historical_manifest.yaml](historical_manifest.yaml) records source URLs,
-acquisition methods, measured coverage, row counts, exact GCS generations,
-SHA-256 and successful recovery verification. Acquisition dates were not
-recorded; snapshot_date=2025-10-02 is the original GCS upload date.
-
-~~~text
+```text
 gs://raw-historic-data/snapshots/2025-10-02/
   icco/Daily_Prices_Home.csv
-  fred/brent_oil_fred.json
   nasa_power/POWER_Point_Daily.csv
-  manifest.yaml
-~~~
+gs://raw-historic-data/snapshots/2026-10-27/
+  eia/brent_oil_eia.json
+```
 
-| Dataset | Measured coverage | Records | Acquisition |
-| --- | --- | ---: | --- |
-| ICCO cocoa | 2014-01-02 to 2025-10-01 | 3,020 | One-time manual web scrape |
-| FRED DCOILBRENTEU | 2014-01-01 to 2025-09-22 | 3,118 | Manual download |
-| NASA POWER, 4.745 / -6.635 | 2014-01-01 to 2025-09-29 | 4,290 | Manual download |
+Snapshots use [GCS temporary holds](https://docs.cloud.google.com/storage/docs/object-holds).
+Authorized administrators can release these holds; they are not a permanent
+retention lock. Recovering the exact new EIA generation and hashing its bytes
+reproduced the manifest's SHA-256. Existing original cloud objects have not
+been overwritten or relabeled.
 
-Coverage was calculated from records, rather than copied from request/header
-date ranges. The NASA header describes the requested span, which is longer
-than the observations actually present.
+## EIA authority and missing dates
 
-On 2026-10-26, exact original object generations were copied into this layout
-without overwriting existing objects. The three snapshots and archived manifest
-have [GCS temporary holds](https://docs.cloud.google.com/storage/docs/object-holds),
-which prevent replacement/deletion until an authorized
-operator explicitly releases the hold. This is object-scoped protection, not
-an irreversible bucket retention lock. The original root objects remain intact.
+The owner accepted the published weekday table as the historical authority.
+New daily API acquisitions must agree with that table for their requested
+window before any Avro publication. The API and table are not assumed to have
+identical historical coverage: [migration evidence](../docs/operations/eia-migration.md)
+records the observed differences and the accepted policy.
 
-Each new snapshot was downloaded again and SHA-256 checked before full files
-were removed from the source tree. The original GCS bytes are authoritative
-because these were the historical backfill inputs. Windows/Git line-ending
-differences and FRED JSON formatting differences were checked for data
-equivalence and recorded in the manifest; no full source was reformatted.
+There are 28 valid dates in the prior supplier archive without a quote in the
+new published-table history. Preserve their old provenance; represent them as
+absent source observations in the new EIA version rather than silently carrying
+them over as EIA quotes. The prior manifest, samples and their original source
+names remain recoverable at Git commit
+`8b2861236dcc7fbe6ac28bd59f8d67960ec8928b` and in the original held objects.
+Historical warehouse replacement has not been implied by updating this manifest.
 
-Full working copies are retained locally under ignored data/raw/. They are
-absent from the current working source tree, with tracked deletions awaiting
-review/commit. Earlier commits were not rewritten.
+Oil values are USD per barrel. The existing curated field brent_price_eu refers
+to the Europe series and does not indicate an implemented EUR conversion.
+EIA source attribution and publication/acquisition dates belong with derived
+reports; see [EIA reuse guidance](https://www.eia.gov/about/copyrights_reuse.php).
 
-To recover an exact snapshot, use its generation from the manifest:
+## Acquisition and recovery
 
-~~~bash
-gcloud storage cp "gs://raw-historic-data/snapshots/2025-10-02/icco/Daily_Prices_Home.csv#1793012110386226" Daily_Prices_Home.csv
-sha256sum Daily_Prices_Home.csv
-~~~
+Acquire a new, non-overwriting EIA source representation:
 
-Full snapshots require GCS read access. The [backfill pipelines](../pipelines/backfill/README.md)
-read the protected snapshot names. Acquisition scripts may be added later;
-they are not required to reproduce processing of the archived inputs.
+```bash
+python scripts/operations/acquire_eia_history.py \
+  --interface published-table --start 2014-01-01 \
+  --output data/raw/brent_oil_eia.json
+```
 
-## Small source-format examples
+The optional API acquisition mode retrieves its key from Secret Manager and
+requires corroboration against the published table. Credentials, full query
+URLs and arbitrary source errors are not printed or archived.
 
-Samples were derived from the unchanged working snapshots before archival.
-They are examples, not training data or substitutes for the full snapshots.
+Recover the accepted EIA snapshot exactly:
+
+```bash
+gcloud storage cp \
+  "gs://raw-historic-data/snapshots/2026-10-27/eia/brent_oil_eia.json#1793113993070636" \
+  recovered_brent_oil_eia.json
+sha256sum recovered_brent_oil_eia.json
+```
+
+Expected SHA-256:
+`4adb1bab95f29b3fc3b64bac6cf5b11f0c14c4e7fa9ec6c7b61cf22de09af087`.
+
+Full archives remain in private cloud storage and ignored local directories.
+The [backfill scripts](../pipelines/backfill/README.md) load their declared
+historical inputs; existing production WRITE_TRUNCATE behavior still requires
+the separate safe-backfill/recovery work. Acquisition and archive validation
+do not execute those loaders.
+
+## Small source-format samples
 
 | Sample | Selection |
 | --- | --- |
-| [cocoa_prices.csv](samples/cocoa_prices.csv) | Source lines 1-6: header and first five records, quoted thousands separators, sterling header, and day/month/year dates. |
-| [power_daily.csv](samples/power_daily.csv) | Source lines 1-14, 1107 and 4301: complete metadata preamble, header, first three records, first DOY=366 record and final record. Five data rows; only trailing metadata whitespace stripped. The source has no -999 data row, although its missing-value convention is retained in the header. |
-| [brent_oil_fred.json](samples/brent_oil_fred.json) | First five observations, including '.', inside the original response envelope. count=5 describes the sample; other original metadata is retained. This derived JSON sample is formatted with indentation and LF. |
+| [cocoa_prices.csv](samples/cocoa_prices.csv) | Header and five source records with quoted prices and source date formatting. |
+| [power_daily.csv](samples/power_daily.csv) | Original metadata preamble/header and five records including leap-year coverage. |
+| [brent_oil_eia.json](samples/brent_oil_eia.json) | First five dated EIA published observations in the normalized acquisition envelope; response.total describes the sample, and original_archive_record_count identifies the full source size. |
 
-Both CSV samples and the JSON sample parse locally and contain five selected
-records each. Source/sample checksums remain in the dated migration evidence.
+Samples illustrate parsing and contracts; they are not substitutes for complete
+training history. Missing-value and incompatible-record fixtures live in the
+unit tests even when the small source samples contain no missing measurements.

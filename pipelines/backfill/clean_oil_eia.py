@@ -1,13 +1,13 @@
 """
 Usage:
-To refresh raw data from source:
-END_DATE=$(date +%Y-%m-%d)
-curl -s "https://api.stlouisfed.org/fred/series/observations?series_id=DCOILBRENTEU&realtime_start=2014-01-01&realtime_end=${END_DATE}&observation_start=2014-01-01&observation_end=${END_DATE}&units=lin&output_type=1&file_type=json&order_by=observation_date&sort_order=asc&offset=0&limit=100000&api_key=${FRED_API_KEY}" -o data/raw/brent_oil_fred.json
+Acquire a new source archive without overwriting existing files:
+python scripts/operations/acquire_eia_history.py \
+    --interface published-table --output data/raw/brent_oil_eia.json
 
 
 To run with DataFlow:
 
-python pipelines/backfill/clean_oil_fred.py \
+python pipelines/backfill/clean_oil_eia.py \
     --runner=DataflowRunner \
     --job_name="clean-oil-data-$(date +%s)" \
     --project=cocoa-prices-430315 \
@@ -22,9 +22,10 @@ python pipelines/backfill/clean_oil_fred.py \
 
 import json
 import logging
+import math
 import os
 import time
-from datetime import datetime
+from datetime import datetime, timezone
 
 import apache_beam as beam
 from apache_beam.options.pipeline_options import (
@@ -75,13 +76,18 @@ def extract_and_clean(file_content):
     Processes the JSON object, extracts each observation, converts the value
     to a float if possible, and yields a dictionary with 'date' and 'brent_price_eu'.
     """
-    observations = file_content.get("observations", [])
+    if (file_content.get("series") != "RBRTE" or file_content.get("units") != "$/BBL"
+            or file_content.get("acquisition_interface") != "published-table"):
+        raise ValueError("Expected an accepted EIA published-table archive")
+    observations = file_content["response"]["data"]
     for obs in observations:
-        date = obs.get("date")
+        if obs.get("series") != "RBRTE" or obs.get("units") != "$/BBL":
+            raise ValueError("Unexpected EIA archive series or units")
+        date = obs.get("period")
         value = obs.get("value")
         try:
-            value = float(value) if value != "." else None
-        except ValueError:
+            value = float(value) if value not in (None, "", ".", "NA", "--", "-") else None
+        except (ValueError, TypeError):
             value = None
         yield {"date": date, "brent_price_eu": value}
 
@@ -95,7 +101,7 @@ class ValidateAndTransform(beam.DoFn):
     def __init__(self):
         super(ValidateAndTransform, self).__init__()
         self.start_date = datetime(2014, 1, 1)
-        self.end_date = datetime(2025, 12, 31)
+        self.end_date = datetime.now(timezone.utc).replace(tzinfo=None)
 
     def process(self, element):
         """
@@ -124,6 +130,9 @@ class ValidateAndTransform(beam.DoFn):
         elif not isinstance(brent_price, float):
             valid = False
             errors.append("Brent_Price is not a float")
+        elif not math.isfinite(brent_price):
+            valid = False
+            errors.append("Brent_Price is not finite")
         if valid:
             yield {
                 "date": result["date"].strftime("%Y-%m-%d"),
@@ -165,7 +174,7 @@ def run():
         validated_records = (
             p
             | "Read Lines"
-            >> beam.io.ReadFromText("gs://raw-historic-data/snapshots/2025-10-02/fred/brent_oil_fred.json")
+            >> beam.io.ReadFromText("gs://raw-historic-data/snapshots/2026-10-27/eia/brent_oil_eia.json")
             | "Combine Lines"
             >> beam.CombineGlobally(lambda lines: "\n".join(lines)).without_defaults()
             | "Parse JSON" >> beam.Map(json.loads)

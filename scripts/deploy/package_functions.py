@@ -7,7 +7,7 @@ from zipfile import ZIP_STORED, ZipFile, ZipInfo
 REPO_ROOT = Path(__file__).resolve().parents[2]
 FUNCTIONS = {
     "cocoa": ("functions/cocoa", "publish_price"),
-    "oil": ("functions/oil", "publish_fred_data"),
+    "oil": ("functions/oil", "publish_eia_data"),
     "weather": ("functions/weather", "publish_weather_data"),
 }
 

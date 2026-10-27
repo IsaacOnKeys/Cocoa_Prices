@@ -20,7 +20,7 @@
         <mxCell id="src_icco_t" value="ICCO.org (scraping)" style="rounded=1;whiteSpace=wrap;html=1;fontFamily=Roboto;fontSize=12;fillColor=#E3F2FD;strokeColor=#1E88E5;strokeWidth=2" vertex="1" parent="lane_sources_t">
           <mxGeometry x="20" y="40" width="860" height="45" as="geometry"/>
         </mxCell>
-        <mxCell id="src_fred_t" value="FRED Brent Oil (API)" style="rounded=1;whiteSpace=wrap;html=1;fontFamily=Roboto;fontSize=12;fillColor=#E3F2FD;strokeColor=#1E88E5;strokeWidth=2" vertex="1" parent="lane_sources_t">
+        <mxCell id="src_eia_t" value="EIA Brent Oil (API)" style="rounded=1;whiteSpace=wrap;html=1;fontFamily=Roboto;fontSize=12;fillColor=#E3F2FD;strokeColor=#1E88E5;strokeWidth=2" vertex="1" parent="lane_sources_t">
           <mxGeometry x="20" y="90" width="860" height="45" as="geometry"/>
         </mxCell>
         <mxCell id="src_nasa_t" value="NASA POWER (API)" style="rounded=1;whiteSpace=wrap;html=1;fontFamily=Roboto;fontSize=12;fillColor=#E3F2FD;strokeColor=#1E88E5;strokeWidth=2" vertex="1" parent="lane_sources_t">
@@ -35,7 +35,7 @@
         <mxCell id="cf_cocoa_t" value="Cloud Function — publish_price (HTTP, Gen2)" style="rounded=1;whiteSpace=wrap;html=1;fontFamily=Roboto;fontSize=12;fillColor=#FFE082;strokeColor=#FFB300;strokeWidth=2" vertex="1" parent="lane_ingest_t">
           <mxGeometry x="20" y="40" width="860" height="45" as="geometry"/>
         </mxCell>
-        <mxCell id="cf_fred_t" value="Cloud Function — publish_fred_data (Gen2)" style="rounded=1;whiteSpace=wrap;html=1;fontFamily=Roboto;fontSize=12;fillColor=#FFE082;strokeColor=#FFB300;strokeWidth=2" vertex="1" parent="lane_ingest_t">
+        <mxCell id="cf_eia_t" value="Cloud Function — publish_eia_data (Gen2)" style="rounded=1;whiteSpace=wrap;html=1;fontFamily=Roboto;fontSize=12;fillColor=#FFE082;strokeColor=#FFB300;strokeWidth=2" vertex="1" parent="lane_ingest_t">
           <mxGeometry x="20" y="90" width="860" height="45" as="geometry"/>
         </mxCell>
         <mxCell id="cf_weather_t" value="Cloud Function — publish_weather_data (Gen2)" style="rounded=1;whiteSpace=wrap;html=1;fontFamily=Roboto;fontSize=12;fillColor=#FFE082;strokeColor=#FFB300;strokeWidth=2" vertex="1" parent="lane_ingest_t">
@@ -160,7 +160,7 @@
         <mxCell id="bf_icco_t" value="ICCO historical CSV (download)" style="rounded=1;whiteSpace=wrap;html=1;fontFamily=Roboto;fontSize=11;fillColor=#FFFDE7;strokeColor=#F9A825" vertex="1" parent="lane_backfill_t">
           <mxGeometry x="20" y="40" width="200" height="50" as="geometry"/>
         </mxCell>
-        <mxCell id="bf_apis_t" value="FRED/NASA historical API pull" style="rounded=1;whiteSpace=wrap;html=1;fontFamily=Roboto;fontSize=11;fillColor=#FFFDE7;strokeColor=#F9A825" vertex="1" parent="lane_backfill_t">
+        <mxCell id="bf_apis_t" value="EIA/NASA historical API pull" style="rounded=1;whiteSpace=wrap;html=1;fontFamily=Roboto;fontSize=11;fillColor=#FFFDE7;strokeColor=#F9A825" vertex="1" parent="lane_backfill_t">
           <mxGeometry x="230" y="40" width="220" height="50" as="geometry"/>
         </mxCell>
         <mxCell id="bf_beam_t" value="Apache Beam — batch scripts" style="rounded=1;whiteSpace=wrap;html=1;fontFamily=Roboto;fontSize=11;fillColor=#E8F5E9;strokeColor=#43A047" vertex="1" parent="lane_backfill_t">

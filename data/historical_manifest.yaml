@@ -1,6 +1,7 @@
 snapshot_date: '2025-10-02'
 snapshot_date_basis: Original GCS upload date; exact acquisition dates were not recorded.
 archived_at: '2026-10-26'
+updated_at: '2026-10-27'
 purpose: Historical warehouse bootstrap and occasional backfills; separate from automated daily ingestion.
 archive_policy:
   protection: GCS temporary hold on each snapshot object and this archived manifest
@@ -30,27 +31,26 @@ datasets:
       working_copy_sha256: 77a2674c833b8028fdb0f1739f431dac3a3fc450d31d875cdd932d300c00f5ab
       data_equivalence_verified: true
   oil:
-    source: FRED
-    source_url: https://fred.stlouisfed.org/series/DCOILBRENTEU
-    acquisition_method: manual download
-    acquisition_date: null
-    file: brent_oil_fred.json
-    gcs_uri: gs://raw-historic-data/snapshots/2025-10-02/fred/brent_oil_fred.json
-    generation: '1793012128903759'
-    sha256: d7c2bbd86df77fdd73ba471f80800327838cc5a8f1f5fbde0be04d513c222d24
-    size_bytes: 299331
-    coverage_start: '2014-01-01'
-    coverage_end: '2025-09-22'
-    record_count: 3118
-    original_gcs_uri: gs://raw-historic-data/brent_oil_fred.json
-    original_generation: '1759405400300622'
+    source: U.S. Energy Information Administration
+    source_url: https://www.eia.gov/dnav/pet/hist/RBRTED.htm
+    acquisition_method: automated extraction of the publisher's dated weekday table
+    acquisition_date: '2026-10-27'
+    acquired_at: '2026-10-27T15:06:14.612085+00:00'
+    acquisition_interface: published-table
+    file: brent_oil_eia.json
+    gcs_uri: gs://raw-historic-data/snapshots/2026-10-27/eia/brent_oil_eia.json
+    generation: '1793113993070636'
+    sha256: 4adb1bab95f29b3fc3b64bac6cf5b11f0c14c4e7fa9ec6c7b61cf22de09af087
+    size_bytes: 413404
+    coverage_start: '2014-01-02'
+    coverage_end: '2026-10-20'
+    record_count: 3249
+    series: RBRTE
+    units: USD per barrel
     temporary_hold: true
-    recovery_verified_at: '2026-10-26'
-    repository_representation:
-      checkpoint_sha256: 0efaae1dfc08c84a3d110cd318f23195b7279852bca2e58990ea19545d97a3f6
-      working_copy_sha256: 0d9b41d391eefe88afc1cbc5087dbc4e010d5814fd6e1b430a64a93b3e57ce38
-      data_equivalence_verified: true
-    series: DCOILBRENTEU
+    previous_archive_provenance: Preserved in Git commit 8b2861236dcc7fbe6ac28bd59f8d67960ec8928b and the original held cloud objects; not relabeled as EIA acquisition.
+    migration_policy: Published-table history accepted by the owner; daily API observations require published-table corroboration. The 28 prior-only dates are absent source observations in the new history.
+    recovery_verified_at: '2026-10-27'
   weather:
     source: NASA POWER
     source_url: https://power.larc.nasa.gov/

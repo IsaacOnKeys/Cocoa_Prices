@@ -8,12 +8,19 @@ curated history. Automated daily ingestion is implemented separately by
 | Script | Protected snapshot input | Existing curated output |
 | --- | --- | --- |
 | clean_cocoa_prices.py | snapshots/2025-10-02/icco/Daily_Prices_Home.csv | cocoa_related.cocoa |
-| clean_oil_fred.py | snapshots/2025-10-02/fred/brent_oil_fred.json | cocoa_related.brent_prices |
+| clean_oil_eia.py | snapshots/2026-10-27/eia/brent_oil_eia.json | cocoa_related.brent_prices |
 | clean_precipitation.py | snapshots/2025-10-02/nasa_power/POWER_Point_Daily.csv | cocoa_related.precipitation |
 
 All inputs are in gs://raw-historic-data/. Exact generations/checksums are
 recorded in [the historical manifest](../../data/historical_manifest.yaml).
 Object holds protect the names used by Beam against replacement.
+
+Oil history is acquired directly from EIA's dated published table. Its API is
+used for daily acquisition only when the requested interval agrees with that
+table. The accepted archive uses response.data with period/value/series/units;
+the cleaner rejects API-only archives and incompatible products/units. See the
+[migration evidence](../../docs/operations/eia-migration.md). No historical
+warehouse replacement has been performed by changing these inputs.
 
 ## Source environment and historical runners
 

@@ -13,13 +13,16 @@ locals {
     oil-prices-topic         = "oil-schema"
     weather-topic            = "weather-schema"
     oil-trigger              = null
+    eia-oil-trigger          = null
+    eia-oil-validation       = "oil-schema"
     weather-trigger          = null
   }
 
   pubsub_subscriptions = {
-    cocoa-prices-sub = "cocoa-prices-topic"
-    oil-prices-sub   = "oil-prices-topic"
-    weather-data-sub = "weather-topic"
+    cocoa-prices-sub       = "cocoa-prices-topic"
+    oil-prices-sub         = "oil-prices-topic"
+    eia-oil-validation-sub = "eia-oil-validation"
+    weather-data-sub       = "weather-topic"
   }
 }
 

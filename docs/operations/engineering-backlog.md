@@ -28,8 +28,9 @@ migration. They were not implemented.
   payloads or arbitrary exception messages. Request failures retain a failure
   signal with a sanitized exception. Canary tests cover success/error/fallback
   paths. The deployed source matched the pre-fix repository bytes; the fixed
-  artifact is deployed as Ready revision publish-fred-data-00020-sep, with
-  retrieved source bytes and unchanged service configuration verified.
+  historical deployment receipt is preserved in the dated
+  [reliability handoff](reliability-handoff-2026-10-26.md), including retrieved
+  source bytes and unchanged service-configuration verification.
 - Consumer authority is established from captured deployed sources. Cocoa
   preserves producer timestamps; weather retains deployed override aliases.
   Tested row mapping agrees with deployed code while repository compatibility

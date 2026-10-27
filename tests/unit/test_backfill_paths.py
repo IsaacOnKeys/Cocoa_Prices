@@ -10,7 +10,7 @@ ROOT = Path(__file__).resolve().parents[2]
 
 
 @pytest.mark.parametrize("script", [
-    "clean_cocoa_prices.py", "clean_oil_fred.py", "clean_precipitation.py",
+    "clean_cocoa_prices.py", "clean_oil_eia.py", "clean_precipitation.py",
 ])
 def test_requirements_reference_survives_relocation(script):
     source = ROOT / "pipelines/backfill" / script

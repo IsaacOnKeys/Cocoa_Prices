@@ -23,3 +23,20 @@ def test_synthetic_binary_round_trip(feed, nullable):
     fastavro.schemaless_writer(buffer, schema, record)
     buffer.seek(0)
     assert fastavro.schemaless_reader(buffer, schema) == record
+
+
+@pytest.mark.parametrize("feed", ["cocoa", "oil", "weather"])
+def test_incompatible_measurement_type_is_rejected(feed):
+    schema = fastavro.parse_schema(json.loads((SCHEMAS / f"{feed}_schema.avsc").read_bytes()))
+    record = {field["name"]: None for field in schema["fields"]}
+    measurement = next(field["name"] for field in schema["fields"] if "double" in field["type"])
+    record[measurement] = {"unexpected": "object"}
+    with pytest.raises((TypeError, ValueError)):
+        fastavro.schemaless_writer(io.BytesIO(), schema, record)
+
+
+@pytest.mark.parametrize("feed", ["cocoa", "oil", "weather"])
+def test_truncated_binary_is_not_a_missing_observation(feed):
+    schema = fastavro.parse_schema(json.loads((SCHEMAS / f"{feed}_schema.avsc").read_bytes()))
+    with pytest.raises((EOFError, ValueError, IndexError)):
+        fastavro.schemaless_reader(io.BytesIO(b""), schema)

@@ -12,6 +12,13 @@ locals {
       source_generation = 1758719904960528
       trigger_topic     = "oil-trigger"
     }
+    # Parallel candidate; the legacy producer is retained until verified cutover.
+    publish_eia_data = {
+      entry_point       = "publish_eia_data"
+      source_object     = "publish_eia_data/eia-a020ce805a64b2a909b7489187d1b003ac1d79444d06ca0950b800bbdc84da34.zip"
+      source_generation = 1793114362502907
+      trigger_topic     = "eia-oil-trigger"
+    }
     publish_weather_data = {
       entry_point       = "publish_weather_data"
       source_object     = "publish_weather_data/function-source.zip"
@@ -58,9 +65,12 @@ resource "google_cloudfunctions2_function" "functions" {
     all_traffic_on_latest_revision   = true
     service_account_email            = local.compute_service_account
 
-    environment_variables = {
+    environment_variables = merge({
       LOG_EXECUTION_ID = "true"
-    }
+      }, each.key == "publish_eia_data" ? {
+      # Isolated until the full candidate path is verified and cutover is reviewed.
+      OIL_TOPIC = "eia-oil-validation"
+    } : {})
   }
 
   dynamic "event_trigger" {
@@ -91,6 +101,17 @@ resource "google_cloud_run_v2_service_iam_member" "airflow_invoker" {
   name     = replace(each.key, "_", "-")
   role     = "roles/run.invoker"
   member   = "serviceAccount:${local.airflow_service_account}"
+
+  depends_on = [google_cloudfunctions2_function.functions]
+}
+
+# Eventarc invokes Gen2 functions as the trigger service account, not as Airflow.
+resource "google_cloud_run_v2_service_iam_member" "eia_trigger_invoker" {
+  project  = var.project_id
+  location = var.region
+  name     = "publish-eia-data"
+  role     = "roles/run.invoker"
+  member   = "serviceAccount:${local.compute_service_account}"
 
   depends_on = [google_cloudfunctions2_function.functions]
 }

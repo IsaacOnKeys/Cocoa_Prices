@@ -34,7 +34,7 @@
         <mxCell id="src_icco" value="ICCO.org (scraping)" style="rounded=1;whiteSpace=wrap;html=1;fontFamily=Roboto;fontSize=12;fillColor=#E3F2FD;strokeColor=#1E88E5;strokeWidth=2" vertex="1" parent="1">
           <mxGeometry x="30" y="140" width="190" height="60" as="geometry"/>
         </mxCell>
-        <mxCell id="src_fred" value="FRED Brent Oil (API)" style="rounded=1;whiteSpace=wrap;html=1;fontFamily=Roboto;fontSize=12;fillColor=#E3F2FD;strokeColor=#1E88E5;strokeWidth=2" vertex="1" parent="1">
+        <mxCell id="src_eia" value="EIA Brent Oil (API)" style="rounded=1;whiteSpace=wrap;html=1;fontFamily=Roboto;fontSize=12;fillColor=#E3F2FD;strokeColor=#1E88E5;strokeWidth=2" vertex="1" parent="1">
           <mxGeometry x="30" y="210" width="190" height="60" as="geometry"/>
         </mxCell>
         <mxCell id="src_nasa" value="NASA POWER (API)" style="rounded=1;whiteSpace=wrap;html=1;fontFamily=Roboto;fontSize=12;fillColor=#E3F2FD;strokeColor=#1E88E5;strokeWidth=2" vertex="1" parent="1">
@@ -45,7 +45,7 @@
         <mxCell id="cf_cocoa" value="Cloud Function&#10;publish_price (HTTP, Gen2)" style="rounded=1;whiteSpace=wrap;html=1;fontFamily=Roboto;fontSize=12;fillColor=#FFF8E1;strokeColor=#FFB300;strokeWidth=2" vertex="1" parent="1">
           <mxGeometry x="240" y="160" width="190" height="60" as="geometry"/>
         </mxCell>
-        <mxCell id="cf_fred" value="Cloud Function&#10;publish_fred_data (Gen2)" style="rounded=1;whiteSpace=wrap;html=1;fontFamily=Roboto;fontSize=12;fillColor=#FFF8E1;strokeColor=#FFB300;strokeWidth=2" vertex="1" parent="1">
+        <mxCell id="cf_eia" value="Cloud Function&#10;publish_eia_data (Gen2)" style="rounded=1;whiteSpace=wrap;html=1;fontFamily=Roboto;fontSize=12;fillColor=#FFF8E1;strokeColor=#FFB300;strokeWidth=2" vertex="1" parent="1">
           <mxGeometry x="240" y="230" width="190" height="60" as="geometry"/>
         </mxCell>
         <mxCell id="cf_weather" value="Cloud Function&#10;publish_weather_data (Gen2)" style="rounded=1;whiteSpace=wrap;html=1;fontFamily=Roboto;fontSize=12;fillColor=#FFF8E1;strokeColor=#FFB300;strokeWidth=2" vertex="1" parent="1">
@@ -153,7 +153,7 @@
         <mxCell id="bf_icco" value="ICCO historical CSV (download)" style="rounded=1;whiteSpace=wrap;html=1;fontFamily=Roboto;fontSize=11;fillColor=#FFFDE7;strokeColor=#F9A825" vertex="1" parent="1">
           <mxGeometry x="260" y="590" width="220" height="50" as="geometry"/>
         </mxCell>
-        <mxCell id="bf_apis" value="FRED/NASA historical API pull" style="rounded=1;whiteSpace=wrap;html=1;fontFamily=Roboto;fontSize=11;fillColor=#FFFDE7;strokeColor=#F9A825" vertex="1" parent="1">
+        <mxCell id="bf_apis" value="EIA/NASA historical API pull" style="rounded=1;whiteSpace=wrap;html=1;fontFamily=Roboto;fontSize=11;fillColor=#FFFDE7;strokeColor=#F9A825" vertex="1" parent="1">
           <mxGeometry x="490" y="590" width="220" height="50" as="geometry"/>
         </mxCell>
         <mxCell id="bf_beam" value="Apache Beam — batch scripts" style="rounded=1;whiteSpace=wrap;html=1;fontFamily=Roboto;fontSize=11;fillColor=#E8F5E9;strokeColor=#43A047" vertex="1" parent="1">
@@ -173,7 +173,7 @@
         <mxCell id="e_src_icco_cf" style="endArrow=block;strokeWidth=2;strokeColor=#1E88E5" edge="1" parent="1" source="src_icco" target="cf_cocoa">
           <mxGeometry relative="1" as="geometry"><mxPoint x="0" y="0" as="offset"/></mxGeometry>
         </mxCell>
-        <mxCell id="e_src_fred_cf" style="endArrow=block;strokeWidth=2;strokeColor=#1E88E5" edge="1" parent="1" source="src_fred" target="cf_fred">
+        <mxCell id="e_src_eia_cf" style="endArrow=block;strokeWidth=2;strokeColor=#1E88E5" edge="1" parent="1" source="src_eia" target="cf_eia">
           <mxGeometry relative="1" as="geometry"/>
         </mxCell>
         <mxCell id="e_src_nasa_cf" style="endArrow=block;strokeWidth=2;strokeColor=#1E88E5" edge="1" parent="1" source="src_nasa" target="cf_weather">
@@ -183,7 +183,7 @@
         <mxCell id="e_cf_cocoa_topic" style="endArrow=block;strokeWidth=2;strokeColor=#FB8C00" edge="1" parent="1" source="cf_cocoa" target="topic_cocoa">
           <mxGeometry relative="1" as="geometry"/>
         </mxCell>
-        <mxCell id="e_cf_fred_topic" style="endArrow=block;strokeWidth=2;strokeColor=#FB8C00" edge="1" parent="1" source="cf_fred" target="topic_oil">
+        <mxCell id="e_cf_eia_topic" style="endArrow=block;strokeWidth=2;strokeColor=#FB8C00" edge="1" parent="1" source="cf_eia" target="topic_oil">
           <mxGeometry relative="1" as="geometry"/>
         </mxCell>
         <mxCell id="e_cf_weather_topic" style="endArrow=block;strokeWidth=2;strokeColor=#FB8C00" edge="1" parent="1" source="cf_weather" target="topic_weather">
@@ -236,7 +236,7 @@
         <mxCell id="e_airflow_cf1" style="dashed=1;endArrow=open;strokeWidth=2;strokeColor=#757575" edge="1" parent="1" source="airflow_vm" target="cf_cocoa">
           <mxGeometry relative="1" as="geometry"/>
         </mxCell>
-        <mxCell id="e_airflow_cf2" style="dashed=1;endArrow=open;strokeWidth=2;strokeColor=#757575" edge="1" parent="1" source="airflow_vm" target="cf_fred">
+        <mxCell id="e_airflow_cf2" style="dashed=1;endArrow=open;strokeWidth=2;strokeColor=#757575" edge="1" parent="1" source="airflow_vm" target="cf_eia">
           <mxGeometry relative="1" as="geometry"/>
         </mxCell>
         <mxCell id="e_airflow_cf3" style="dashed=1;endArrow=open;strokeWidth=2;strokeColor=#757575" edge="1" parent="1" source="airflow_vm" target="cf_weather">

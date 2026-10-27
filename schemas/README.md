@@ -1,10 +1,10 @@
 # Source and schema contracts
 
-Draft for checklist item 2, reviewed 2026-10-27. The oil acquisition source
-requires an owner decision before this item can be completed. This document
-defines intended validation outcomes; runtime enforcement and new business
-validation fixtures have not been implemented yet. Existing Avro files remain
-unchanged.
+Version 1 source definitions for checklist item 2, reviewed 2026-10-27. The
+owner accepted EIA published-table history with corroborated daily API
+acquisition. The candidate implements EIA validation and compatibility checks;
+the remaining feed-wide publication gates are later checklist work. Existing
+Avro wire schemas remain unchanged.
 
 The [service contract](../docs/operations/service-contract.md) defines required
 feeds, accepted delivery/recovery targets, source-age limits and withholding
@@ -19,7 +19,7 @@ revision is a new version of the same logical observation, not a second fact.
 | Feed | Current acquisition source | Observation key and grain | Measurement semantics |
 | --- | --- | --- | --- |
 | cocoa | ICCO daily-price table, EUR column | ICCO series + source observation date; one quoted daily value | cocoa_price / curated Euro_Price: EUR per metric tonne. No FX conversion is implied. |
-| oil | FRED DCOILBRENTEU, originating from EIA; supplier decision pending | Europe Brent spot FOB series + observation date; one published daily value | oil_price / curated brent_price_eu: USD per barrel. The eu suffix denotes the existing Europe-series identifier; it is not evidence of conversion to EUR. |
+| oil | EIA RBRTE: published weekday table for history; API observations corroborated against it for daily ingestion | Europe Brent spot FOB series + observation date; one published daily value | oil_price / curated brent_price_eu: USD per barrel. The eu suffix denotes the existing Europe-series identifier; it is not evidence of conversion to EUR. |
 | weather | NASA POWER daily point API, community AG, latitude 4.745, longitude -6.635 | Dataset/product + fixed point + parameter + observation date; the wire row combines two parameters for one date | precipitation: PRECTOTCORR, daily corrected precipitation in mm/day. soil_moisture: GWETROOT, dimensionless root-zone wetness; do not label it volumetric soil moisture. Verify parameter units in the acquired response before acceptance. |
 
 Do not silently mix a new point, parameter, price currency, averaging
@@ -29,7 +29,6 @@ legacy wire format relies on a feed-specific topic.
 
 Source definitions:
 [ICCO table column labels](https://www.icco.org/),
-[FRED series units and origin](https://fred.stlouisfed.org/series/DCOILBRENTEU),
 [EIA Europe Brent daily table](https://www.eia.gov/dnav/pet/hist/RBRTED.htm),
 [NASA daily API and community behavior](https://power.larc.nasa.gov/docs/services/api/temporal/daily/),
 and [NASA wetness-versus-volumetric moisture distinction](https://gs6101-gmao.gsfc.nasa.gov/gmao-products/merra/faq_merra/).
@@ -67,7 +66,7 @@ observations between published dates.
 | Input case | Required outcome |
 | --- | --- |
 | Valid dated finite observation with known units and provenance | Eligible for staging and the later release gates; not automatically a complete release. |
-| FRED explicit missing marker such as a dot, or NASA missing sentinel | Represent measurement as null with source evidence; count it as explicit missingness, not a new valid observation or malformed-message loss. |
+| EIA explicit missing marker/null, a blank published weekday, or NASA missing sentinel | Represent missingness with source evidence; count it as absent/missing rather than a new valid observation or malformed-message loss. |
 | Weather record missing one measurement | Preserve the available measurement and missingness; assess each parameter's latest valid date. Do not silently discard a date merely because one parameter's key is absent. |
 | Null measurement followed by a valid historical value | Use only the service contract's visible, age-bounded carry-forward rule; never silently claim a fresh measurement. |
 | Invalid/missing date, non-finite number, wrong type, unknown unit or malformed payload | Quarantine with source/message identity and reason; no silent coercion to a valid observation. |
@@ -76,9 +75,13 @@ observations between published dates.
 | Successfully fetched source with no new published observation | Accept only under documented source availability and age rules; retain the original observation date. |
 | Failed request or an unexplained empty/incompatible response | Fail acquisition; a successful publish trigger or old queued message cannot substitute for it. |
 
-Representative executable business fixtures must cover these cases before
-item 2 is marked complete. Existing [Avro round-trip tests](../tests/unit/test_schemas.py)
-exercise wire nullability, not all these business rules or real sink behavior.
+The [Avro fixtures](../tests/unit/test_schemas.py) cover valid/nullable records,
+incompatible measurement types and truncated binary input for every feed.
+EIA fixtures additionally cover product/unit/date errors, explicit missing
+values, pagination, non-finite prices and published-source disagreement; the
+isolated cloud test exercises the real sink. Full feed-wide business-quality
+publication gates remain checklist item 15, and the known cocoa date and
+cross-feed timestamp defects remain items 4 and 5.
 
 ## Timestamp and availability provenance
 
@@ -108,7 +111,7 @@ calendar is not proof that an observation was available at a past cutoff.
    business definitions as contract changes even if the Avro field types stay
    identical. Publish a reviewed migration and consumer notice.
 
-## Source use and the pending oil decision
+## Source use and accepted oil acquisition policy
 
 The repository's code license is not a license for third-party datasets.
 Record attribution, publisher terms, retrieval date and permission evidence
@@ -118,24 +121,22 @@ for each acquisition route before claiming unrestricted redistribution.
   blanket license for public redistribution of acquired history; public web
   access alone is not that permission. Confirm the intended external-report
   use before broad publication under the BI expansion.
-- FRED: the [current API terms](https://fred.stlouisfed.org/legal/terms/),
-  prohibited uses (k) and (l), describe restrictions on machine-learning
-  training and storage/caching/archiving. These appear to conflict with this
-  project's current workflow. No project-specific permission evidence was
-  located in the reviewed source. Keep item 2 open pending the owner's
-  permission evidence or a decision to change the acquisition route.
-- EIA alternative: the [original daily Europe Brent series](https://www.eia.gov/dnav/pet/hist/RBRTED.htm)
-  has matching product/frequency/unit definitions. [EIA reuse guidance](https://www.eia.gov/about/copyrights_reuse.php)
+- EIA: the [original daily Europe Brent series](https://www.eia.gov/dnav/pet/hist/RBRTED.htm)
+  supplies the required product, frequency and units. [EIA reuse guidance](https://www.eia.gov/about/copyrights_reuse.php)
   permits reuse of its public-domain information with acknowledgement and
-  distinguishes protected third-party materials. Before migration, compare
-  actual dated values, missingness, history and release behavior; matching
-  names alone does not establish full equivalence. API authentication and
-  deployment configuration also need verification.
+  distinguishes protected third-party materials. Full comparison found
+  historical discrepancies between the API, published table and the earlier
+  supplier archive. The owner selected published-table history, preservation
+  of the prior archive with its real provenance, and daily API publication
+  only when the interval agrees with the table. The 28 prior-only dates are
+  absent published observations in the new history. See the
+  [migration evidence](../docs/operations/eia-migration.md); complete equivalence
+  or completed historical warehouse replacement is not claimed.
 - NASA POWER: preserve dataset/parameter/community/point attribution, units
   and response metadata. Record the applicable NASA data-use/citation terms
   with acquired evidence; do not substitute unrelated commercial-satellite
   licensing rules for POWER's own terms.
 
-Do not delete existing archives or change a live feed to resolve this draft
-decision. A chosen replacement needs a reviewed acquisition/backfill plan and
-fresh provenance; changing a source name does not relicense existing inputs.
+Existing archives retain their original provenance. The accepted replacement
+has fresh acquisition metadata and a recovered/checksummed held cloud object;
+warehouse repair requires isolated candidates and measured validation.
