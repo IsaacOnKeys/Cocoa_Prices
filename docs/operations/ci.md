@@ -49,9 +49,9 @@ Bash must be available for the complete syntax/helper checks. On Windows the
 checker uses Git for Windows Bash when installed. Python syntax alone can be
 checked with check_syntax.py --python-only.
 
-The workflow is active on the published review branch. The
-[verified hosted run](https://github.com/IsaacOnKeys/Cocoa_Prices/actions/runs/40370821417)
-passed all checks, including 55 tests on each Python version, on 2026-10-26.
+The workflow is active on master and review branches. The
+[verified post-merge run](https://github.com/IsaacOnKeys/Cocoa_Prices/actions/runs/40485377281)
+passed all checks, including 55 tests on each Python version, on 2026-10-27.
 An initial fresh-checkout failure was resolved by preparing function artifacts
 before tests so their configured temporary-directory parent exists. See the
-[reliability handoff](reliability-handoff-2026-10-26.md) for release verification.
+[release validation](release-validation-2026-10-27.md) for production verification.

@@ -1,5 +1,12 @@
 # Runtime and repository-to-install mappings
 
+Release update, 2026-10-27: the cocoa/weather consumers were installed from
+merged commit 553adb0, with checksummed source recovery copies retained. All
+ten tasks in a controlled daily DAG run succeeded. The repository SQL was
+reconciled to the existing deployed definition without redeploying the
+procedure. See the [release validation](release-validation-2026-10-27.md).
+The captures below describe the initial 2026-10-26 inspection.
+
 Captured on 2026-10-26 during an explicitly authorized, bounded VM inspection.
 Source organization does not install code or change existing VM filenames.
 

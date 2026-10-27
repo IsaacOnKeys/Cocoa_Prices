@@ -3,7 +3,7 @@
 This stage fits the model that maps the engineered inputs at date t to the
 cocoa price at date t + 40 calendar days.
 
-**Implementation:** [training guard and CREATE MODEL](../procedures/run_daily_pipeline.sql#L122-L135).
+**Implementation:** [training guard and CREATE MODEL](../procedures/run_daily_pipeline.sql#L115-L128).
 
 | Contract | Existing behavior |
 | --- | --- |

@@ -3,8 +3,8 @@
 The trained model is scored with ML.PREDICT. Each input row at date t produces
 a prediction for date t + 40 calendar days.
 
-**Implementation:** [recent-row forecasts](../procedures/run_daily_pipeline.sql#L137-L150)
-and [full-history scoring for evaluation](../procedures/run_daily_pipeline.sql#L152-L164).
+**Implementation:** [recent-row forecasts](../procedures/run_daily_pipeline.sql#L130-L143)
+and [full-history scoring for evaluation](../procedures/run_daily_pipeline.sql#L145-L157).
 
 ## Forecast output
 
