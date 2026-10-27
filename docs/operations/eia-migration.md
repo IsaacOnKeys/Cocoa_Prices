@@ -5,6 +5,12 @@ Investigation date: 2026-10-27. Status: the owner accepted the source policy
 below; candidate implementation and isolated runtime validation are in progress.
 Production cutover and historical warehouse replacement are not yet completed.
 
+Production-cutover gate: automatic approval review rejected promotion into the
+existing oil topic while the legacy producer remained active. The rejected
+command did not execute. The temporary Airflow pause was reversed and the
+original installed source is unchanged; EIA remains routed to validation.
+See the concrete [cutover approval package](eia-cutover.md).
+
 ## Verified access and the earlier implementation
 
 The existing project contains secret `EIA_OIL_API_KEY`, with an enabled version,
@@ -136,7 +142,8 @@ six rows in a uniquely named temporary BigQuery table. The successful run
 deleted its own validation dataset. The first run received HTTP 403 because
 the trigger identity lacked Cloud Run invocation permission; a service-scoped
 Terraform grant fixed it and the repeated test passed. The failed attempt and
-its empty temporary dataset are recorded separately for cleanup.
+its empty temporary dataset are recorded separately; that test-owned dataset
+was subsequently verified empty and removed.
 
 `.build/eia-migration/cloud-route-validation.json` records the passing run.
 The actual serving source ZIP, generation `1793114718746253`, contains exactly

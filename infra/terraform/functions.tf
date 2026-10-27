@@ -68,7 +68,7 @@ resource "google_cloudfunctions2_function" "functions" {
     environment_variables = merge({
       LOG_EXECUTION_ID = "true"
       }, each.key == "publish_eia_data" ? {
-      # Isolated until the full candidate path is verified and cutover is reviewed.
+      # Production promotion requires explicit approval of the cutover sequence.
       OIL_TOPIC = "eia-oil-validation"
     } : {})
   }

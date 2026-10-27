@@ -1,5 +1,12 @@
 # GCP ownership and Terraform adoption
 
+EIA migration checkpoint, 2026-10-27: a separate candidate function, trigger,
+schema-bound validation route and secret-container adoption have been applied
+and tested. Production cutover awaits explicit approval. The counts below are
+the historical 2026-10-26 baseline, not a newly refreshed migration inventory.
+The JSON reference points to its exact unchanged Git record; final inventory
+will be refreshed after approved cutover and legacy-resource reconciliation.
+
 Verified on 2026-10-26 against existing GCS state and live, refreshed Terraform
 plans. The main root tracks 83 application resource instances; the bootstrap
 root tracks the state bucket. Both roots returned exit 0 with no changes before
@@ -32,9 +39,10 @@ deployments historically used it.
 | bootstrap | `google_storage_bucket` | 1 |
 
 
-The [sanitized resource inventory](gcp-resource-inventory.json) lists every
-resource address and external ID. It is not a Terraform state file: credentials,
-private firewall values, outputs and resource attribute payloads are omitted.
+The [inventory archive reference](gcp-resource-inventory.json) identifies the
+exact historical record listing resource addresses and external IDs. It is
+not a Terraform state file and does not claim that the migration has already
+retired legacy resources. Credentials and private state remain outside Git.
 
 ## Service and ownership boundaries
 
