@@ -1,74 +1,132 @@
-# Tracking Historical Cocoa Prices in Switzerland (2014-2024)
+# Cocoa Price Forecasting Pipeline
 
-## Overview
+A Google Cloud data engineering project combining historical backfills,
+automated daily ingestion, temporal/exogenous feature engineering, and a
+40-day-ahead BigQuery ML cocoa price forecast.
+The inputs are ICCO cocoa prices, FRED Brent oil observations, and NASA POWER
+precipitation and soil moisture.
 
-This project is a comprehensive data engineering pipeline that tracks and analyzes historical cocoa prices in Switzerland from 2014 to 2023. By integrating various datasets—including cocoa prices, Brent oil prices, and weather data from Côte d'Ivoire—the project aims to uncover patterns and factors influencing cocoa price fluctuations.
+## Architecture
 
-## Project Objectives
+~~~mermaid
+flowchart LR
+    Sources["ICCO · FRED · NASA POWER"] --> Functions["Gen2 Python functions"]
+    Functions --> PubSub["Pub/Sub · Avro contracts"]
+    subgraph VM["Compute Engine VM"]
+        Beam["Beam DirectRunner consumers"]
+        subgraph Docker["Docker Compose"]
+            Airflow["Airflow · LocalExecutor"]
+            Postgres["PostgreSQL metadata"]
+            Airflow --- Postgres
+        end
+    end
+    Scheduler["Cloud Scheduler"] -. "VM start / stop" .-> VM
+    PubSub --> Beam --> Staging["BigQuery staging"]
+    Airflow -. "trigger ingestion" .-> Functions
+    Airflow -. "run procedure" .-> Curated
+    subgraph SQL["BigQuery procedure"]
+        Curated["Curated data · MERGE + daily alignment"]
+        Features["Feature engineering · lags + rolling + calendar"]
+        Training["Model training · linear regression"]
+        Prediction["Prediction · ML.PREDICT"]
+        Evaluation["Historical predictions + MAPE"]
+        Curated --> Features --> Training --> Prediction
+        Prediction -->|"historical scores"| Evaluation
+        Features -. "observed prices" .-> Evaluation
+    end
+    Staging --> Curated
+    Prediction -->|"40-day forecasts"| Looker["Looker Studio"]
+    Evaluation --> Looker
+    Historical["One-time historical acquisition"] --> GCS["Protected GCS snapshots + manifest"]
+    GCS --> Backfill["Beam historical backfills"] --> Base["BigQuery curated history"]
+    Base --> Curated
+~~~
 
-- **Data Integration**: Combine multiple data sources to provide a holistic view of factors affecting cocoa prices.
-- **Data Validation and Cleaning**: Ensure data quality through rigorous validation and error handling.
-- **Scalability**: Utilize cloud-based technologies to process large datasets efficiently.
-- **Analytics-Ready Data**: Store processed data in a format suitable for analysis and visualization.
+Historical bootstrap and operational ingestion are separate acquisition modes.
+The daily path uses functions, Pub/Sub and VM-hosted Beam. Historical inputs
+were acquired once, archived with provenance, and processed by Beam backfills.
+Cloud Scheduler controls VM uptime; Airflow orchestrates ingestion and SQL.
 
-## Technologies Used
+The analytical review sequence is [curated data](sql/01_curated_data/README.md)
+-> [feature engineering](sql/02_feature_engineering/README.md)
+-> [model training](sql/03_model_training/README.md)
+-> [prediction](sql/04_prediction/README.md)
+-> [backtesting / evaluation](sql/05_evaluation/README.md).
+These stages have ordered directories under sql/, with inputs, outputs and
+links to the implementing statements in the single executable procedure.
 
-- **Programming Language**: Python
-- **Data Processing Framework**: Apache Beam
-- **Cloud Platform**: Google Cloud Platform (GCP)
-  - **Dataflow**: For executing Apache Beam pipelines
-  - **BigQuery**: For data storage and analytics
-  - **Cloud Storage**: For data staging and temporary storage
-- **Logging**: Python's `logging` module for monitoring pipeline execution
-- **containerization**: Docker hosted on GCP Artifact Registry
+## Where to review the engineering
 
-## Data Sources
-### Historical and ML model data  
-**Dates**: from January 1, 2014 through December 31, 2024.
-1. **Cocoa Prices**: Daily cocoa prices in Euros obtained from the [International Cocoa Organization](https://www.icco.org/).
-2. **Brent Oil Prices**: Daily Brent crude oil prices sourced from the [Federal Reserve Economic Data (FRED)](https://fred.stlouisfed.org/).
-3. **Weather Data**: Daily precipitation and soil moisture levels in Côte d'Ivoire from NASA's [POWER Project](https://power.larc.nasa.gov/). Specifically the San Pedro area in the Bas-Sassandra region of Côte d'Ivoire with the given Latitude of 4.75 and longitude -6.63.
+| Area | Start here | What it demonstrates |
+| --- | --- | --- |
+| Ingestion and contracts | [functions/](functions/), [schemas/](schemas/) | Separate producers, nullable Avro contracts, self-contained deployment artifacts |
+| Streaming | [pipelines/streaming/](pipelines/streaming/) | Pub/Sub binary decoding and BigQuery staging |
+| Orchestration | [airflow/dags/cocoa_daily.py](airflow/dags/cocoa_daily.py) | Feed triggers, progress sensors, quiet period and SQL coordination |
+| Curated data | [sql/01_curated_data/](sql/01_curated_data/README.md) | Deduplication/MERGE, daily calendar and forward fill |
+| Feature engineering | [sql/02_feature_engineering/](sql/02_feature_engineering/README.md) | 1/7/28-day cocoa lags, seven-row oil/weather means, calendar categories and the 40-day target |
+| Model training | [sql/03_model_training/](sql/03_model_training/README.md) | BigQuery ML linear regression, L2 regularization, predictors/label and training-row selection |
+| Prediction | [sql/04_prediction/](sql/04_prediction/README.md) | Recent 40-day-ahead forecasts and full-history scoring |
+| Backtesting / evaluation | [sql/05_evaluation/](sql/05_evaluation/README.md) | Actual-price alignment, current MAPE and chronological evaluation limitations |
+| Historical bootstrap | [backfills](pipelines/backfill/README.md), [data provenance](data/README.md) | Source-format handling, validation, protected historical snapshots and recovery evidence |
+| Infrastructure | [infra/terraform/](infra/terraform/), [GCP ownership map](docs/infrastructure/gcp-inventory.md) | Existing infrastructure represented in state; ownership boundaries and verified no-change plans |
+| Validation | [tests/unit/](tests/unit/) | Contract round trips, deterministic packaging and path compatibility without production execution |
 
-## Pipeline Architecture
+See [architecture and design decisions](docs/architecture/README.md) for the
+runtime boundaries and editable diagrams.
 
-![Pipeline Architecture Diagram](images/pipeline_diagram.png)
+## Run the local checks
 
-The data processing pipeline consists of three main scripts, each handling a specific dataset:
+Use a dedicated Python 3.12 development environment; production function runtime
+is Python 3.11. Runtime dependencies remain separate for functions, Beam and Airflow.
 
-1. **Cocoa Prices Data Pipeline**
-2. **Brent Oil Prices Data Pipeline**
-3. **Weather Data Pipeline**
+~~~bash
+python -m pip install -r requirements-dev.txt
+ruff check .
+python scripts/development/check_syntax.py
+python scripts/deploy/package_functions.py all
+python -m pytest -q --basetemp=.build/pytest
+~~~
 
-Each pipeline performs the following steps:
+These checks need no GCP credentials. The packager creates complete runtime
+roots and deterministic ZIPs under ignored .build/functions/. Each contains
+main.py, its existing requirements file, and a byte-identical canonical schema.
 
-- **Data Ingestion**: Reads raw data from Google Cloud Storage.
-- **Parsing**: Parses the data into structured formats.
-- **Validation and Transformation**: Validates data types, formats dates, and transforms fields as necessary.
-- **Deduplication**: Checks for and removes duplicate records based on the date.
-- **Error Handling**: Separates invalid records for further analysis.
-- **Data Loading**: Writes valid data to BigQuery tables and invalid data to separate BigQuery tables.
+For local function execution or a future deployment, use the prepared root,
+not the raw `functions/<feed>/` source directory. For example, install the cocoa
+function's requirements in a separate environment and run functions-framework
+with target publish_price from .build/functions/cocoa/.
 
-## Scripts Overview
+## Verified evidence
 
-### 1. Cocoa Prices Data Pipeline
+Repository checks cover Avro round trips, archive membership and determinism,
+source-byte preservation, helper paths, syntax and references. Additional
+26 October 2026 checks verified both Terraform roots with no-change plans before
+and after relocation, built the historical Docker recipe, recovered/checksummed
+the archived raw snapshots, and compared the DAG task graph in an isolated
+Airflow 2.10.2 image with Google provider 10.22.0.
 
-**Script**: `clean_cocoa_prices.py`
+The VM inspection and Docker startup outcome are recorded in the
+[runtime handoff](docs/operations/portfolio-handoff-2026-10-26.md).
+The [CI workflow](.github/workflows/ci.yml) is configured to run credential-free
+checks on Python 3.11 and 3.12 after publication; see the
+[CI reference](docs/operations/ci.md) for test boundaries and commands.
+No forecasting accuracy, chronological out-of-sample evaluation, working
+dead-letter routing, or end-to-end production equivalence is claimed from these
+checks. The current historical-prediction MAPE has
+[documented evaluation limitations](sql/README.md).
 
-This script processes daily cocoa prices data.
+## Operational reference
 
-#### Key Steps:
+- [Historical snapshot manifest](data/historical_manifest.yaml): exact generations,
+  measured coverage, acquisition provenance, SHA-256 and recovery verification.
+- [Runtime/install mappings](docs/operations/runtime-layout.md): VM paths, captured
+  systemd units, sanitized Compose configuration and scheduling responsibilities.
+- [Terraform workflow](infra/terraform/README.md): two separate roots and preserved
+  backend identities; application deployment remains a separate responsibility.
+- [Engineering backlog](docs/operations/engineering-backlog.md): remaining reliability,
+  event-date semantics, evaluation, monitoring and deployment work.
 
-- **Parsing CSV Data**: Reads the CSV file and extracts the date and Euro price.
-- **Date Transformation**: Converts dates from `dd/mm/yyyy` to `yyyy-mm-dd` format.
-- **Price Validation**: Ensures the Euro price is a positive float.
-- **Data Validation**: Checks for invalid dates and prices, tagging invalid records.
-- **Data Loading**: Writes valid records to `cocoa_prices.cocoa` table and invalid records to `cocoa_prices.invalid_cocoa` table in BigQuery.
-
-## Development Setup
-
-### Code Linting
-This project uses [ruff](https://github.com/charliermarsh/ruff) for linting.
-
-#### Install
-```bash
-pip install ruff
+Full historical files stay in private GCS and ignored local caches. Samples and
+local validation remain available without cloud access. Production ingestion,
+backfills and installer snippets perform real external work and are intentionally
+outside the local check commands.

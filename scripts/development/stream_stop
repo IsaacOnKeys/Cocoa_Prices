@@ -1,0 +1,5 @@
+#!/usr/bin/env bash
+REPO_ROOT="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/../.." && pwd)" || exit
+cd "$REPO_ROOT" || exit
+while read -r pid; do kill "$pid"; done < stream_pids.txt
+rm -f stream_pids.txt
