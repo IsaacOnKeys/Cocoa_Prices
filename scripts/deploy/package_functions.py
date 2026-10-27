@@ -9,6 +9,7 @@ FUNCTIONS = {
     "cocoa": ("functions/cocoa", "publish_price"),
     "oil": ("functions/oil", "publish_eia_data"),
     "weather": ("functions/weather", "publish_weather_data"),
+    "ingestion": ("functions/ingestion", "stage_analytics_data"),
 }
 
 
@@ -18,8 +19,9 @@ def package_function(feed, *, repo_root=REPO_ROOT, output_dir=None):
     sources = {
         "main.py": repo_root / source_dir / "main.py",
         "requirements.txt": repo_root / source_dir / "requirements.txt",
-        f"{feed}_schema.avsc": repo_root / "schemas" / f"{feed}_schema.avsc",
     }
+    schema_feeds = ("cocoa", "oil", "weather") if feed == "ingestion" else (feed,)
+    sources.update({f"{name}_schema.avsc": repo_root / "schemas" / f"{name}_schema.avsc" for name in schema_feeds})
     payloads = {name: path.read_bytes() for name, path in sources.items()}
     output_dir = Path(output_dir) if output_dir is not None else repo_root / ".build/functions"
     runtime_root = output_dir / feed

@@ -65,10 +65,27 @@ resource "google_pubsub_subscription" "subscriptions" {
   name                       = each.key
   project                    = var.project_id
   topic                      = google_pubsub_topic.topics[each.value].id
-  ack_deadline_seconds       = 10
+  ack_deadline_seconds       = var.daily_ingestion_push_enabled && contains(keys(local.daily_ingestion_feeds), each.key) ? 60 : 10
   message_retention_duration = "604800s"
   retain_acked_messages      = false
   enable_message_ordering    = false
+
+  dynamic "push_config" {
+    for_each = var.daily_ingestion_push_enabled && contains(keys(local.daily_ingestion_feeds), each.key) ? [1] : []
+    content {
+      push_endpoint = google_cloudfunctions2_function.ingestion.service_config[0].uri
+      oidc_token {
+        service_account_email = google_service_account.ingestion_push.email
+        audience              = google_cloudfunctions2_function.ingestion.service_config[0].uri
+      }
+    }
+  }
+
+  depends_on = [
+    google_cloud_run_v2_service_iam_member.ingestion_push_invoker,
+    google_service_account_iam_member.ingestion_push_tokens,
+    google_bigquery_dataset_iam_member.ingestion_staging_writer,
+  ]
 
   expiration_policy {
     ttl = ""

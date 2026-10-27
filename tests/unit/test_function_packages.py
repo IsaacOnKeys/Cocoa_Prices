@@ -17,15 +17,16 @@ PACKAGER = importlib.util.module_from_spec(SPEC)
 SPEC.loader.exec_module(PACKAGER)
 
 
-@pytest.mark.parametrize("feed", ["cocoa", "oil", "weather"])
+@pytest.mark.parametrize("feed", ["cocoa", "oil", "weather", "ingestion"])
 def test_complete_runtime_and_deterministic_archive(feed, tmp_path):
     source_dir, entry_point = PACKAGER.FUNCTIONS[feed]
     fixture_root = tmp_path / "repo"
     expected = {
         "main.py": (ROOT / source_dir / "main.py").read_bytes(),
         "requirements.txt": (ROOT / source_dir / "requirements.txt").read_bytes(),
-        f"{feed}_schema.avsc": (ROOT / "schemas" / f"{feed}_schema.avsc").read_bytes(),
     }
+    schema_feeds = ("cocoa", "oil", "weather") if feed == "ingestion" else (feed,)
+    expected.update({f"{name}_schema.avsc": (ROOT / "schemas" / f"{name}_schema.avsc").read_bytes() for name in schema_feeds})
     (fixture_root / source_dir).mkdir(parents=True)
     (fixture_root / "schemas").mkdir()
     for name, payload in expected.items():

@@ -1,9 +1,9 @@
 # Production execution decision: checklist item 3
 
-Status: proposed, 2026-10-27, branch codex/production-execution. This decision
-changes where Apache Beam participates in the project. Confirm whether Beam
-must remain in daily production before implementing either alternative.
-The verified EIA production route remains deployed unchanged.
+Status: owner selected bounded Cloud Run daily consumers, retaining Beam for
+backfills, on 2026-10-27; branch codex/production-execution. The isolated
+consumer passed real cloud acceptance. Production subscription handoff is the
+next deployment gate; the verified producer functions/triggers remain intact.
 
 ## Workload and current limits
 
@@ -33,7 +33,7 @@ remain separate work and must not be exercised against curated production.
 
 | Approach | Daily processing | Operational consequences | Project emphasis |
 | --- | --- | --- | --- |
-| Recommended: bounded authenticated Cloud Run consumers | Keep source functions, triggers, schema-bound Pub/Sub topics and Avro contracts. Replace VM streaming consumers with finite HTTP handlers invoked through authenticated Pub/Sub push. | Consumers run independently of the Airflow VM; return success only after durable acceptance. Bound time, payload, memory and instances. Preserve retryable failures. | Beam remains for historical/backfill work and local compatibility testing. |
+| Selected: bounded authenticated Cloud Run consumers | Keep source functions, triggers, schema-bound Pub/Sub topics and Avro contracts. Replace VM streaming consumers with finite HTTP handlers invoked through authenticated Pub/Sub push. | Consumers run independently of the Airflow VM; return success only after durable acceptance. Bound time, payload, memory and instances. Preserve retryable failures. | Beam remains for historical/backfill work and local compatibility testing. |
 | Supported production Beam on Dataflow | Keep Beam in the daily path; make runner/configuration explicit and deploy tested managed jobs. | Upgrade SDK, stage schemas/dependencies correctly, define readiness and drain/restart behavior, isolate service accounts and control worker counts. Scheduled streaming still requires bounded lifecycle management. | Demonstrates managed production Beam, with additional infrastructure and worker operation. |
 | Bounded Cloud Run jobs reading acquisition artifacts | Execute finite staging jobs against explicit source manifests. | Strong fit once durable acquisitions/completion receipts exist, but introducing it immediately also changes acquisition handoff and orchestration. | Consider with raw-retention/run-manifest work if whole-acquisition jobs become preferable. |
 
@@ -58,9 +58,20 @@ CPU/memory and other job resources, even for a low-volume stream. Three jobs
 kept up for the current two-hour VM window imply six worker-hours per operating
 day at one worker each, before startup/drain extensions and worker sizing.
 Consolidation could reduce that baseline but adds deployment coupling. Neither
-alternative has a measured regional bill yet. Obtain an europe-west3 estimate
-from the chosen configuration and measure a capped isolated run before cutover;
-do not quote the pricing page's default Iowa rates as Frankfurt prices.
+alternative has a measured regional bill yet.
+
+The official [region list](https://docs.cloud.google.com/run/docs/locations)
+places Frankfurt in Tier 2. The Frankfurt-labelled request-based tables in
+the pricing page's embedded data, checked 2026-10-27, list active CPU at
+USD 0.0000336/vCPU-second, memory at USD 0.0000035/GiB-second, and requests at
+USD 0.40/million. An illustrative 32 attempts per operating day, 22 operating
+days, one CPU and up to 0.5 GiB, with every attempt lasting the full 60 seconds,
+is about USD 1.50/month for request execution before free allowances.
+Startup/idle billing where applicable, extra retries, builds/artifacts,
+Pub/Sub, BigQuery and logging are outside that example. Instance limits are
+concurrency controls, not a monthly budget cap. This is a regional estimate,
+not a billing report; the public SKU API returned 403, and no API was enabled
+or billing configuration changed to obtain the page-based estimate.
 
 Moving consumers off the VM reduces the ingestion failure domain. Airflow's
 VM/PostgreSQL remain an orchestration dependency under both choices. Meeting

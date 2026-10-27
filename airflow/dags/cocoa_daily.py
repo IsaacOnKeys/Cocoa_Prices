@@ -52,7 +52,7 @@ WEATHER_TRIGGER_TOPIC = Variable.get(
     "WEATHER_TRIGGER_TOPIC", default_var="weather-trigger"
 )
 
-# Feed registry. Beam consumers are systemd-enabled and start with the VM.
+# Feed registry. Daily consumers run independently of this VM on Cloud Run.
 FEEDS = [
     {
         "key": "cocoa",
@@ -231,7 +231,7 @@ with DAG(
             soft_fail=True,  # timeout => SKIPPED
         )
 
-        # Beam consumers start with the VM, so no in-DAG SSH lifecycle is needed.
+        # Managed Pub/Sub push consumers require no in-DAG SSH lifecycle.
         capture_baseline >> trigger >> wait_rows
 
         wait_tasks.append(wait_rows)
