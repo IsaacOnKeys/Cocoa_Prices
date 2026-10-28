@@ -87,3 +87,14 @@ resources use `prevent_destroy` as a safety guard.
 
 See the [infrastructure reference](../../docs/infrastructure/terraform.md) for the
 complete inventory, ownership boundaries, and verification results.
+
+## Consumer build source
+
+The daily consumer's build source is a checksum-named immutable archive with an
+explicit generation in ingestion.tf. It is managed with the runtime; update its
+pointer when promoting new consumer code. A runtime rebuild can resubmit an old
+configured source even when source ignore_changes suppresses a planned diff.
+The [Python 3.11 migration](../../docs/operations/python311-runtime.md) caught and
+corrected this through serving-byte verification. Producer source ignores remain;
+reconcile their actual source before changing any producer build configuration.
+A no-change plan does not establish equality with the intended application source.

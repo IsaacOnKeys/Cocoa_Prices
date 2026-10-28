@@ -68,8 +68,8 @@ resource "google_cloudfunctions2_function" "ingestion" {
     source {
       storage_source {
         bucket     = local.function_source_bucket
-        object     = "stage_analytics_data/ingestion-41acd6ddebaaa396974df7f0ee3435081336713ee65f42581a45adb61dc64a95.zip"
-        generation = 1793134386133654
+        object     = "stage_analytics_data/timestamps-201e9a2961f10d700c09eef018f70e5f8a82741622fe40e3b580e4150ad0f8a9.zip"
+        generation = 1793197483059304
       }
     }
   }
@@ -93,7 +93,6 @@ resource "google_cloudfunctions2_function" "ingestion" {
 
   lifecycle {
     prevent_destroy = true
-    ignore_changes  = [build_config[0].source]
   }
 }
 

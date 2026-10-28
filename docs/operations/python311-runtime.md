@@ -1,4 +1,4 @@
-﻿# Python 3.11 runtime standardization
+# Python 3.11 runtime standardization
 
 Owner requirement added 2026-10-28 under checklist item 31. Branch:
 codex/python311-runtime. Status: source/build definitions prepared; container,
@@ -25,9 +25,13 @@ retained as cocoa-airflow:rollback-python312-20261028.
 
 The three producers already use python311. Only the managed daily consumer's
 function runtime needs changing from python312. Preserve its tested timestamp
-source package, routes, IAM and limits; Terraform owns the runtime field while
-application source is intentionally ignored. Verify actual serving bytes and
-all four runtime IDs after promotion.
+source package, routes, IAM and limits. The runtime-only plan resubmitted the
+older configured seed source; the post-deployment byte/AST check caught the
+regression before acceptance while the DAG was paused. The consumer now pins
+the verified timestamp package in Terraform and removes source ignore_changes.
+Update that immutable source pointer with future consumer code releases. Verify
+actual serving bytes and all four runtime IDs after promotion; no-drift alone
+is not source-equality evidence.
 
 ## Build definitions
 
@@ -55,6 +59,17 @@ includes Python 3.11 for Beam 2.47.0 onward. Google currently schedules python31
 [deprecation/decommission](https://docs.cloud.google.com/functions/docs/runtime-support)
 for 2027-10-24/2028-04-24. Record a future runtime review before that deadline;
 this standardization does not make 3.11 an indefinite support promise.
+
+Build both images explicitly before starting the captured Compose services:
+
+~~~bash
+docker build -f airflow/Dockerfile -t cocoa-airflow:2.10.2-python3.11 .
+docker build -f pipelines/backfill/Dockerfile -t cocoa-backfill:python3.11 pipelines
+~~~
+
+The cloud-control/diagnostic SDK set is pinned in requirements-ops.txt and runs
+in a separate Python 3.11 environment. Both thin development and operational
+SDK environments passed pip check; neither is merged into Airflow or Beam.
 
 ## Gates and rollback
 
@@ -91,3 +106,19 @@ this standardization does not make 3.11 an indefinite support promise.
 
 Generic backfill safety, deployment automation, metadata disaster restoration,
 recurring atomic publication and rendered BI acceptance remain separate items.
+
+## Source ownership correction during runtime promotion
+
+The first consumer runtime rebuild served the old 41acd6d seed archive even
+though the plan showed only runtime changing. source ignore_changes suppressed
+the planned source difference; it did not prevent the build configuration from
+resubmitting its configured archive. The explicit serving-byte/AST gate rejected
+that result. The DAG remained paused and prior analytics/model snapshots were
+preserved. Acceptance requires restoration of the verified 201e9a2 timestamp
+package and an audit of any deliveries during the superseded revision.
+
+The consumer build source is now explicitly managed using its immutable object
+name/generation. Future application releases must update the source pointer
+before applying consumer build changes. Producer source ignores remain a separate
+application-deployment ownership limitation for item 32; capture/verify their
+actual package before any future build-configuration change.

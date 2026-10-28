@@ -142,6 +142,12 @@ The current historical-prediction MAPE has
 
 ## Operational reference
 
+Use a separate Python 3.11 environment with `requirements-ops.txt` for guarded
+cloud diagnostics and authenticated cloud-control scripts. Its SDK pins stay
+separate from the credential-free development/CI dependencies and the two
+container environments.
+
+
 - [Historical snapshot manifest](data/historical_manifest.yaml): exact generations,
   measured coverage, acquisition provenance, SHA-256 and recovery verification.
 - [Runtime/install mappings](docs/operations/runtime-layout.md): VM paths, captured
