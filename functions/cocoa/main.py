@@ -2,7 +2,7 @@ import io
 import json
 import os
 import re
-from datetime import UTC, datetime
+from datetime import UTC, date, datetime
 
 import fastavro
 import functions_framework
@@ -28,7 +28,7 @@ def safe_float(x):
         return None
 
 
-def _scrape_price() -> float:
+def _scrape_price() -> tuple[date, float]:
     print(f"Fetching ICCO cocoa price from {URL}")
     html = requests.get(URL, headers=HEADERS, timeout=15).text
     try:
@@ -60,13 +60,13 @@ def _scrape_price() -> float:
         raise RuntimeError("no valid price found")
 
     print(f"Latest cocoa price: {latest_price} on {latest_date}")
-    return latest_price
+    return latest_date, latest_price
 
 
 @functions_framework.http
 def publish_price(request):
     try:
-        cocoa_price = _scrape_price()
+        observation_date, cocoa_price = _scrape_price()
     except Exception as e:
         print(f"[FAIL] Scraping error: {e}")
         return (
@@ -79,11 +79,12 @@ def publish_price(request):
 
     # Build message in Avro schema format
     payload = {
-        "date": now.date().isoformat(),
+        "date": observation_date.isoformat(),
         "cocoa_price": cocoa_price,
         "ingestion_time": now.isoformat(),
         "raw_payload": json.dumps(
-            {"date": now.date().isoformat(), "price": cocoa_price},
+            {"date": observation_date.isoformat(), "price": cocoa_price,
+             "date_basis": "source_observation"},
             separators=(",", ":"),
         ),
     }
