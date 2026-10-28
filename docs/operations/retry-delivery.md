@@ -8,7 +8,7 @@ changes below are pending managed integration and deployment acceptance.
 | Boundary | Retry owner and budget | Exhaustion |
 | --- | --- | --- |
 | Source HTTP | Shared producer policy: at most three transient attempts, remaining acquisition budget, Retry-After respected | Invocation fails without a completion receipt |
-| Airflow acquisition trigger | Three attempts, three-minute execution limit each; 30-second exponential delay capped at two minutes; enqueue RPC timeout 30 seconds | Failed task; missing endpoint/404 fails permanently |
+| Airflow acquisition trigger | Three attempts, three-minute execution limit each; 30-second exponential delay capped at two minutes; publish acknowledgement wait 30 seconds | Failed task; missing endpoint/404 fails permanently |
 | EIA/weather Eventarc transport | Retry enabled only after DLQ/IAM readiness; 10–60-second backoff, five delivery attempts requested, existing one-day retention | Separate source-trigger dead-letter topics/subscriptions |
 | Three canonical staging subscriptions | 10–60-second backoff, five delivery attempts requested, existing seven-day retention | Existing per-feed dead-letter topics with durable pull subscriptions |
 | Dead-letter destinations | Seven-day retention; no automatic republish | Operator-controlled inspection and replay after correction |
@@ -66,6 +66,12 @@ Source-trigger failures now propagate through retryable Airflow exceptions;
 missing configuration/404 does not silently skip. Required-feed completion,
 receipt-to-run binding and the quiet-period/publication gates remain open under
 items 13–15.
+
+Native validation found that the installed Google provider's PubSubHook.publish
+does not accept a timeout argument. The trigger uses the hook's authenticated
+PublisherClient directly and bounds its publish-future wait instead. Task
+execution timeouts bound the complete invocation; a timed-out future can still
+complete in the background, so logical identity/deduplication remains necessary.
 
 ## Validation gates
 

@@ -139,12 +139,9 @@ def _invoke_producer(
     if trigger_topic:
         try:
             hook = PubSubHook(gcp_conn_id="gcp_default")
-            hook.publish(
-                project_id=GCP_PROJECT,
-                topic=trigger_topic,
-                messages=[{"data": b"{}", "attributes": {"acquisition_key": acquisition_key}}],
-                timeout=30,
-            )
+            publisher = hook.get_conn()
+            topic_path = publisher.topic_path(GCP_PROJECT, trigger_topic)
+            publisher.publish(topic_path, b"{}", acquisition_key=acquisition_key).result(timeout=30)
         except Exception:
             raise AirflowException(f"{feed_key}: trigger enqueue failed") from None
         return {"invoked": True, "topic": trigger_topic}

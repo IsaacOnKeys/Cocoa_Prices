@@ -25,6 +25,8 @@ def trigger(monkeypatch):
         pass
 
     publisher = Mock()
+    publisher.get_conn.return_value = publisher
+    publisher.topic_path.side_effect = lambda project, topic: f"projects/{project}/topics/{topic}"
     hooks = Mock(return_value=publisher)
     requests = ModuleType('requests')
     requests.head = Mock(return_value=SimpleNamespace(status_code=204))
@@ -50,8 +52,10 @@ def test_enqueue_retries_share_a_logical_key_and_bounded_rpc(trigger):
         assert trigger.call('oil', trigger_topic='oil-trigger', dag_run=trigger.run)['invoked']
     first, second = trigger.publisher.publish.call_args_list
     assert first == second
-    assert first.kwargs['timeout'] == 30
-    assert first.kwargs['messages'][0]['attributes'] == {'acquisition_key': 'cocoa_daily:unit-run:oil'}
+    assert first.args == ('projects/unit-project/topics/oil-trigger', b'{}')
+    assert first.kwargs == {'acquisition_key': 'cocoa_daily:unit-run:oil'}
+    publisher_future = trigger.publisher.publish.return_value
+    publisher_future.result.assert_called_with(timeout=30)
 
 
 def test_http_invocation_propagates_the_same_key_and_bounded_timeouts(trigger):
