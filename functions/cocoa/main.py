@@ -10,7 +10,7 @@ import functions_framework
 import requests
 from bs4 import BeautifulSoup, FeatureNotFound
 from google.cloud import pubsub_v1
-from request_policy import INVOCATION_SECONDS, get, publish_timeout
+from request_policy import INVOCATION_SECONDS, acquisition_identity, get, observation_identity, publish_timeout
 
 URL = "https://www.icco.org/home/"
 HEADERS = {"User-Agent": "Mozilla/5.0"}
@@ -68,8 +68,11 @@ def _scrape_price(*, deadline=None) -> tuple[date, float]:
 
 @functions_framework.http
 def publish_price(request):
+    if request is not None and request.method == "HEAD":
+        return "", 204
     deadline = time.monotonic() + INVOCATION_SECONDS
     try:
+        acquisition_id = acquisition_identity("ICCO", key=request.headers.get("X-Acquisition-Key") if request is not None else None)
         observation_date, cocoa_price = _scrape_price(deadline=deadline - 10)
     except Exception:
         print("[FAIL] ICCO acquisition failed")
@@ -112,6 +115,8 @@ def publish_price(request):
             topic_path,
             avro_bytes,
             googclient_schemaencoding="BINARY",
+            acquisition_id=acquisition_id,
+            observation_id=observation_identity("ICCO", payload["date"], {"cocoa_price": cocoa_price}),
         )
         future.result(timeout=min(timeout, publish_timeout(deadline)))
         print(f"[OK] Published Avro message for {payload['date']} to {topic_path}")
@@ -125,7 +130,7 @@ def publish_price(request):
 
     print(json.dumps({"event": "acquisition_complete", "source": "ICCO", "status": "published", "published": 1,
                       "observation_start": payload["date"], "observation_end": payload["date"],
-                      "acquired_at": payload["ingestion_time"]}))
+                      "acquired_at": payload["ingestion_time"], "acquisition_id": acquisition_id}))
     return (
         json.dumps({"date": payload["date"], "price": cocoa_price}),
         200,

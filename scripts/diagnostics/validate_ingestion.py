@@ -102,6 +102,7 @@ def prepare(path, credential):
         fields += [bigquery.SchemaField("ingestion_time", "TIMESTAMP"), bigquery.SchemaField("raw_payload", "STRING")]
         fields += [bigquery.SchemaField(name, "TIMESTAMP") for name in ("producer_acquired_at", "consumer_received_at", "source_published_at")]
         fields += [bigquery.SchemaField(name, "STRING") for name in ("producer_timestamp_raw", "timestamp_status")]
+        fields += [bigquery.SchemaField(name, "STRING") for name in ("delivery_id", "pubsub_message_id", "acquisition_id", "observation_id")]
         bq.create_table(bigquery.Table(f"{state['dataset']}.{table}", schema=fields))
         publisher.create_topic(request={
             "name": subscriptions[feed].replace("/subscriptions/", "/topics/"),

@@ -1,10 +1,11 @@
 # $AIRFLOW_HOME/dags/cocoa_daily_dag.py
 from datetime import datetime, timedelta, timezone
 from typing import Union
+import uuid
 
 import pendulum
 from airflow import DAG
-from airflow.exceptions import AirflowSkipException
+from airflow.exceptions import AirflowException, AirflowFailException
 from airflow.models import Variable
 from airflow.models.baseoperator import chain
 from airflow.operators.python import PythonOperator
@@ -131,22 +132,25 @@ def capture_baseline_fn(ti):
     )
 
 
-def _invoke_or_skip(
-    feed_key: str, url: str | None = None, trigger_topic: str | None = None
+def _invoke_producer(
+    feed_key: str, url: str | None = None, trigger_topic: str | None = None, dag_run=None
 ):
+    acquisition_key = f"{dag_run.dag_id}:{dag_run.run_id}:{feed_key}" if dag_run is not None else uuid.uuid4().hex
     if trigger_topic:
-        hook = PubSubHook(gcp_conn_id="gcp_default")
-        hook.publish(
-            project_id=GCP_PROJECT,
-            topic=trigger_topic,
-            messages=[{"data": b"{}"}],
-        )
+        try:
+            hook = PubSubHook(gcp_conn_id="gcp_default")
+            hook.publish(
+                project_id=GCP_PROJECT,
+                topic=trigger_topic,
+                messages=[{"data": b"{}", "attributes": {"acquisition_key": acquisition_key}}],
+                timeout=30,
+            )
+        except Exception:
+            raise AirflowException(f"{feed_key}: trigger enqueue failed") from None
         return {"invoked": True, "topic": trigger_topic}
 
     if not url:
-        raise AirflowSkipException(
-            f"{feed_key}: no URL or trigger topic configured — skipping."
-        )
+        raise AirflowFailException(f"{feed_key}: no acquisition endpoint configured")
 
     import requests as rq
     from google.auth.transport.requests import Request
@@ -154,26 +158,28 @@ def _invoke_or_skip(
 
     try:
         token = id_token.fetch_id_token(Request(), url)
-        headers = {"Authorization": f"Bearer {token}"}
+        headers = {"Authorization": f"Bearer {token}", "X-Acquisition-Key": acquisition_key}
 
         # best-effort probe (HEAD only). If 404, skip; otherwise proceed.
         try:
-            r = rq.head(url, headers=headers, timeout=15)
+            r = rq.head(url, headers=headers, timeout=(5, 10))
             if r.status_code == 404:
-                raise AirflowSkipException(f"{feed_key}: endpoint 404 — skipping.")
+                raise AirflowFailException(f"{feed_key}: endpoint not found")
+        except AirflowFailException:
+            raise
         except Exception:
             pass
 
         # single invocation (POST only)
-        resp = rq.post(url, headers=headers, timeout=120)
+        resp = rq.post(url, headers=headers, timeout=(5, 65))
         if resp.status_code == 404:
-            raise AirflowSkipException(f"{feed_key}: endpoint 404 on POST — skipping.")
+            raise AirflowFailException(f"{feed_key}: endpoint not found")
         resp.raise_for_status()
         return {"invoked": True, "status": resp.status_code}
-    except AirflowSkipException:
+    except AirflowFailException:
         raise
-    except Exception as e:
-        raise AirflowSkipException(f"{feed_key}: invoke failed ({e}) — skipping.")
+    except Exception:
+        raise AirflowException(f"{feed_key}: producer invocation failed") from None
 
 
 def make_wait_callable(feed_key: str, table_fqn: str):
@@ -216,9 +222,13 @@ with DAG(
         # 1) Trigger the producer via HTTP or its Eventarc Pub/Sub topic.
         trigger = PythonOperator(
             task_id=f"trigger_{f['key']}",
-            python_callable=lambda f=f: _invoke_or_skip(
-                f["key"], f["url"], f["trigger_topic"]
-            ),
+            python_callable=_invoke_producer,
+            op_kwargs={"feed_key": f["key"], "url": f["url"], "trigger_topic": f["trigger_topic"]},
+            execution_timeout=timedelta(minutes=3),
+            retries=2,
+            retry_delay=timedelta(seconds=30),
+            retry_exponential_backoff=True,
+            max_retry_delay=timedelta(minutes=2),
         )
 
         # 2) Wait for at least N new rows since baseline.

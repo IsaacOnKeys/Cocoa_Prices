@@ -144,3 +144,42 @@ def test_corroborated_eia_empty_window_is_an_explicit_no_observations_receipt(ha
     assert response.status_code == 200
     assert '"status": "no_observations", "published": 0' in capsys.readouterr().out
     handler.publisher.publish.assert_not_called()
+
+
+def test_cocoa_head_probe_is_read_only(handler, capsys):
+    response = handler.create('cocoa').head('/')
+    assert response.status_code == 204
+    handler.publisher.publish.assert_not_called()
+    assert 'acquisition_complete' not in capsys.readouterr().out
+
+
+@pytest.mark.parametrize('feed', ['oil', 'weather'])
+def test_repeated_event_has_stable_acquisition_and_observation_ids(handler, feed):
+    client = handler.create(feed)
+    assert invoke(client, feed).status_code == invoke(client, feed).status_code == 200
+    attrs = [call.kwargs for call in handler.publisher.publish.call_args_list]
+    assert attrs[:2] == attrs[2:]
+    assert len({a['acquisition_id'] for a in attrs}) == 1
+
+
+def test_cocoa_caller_key_identifies_retried_http_invocation(handler):
+    client = handler.create('cocoa')
+    for _ in range(2):
+        assert client.post('/', headers={'X-Acquisition-Key': 'same-logical-acquisition'}).status_code == 200
+    first, second = [call.kwargs for call in handler.publisher.publish.call_args_list]
+    assert first == second
+
+
+@pytest.mark.parametrize('feed', ['oil', 'weather'])
+def test_caller_key_survives_new_pubsub_event_ids_through_the_real_adapter(handler, feed):
+    client = handler.create(feed)
+    for index in range(2):
+        headers = {**EVENT_HEADERS, 'ce-id': f'new-event-{index}'}
+        response = client.post('/', headers=headers, json={
+            'message': {'data': 'e30=', 'messageId': f'message-{index}',
+                        'attributes': {'acquisition_key': 'one-logical-acquisition'}},
+            'subscription': 'projects/unit/subscriptions/trigger',
+        })
+        assert response.status_code == 200
+    attrs = [call.kwargs for call in handler.publisher.publish.call_args_list]
+    assert len({a['acquisition_id'] for a in attrs}) == 1

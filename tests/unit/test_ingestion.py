@@ -68,6 +68,8 @@ def test_real_binary_reaches_sink_before_ack(consumer, monkeypatch, feed, capsys
         assert row["consumer_received_at"] != SOURCE_TIME
         assert row["timestamp_status"] == "valid"
         assert row["source_published_at"] is None
+        assert row["delivery_id"] == identity and row["pubsub_message_id"] == "123456789"
+        assert row["acquisition_id"] is None and row["observation_id"] is None
         events.append("write accepted")
     monkeypatch.setattr(consumer, "insert_row", write)
     assert consumer.stage_analytics_data(request(envelope(feed)))[1] == 204
@@ -133,6 +135,30 @@ def test_redelivery_keeps_stable_insert_hint_but_different_message_gets_new_iden
     assert consumer.stage_analytics_data(request(body))[1] == 204
     ids = [call.args[2] for call in sink.call_args_list]
     assert ids[0] == ids[1] and ids[1] != ids[2]
+
+
+def test_logical_identities_survive_republication_with_a_new_transport_id(consumer, monkeypatch):
+    sink = Mock()
+    monkeypatch.setattr(consumer, "insert_row", sink)
+    body = envelope()
+    body['message']['attributes'].update(acquisition_id='a' * 64, observation_id='b' * 64)
+    assert consumer.stage_analytics_data(request(body))[1] == 204
+    body['message']['messageId'] = '123456790'
+    assert consumer.stage_analytics_data(request(body))[1] == 204
+    first, second = [call.args[1] for call in sink.call_args_list]
+    assert first['acquisition_id'] == second['acquisition_id'] == 'a' * 64
+    assert first['observation_id'] == second['observation_id'] == 'b' * 64
+    assert first['delivery_id'] != second['delivery_id']
+
+
+def test_invalid_identity_is_not_accepted_or_logged(consumer, monkeypatch, capsys):
+    body = envelope()
+    body['message']['attributes']['acquisition_id'] = 'private-identity-canary'
+    sink = Mock()
+    monkeypatch.setattr(consumer, 'insert_row', sink)
+    assert consumer.stage_analytics_data(request(body))[1] == 503
+    sink.assert_not_called()
+    assert 'private-identity-canary' not in capsys.readouterr().out
 
 
 @pytest.mark.parametrize("result,error", [({},None), ({"insertErrors":[{"index":0,"errors":[{"message":"PRIVATE"}]}]},None), ({},TimeoutError())])

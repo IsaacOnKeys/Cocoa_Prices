@@ -1,11 +1,36 @@
 """Finite source retries and publish waits within the caller's invocation budget."""
 
 import time
+import hashlib
+import json
+import uuid
 from datetime import datetime, timezone
 from email.utils import parsedate_to_datetime
 
 INVOCATION_SECONDS = 50
 TRANSIENT_STATUS = {408, 429, 500, 502, 503, 504}
+
+
+def acquisition_identity(source, *, event=None, context=None, key=None):
+    """Stable logical key across transport retries; never log caller-supplied keys."""
+    try:
+        if key is None and event is not None:
+            key = event.get("attributes", {}).get("acquisition_key")
+        if key is None:
+            key = getattr(context, "event_id", None) or uuid.uuid4().hex
+        if not isinstance(key, str) or not 1 <= len(key) <= 1024:
+            raise ValueError("Invalid key")
+        scope = getattr(context, "resource", None)
+        encoded = json.dumps([source, scope, key], sort_keys=True, separators=(",", ":")).encode()
+        return hashlib.sha256(encoded).hexdigest()
+    except Exception:
+        raise RuntimeError("Invalid acquisition identity") from None
+
+
+def observation_identity(source, observed, measurements):
+    """A business-value revision fingerprint, independent of receipt/acquisition time."""
+    encoded = json.dumps([source, observed, measurements], sort_keys=True, separators=(",", ":"), allow_nan=False).encode()
+    return hashlib.sha256(encoded).hexdigest()
 
 
 def remaining(deadline):

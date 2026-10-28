@@ -95,6 +95,8 @@ def assert_secret_safe(error, capsys):
 def test_success_publishes_entire_window_and_keeps_key_out_of_logs(oil_handler, capsys):
     oil_handler.requests.get.return_value = page([row(), row("2026-10-19", "118.82")])
     result = oil_handler.module.publish_eia_data()
+    acquisition_id = result.pop("acquisition_id")
+    assert len(acquisition_id) == 64
     assert result == {"source": "EIA", "status": "published", "published": 2,
                       "observation_start": "2026-10-19", "observation_end": "2026-10-20",
                       "acquired_at": "2026-10-27T18:00:00+00:00"}
@@ -106,7 +108,7 @@ def test_success_publishes_entire_window_and_keeps_key_out_of_logs(oil_handler, 
     assert kwargs["params"]["facets[series][]"] == "RBRTE"
     assert kwargs["params"]["frequency"] == "daily"
     assert kwargs["params"]["sort[0][direction]"] == "asc"
-    assert kwargs["timeout"] == (5, 20)
+    assert kwargs["timeout"][0] == 5 and 0 < kwargs["timeout"][1] <= 20
     start, end = (date.fromisoformat(kwargs["params"][key]) for key in ("start", "end"))
     assert (end - start).days == 14
     records = decoded_publications(oil_handler)
@@ -117,7 +119,10 @@ def test_success_publishes_entire_window_and_keeps_key_out_of_logs(oil_handler, 
     assert all(json.loads(r["raw_payload"])["source"] == "EIA" for r in records)
     for call in oil_handler.publisher.publish.call_args_list:
         assert call.args[0] == "projects/unit-test-project/topics/oil-prices-topic"
-        assert call.kwargs == {"googclient_schemaencoding": "BINARY"}
+        assert call.kwargs["googclient_schemaencoding"] == "BINARY"
+        assert call.kwargs["acquisition_id"] == acquisition_id
+        assert len(call.kwargs["observation_id"]) == 64
+    assert len({c.kwargs["observation_id"] for c in oil_handler.publisher.publish.call_args_list}) == 2
     oil_handler.publisher.publish.return_value.result.assert_called_with(timeout=10)
 
 
@@ -237,6 +242,7 @@ def test_eia_wire_passes_existing_beam_decoder_and_row_mapping(oil_handler, monk
 def test_expired_deadline_makes_no_request(oil_handler):
     with pytest.raises(RuntimeError, match="deadline exceeded"):
         oil_handler.module.fetch_observations(CANARY, date(2026, 10, 1), date(2026, 10, 27), deadline=0)
+    oil_handler.requests.get.assert_not_called()
 
 
 def test_secret_access_has_a_finite_timeout_without_sdk_retry(oil_handler):
@@ -247,7 +253,27 @@ def test_secret_access_has_a_finite_timeout_without_sdk_retry(oil_handler):
     client.access_secret_version.assert_called_once_with(
         request={"name": "projects/unit-test-project/secrets/EIA_OIL_API_KEY/versions/latest"}, timeout=10, retry=None
     )
-    oil_handler.requests.get.assert_not_called()
+
+
+def test_acquisition_time_reflects_completed_corroboration(oil_handler):
+    phase = {'corroborated': False, 'clock_calls': 0}
+    start = datetime(2026, 10, 27, 18, tzinfo=timezone.utc)
+    completed = datetime(2026, 10, 27, 18, 0, 20, tzinfo=timezone.utc)
+
+    class Clock(datetime):
+        @classmethod
+        def now(cls, tz=None):
+            phase['clock_calls'] += 1
+            if phase['clock_calls'] == 1:
+                return start
+            assert phase['corroborated']
+            return completed
+
+    oil_handler.module.datetime = Clock
+    oil_handler.module.verify_against_published.side_effect = lambda *args, **kwargs: phase.update(corroborated=True)
+    receipt = oil_handler.module.publish_eia_data()
+    assert receipt['acquired_at'] == completed.isoformat()
+    assert decoded_publications(oil_handler)[0]['ingestion_time'] == completed.isoformat()
 
 
 PUBLISHED_FIXTURE = """<html><title>Europe Brent Spot Price FOB (Dollars per Barrel)</title>

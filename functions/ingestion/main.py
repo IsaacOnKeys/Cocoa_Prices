@@ -154,6 +154,13 @@ def stage_analytics_data(request):
         delivery_id = hashlib.sha256(f"{subscription}\0{message_id}".encode()).hexdigest()
         received = datetime.now(timezone.utc).isoformat()
         row = decode_row(feed, payload, received)
+        identity = {}
+        for name in ("acquisition_id", "observation_id"):
+            value = message.get("attributes", {}).get(name)
+            if value is not None and (not isinstance(value, str) or not re.fullmatch(r"[0-9a-f]{64}", value)):
+                raise ValueError("Invalid identity attribute")
+            identity[name] = value
+        row.update(delivery_id=delivery_id, pubsub_message_id=message_id, **identity)
         insert_row(route["table"], row, delivery_id)
     except Exception as error:
         # Never log arbitrary exceptions, payloads, tokens, URLs or sink bodies.
@@ -162,5 +169,5 @@ def stage_analytics_data(request):
         emit("ingestion_retry", started, feed=feed, delivery_id=delivery_id, error_type=type(error).__name__)
         return "Not accepted; retry required", 503
     emit("ingestion_accepted", started, feed=feed, delivery_id=delivery_id, payload_bytes=len(payload),
-         timestamp_status=row["timestamp_status"])
+         timestamp_status=row["timestamp_status"], **identity)
     return "", 204

@@ -6,15 +6,17 @@ locals {
   }
 
   pubsub_topics = {
-    cocoa-prices-dead-letter = null
-    oil-prices-dead-letter   = null
-    weather-dead-letter      = null
-    cocoa-prices-topic       = "cocoa-schema"
-    oil-prices-topic         = "oil-schema"
-    weather-topic            = "weather-schema"
-    eia-oil-trigger          = null
-    eia-oil-validation       = "oil-schema"
-    weather-trigger          = null
+    cocoa-prices-dead-letter    = null
+    oil-prices-dead-letter      = null
+    weather-dead-letter         = null
+    eia-trigger-dead-letter     = null
+    weather-trigger-dead-letter = null
+    cocoa-prices-topic          = "cocoa-schema"
+    oil-prices-topic            = "oil-schema"
+    weather-topic               = "weather-schema"
+    eia-oil-trigger             = null
+    eia-oil-validation          = "oil-schema"
+    weather-trigger             = null
   }
 
   pubsub_subscriptions = {
@@ -81,10 +83,27 @@ resource "google_pubsub_subscription" "subscriptions" {
     }
   }
 
+  dynamic "dead_letter_policy" {
+    for_each = contains(keys(local.canonical_dead_letters), each.key) ? [local.canonical_dead_letters[each.key]] : []
+    content {
+      dead_letter_topic     = google_pubsub_topic.topics[dead_letter_policy.value].id
+      max_delivery_attempts = 5
+    }
+  }
+
+  dynamic "retry_policy" {
+    for_each = contains(keys(local.canonical_dead_letters), each.key) ? [1] : []
+    content {
+      minimum_backoff = "10s"
+      maximum_backoff = "60s"
+    }
+  }
+
   depends_on = [
     google_cloud_run_v2_service_iam_member.ingestion_push_invoker,
     google_service_account_iam_member.ingestion_push_tokens,
     google_bigquery_dataset_iam_member.ingestion_staging_writer,
+    google_pubsub_subscription.dead_letters,
   ]
 
   expiration_policy {

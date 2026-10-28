@@ -7,7 +7,7 @@ from datetime import datetime, timedelta, timezone
 import fastavro
 import requests
 from google.cloud import pubsub_v1
-from request_policy import INVOCATION_SECONDS, get, publish_timeout
+from request_policy import INVOCATION_SECONDS, acquisition_identity, get, observation_identity, publish_timeout
 
 SCHEMA_FILE = "weather_schema.avsc"
 PROJECT = os.getenv("GCP_PROJECT", "cocoa-prices-430315")
@@ -43,6 +43,7 @@ def scrub_weather_val(x):
 
 def publish_weather_data(event=None, context=None):
     deadline = time.monotonic() + INVOCATION_SECONDS
+    acquisition_id = acquisition_identity("NASA_POWER", event=event, context=context)
     today = datetime.now(timezone.utc)
     start_date = (today - timedelta(days=7)).strftime("%Y%m%d")
     end_date = today.strftime("%Y%m%d")
@@ -108,6 +109,8 @@ def publish_weather_data(event=None, context=None):
                 topic_path,
                 avro_bytes,
                 googclient_schemaencoding="BINARY",
+                acquisition_id=acquisition_id,
+                observation_id=observation_identity("NASA_POWER", date_bq, {"precipitation": precipitation, "soil_moisture": soil_moisture}),
             )
             future.result(timeout=min(timeout, publish_timeout(deadline)))
             print(f"[OK] Published Avro message for {date_bq} to {topic_path}")
@@ -117,7 +120,7 @@ def publish_weather_data(event=None, context=None):
 
     receipt = {"source": "NASA_POWER", "status": "published", "published": published,
                "observation_start": observations[0][0], "observation_end": observations[-1][0],
-               "acquired_at": acquired_at}
+               "acquired_at": acquired_at, "acquisition_id": acquisition_id}
     print(json.dumps({"event": "acquisition_complete", **receipt}))
     return receipt
 
