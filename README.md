@@ -81,9 +81,12 @@ runtime boundaries and editable diagrams.
 
 ## Run the local checks
 
-Use a dedicated Python 3.12 development environment. Producers use Python 3.11;
-the daily consumer uses Python 3.12. Runtime dependencies remain separate for
-functions, historical/local Beam and Airflow.
+Use Python 3.11 for project environments; .python-version records this target.
+Create a dedicated environment with `python3.11 -m venv .venv` (Windows:
+`py -3.11 -m venv .venv`). Use its interpreter for the commands below. Keep
+function, historical/local Beam and Airflow dependencies in separate environments.
+The [runtime migration receipt](docs/operations/python311-runtime.md) records
+deployment status and actual container/pipeline validation.
 
 ~~~bash
 python -m pip install -r requirements-dev.txt
@@ -115,7 +118,7 @@ Airflow 2.10.2 image with Google provider 10.22.0.
 The VM inspection and Docker startup outcome are recorded in the
 [runtime handoff](docs/operations/portfolio-handoff-2026-10-26.md).
 The [CI workflow](.github/workflows/ci.yml) runs credential-free
-checks on Python 3.11 and 3.12; see the
+checks on Python 3.11; see the
 [CI reference](docs/operations/ci.md) for test boundaries and commands.
 
 The [27 October production validation](docs/operations/release-validation-2026-10-27.md)

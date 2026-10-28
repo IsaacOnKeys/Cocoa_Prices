@@ -1,0 +1,7 @@
+**
+!requirements.txt
+!backfill/
+!backfill/Dockerfile
+!backfill/clean_cocoa_prices.py
+!backfill/clean_oil_eia.py
+!backfill/clean_precipitation.py

@@ -1,4 +1,4 @@
-FROM python:3.12-slim
+FROM python:3.11-slim@sha256:673719e071ecf27434fd2635bbd8d00f49f4fdd81f243143438a42ced8bedf60
 
 ENV PYTHONUNBUFFERED=1 \
     DEBIAN_FRONTEND=noninteractive
@@ -9,10 +9,12 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     libssl-dev \
     && rm -rf /var/lib/apt/lists/*
 
-RUN pip install --no-cache-dir apache-beam[gcp]==2.61.0
+COPY requirements.txt /requirements.txt
+RUN python -m pip install --no-cache-dir -r /requirements.txt \
+    && python -m pip check
 
 WORKDIR /app
 
-COPY clean_precipitation.py clean_oil_eia.py clean_cocoa_prices.py /app/
+COPY backfill/clean_precipitation.py backfill/clean_oil_eia.py backfill/clean_cocoa_prices.py /app/
 
 ENTRYPOINT ["python"]

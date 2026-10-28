@@ -1,14 +1,14 @@
 # Credential-free CI
 
 [The CI workflow](../../.github/workflows/ci.yml) runs on pushes, pull requests,
-and manual workflow dispatch. Its Linux matrix uses Python 3.11 and 3.12.
+and manual workflow dispatch. Its Linux matrix uses Python 3.11 only.
 Only requirements-dev.txt is installed; production environments remain separate.
 
 Each job performs:
 
 1. Ruff using the repository's existing E4/E7/E9/F rule scope.
 2. In-memory Python compilation and bash -n for the five shell helpers/installers.
-3. Preparation of all three complete function roots and deterministic ZIPs,
+3. Preparation of all four complete function roots and deterministic ZIPs,
    creating the ignored .build/ directory needed by the configured test path.
 4. Unit/contract and migration tests.
 5. git diff --check.

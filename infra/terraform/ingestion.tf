@@ -59,7 +59,7 @@ resource "google_cloudfunctions2_function" "ingestion" {
   labels   = { app = "cocoa-prices", component = "staging-ingestion" }
 
   build_config {
-    runtime           = "python312"
+    runtime           = "python311"
     entry_point       = "stage_analytics_data"
     docker_repository = local.function_repository
     service_account   = "projects/${var.project_id}/serviceAccounts/${local.compute_service_account}"

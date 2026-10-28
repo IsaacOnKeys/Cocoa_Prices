@@ -15,8 +15,7 @@ python pipelines/backfill/clean_oil_eia.py \
     --temp_location=gs://raw-historic-data/temp \
     --staging_location=gs://raw-historic-data/staging \
     --worker_machine_type=e2-standard-4 \
-    --save_main_session \
-    --worker_harness_container_image=europe-west3-docker.pkg.dev/cocoa-prices-430315/cocoa-code-project/dataflow-pipelines-batch:latest
+    --save_main_session
 
 """
 

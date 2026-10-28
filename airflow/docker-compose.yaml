@@ -42,7 +42,7 @@
         "_AIRFLOW_WWW_USER_USERNAME": "airflow",
         "_PIP_ADDITIONAL_REQUIREMENTS": ""
       },
-      "image": "apache/airflow:2.10.2",
+      "image": "cocoa-airflow:2.10.2-python3.11",
       "networks": {
         "default": null
       },
@@ -117,7 +117,7 @@
         "retries": 5,
         "start_period": "30s"
       },
-      "image": "apache/airflow:2.10.2",
+      "image": "cocoa-airflow:2.10.2-python3.11",
       "networks": {
         "default": null
       },
@@ -191,7 +191,7 @@
         "retries": 5,
         "start_period": "30s"
       },
-      "image": "apache/airflow:2.10.2",
+      "image": "cocoa-airflow:2.10.2-python3.11",
       "networks": {
         "default": null
       },
@@ -255,7 +255,7 @@
         "AIRFLOW__WEBSERVER__WORKERS": "1",
         "_PIP_ADDITIONAL_REQUIREMENTS": ""
       },
-      "image": "apache/airflow:2.10.2",
+      "image": "cocoa-airflow:2.10.2-python3.11",
       "networks": {
         "default": null
       },
@@ -357,7 +357,7 @@
       "AIRFLOW__WEBSERVER__WORKERS": "1",
       "_PIP_ADDITIONAL_REQUIREMENTS": ""
     },
-    "image": "apache/airflow:2.10.2",
+    "image": "cocoa-airflow:2.10.2-python3.11",
     "user": "1001:0",
     "volumes": [
       "./dags:/opt/airflow/dags",
