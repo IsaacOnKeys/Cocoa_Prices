@@ -21,6 +21,11 @@ publication, or production pipeline execution.
 ## Test boundaries
 
 - Tests block socket connections.
+- Packaged producers also run through the real pinned Functions Framework HTTP
+  and Gen2 Pub/Sub event adapters using Flask's in-process test client. External
+  IO stays stubbed; failures must return HTTP 500 without a completion receipt
+  or credential canary in any captured output. See
+  [producer failure signals](producer-failure-signals.md).
 - The oil handler is executed with fake HTTP, Secret Manager and Pub/Sub
   boundaries and a canary key; successful requests retain their real argument
   contract without logging the key.

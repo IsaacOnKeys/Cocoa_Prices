@@ -43,4 +43,64 @@ tests also cover mismatched series, invalid later records before any publication
 out-of-window/noncanonical dates, nonfinite/boolean measurements and failed
 publisher initialization. Network access remains blocked throughout these tests.
 
-Deployment and controlled-cycle validation are pending.
+## Verified deployment: 28 October 2026
+
+Implementation e654122 on codex/producer-failure-signals passed 258 tests on
+Python 3.11, Ruff, 37 Python and five shell syntax checks, deterministic packaging
+and pip check. The adapter tests emit 13 non-failing deprecation warnings from
+Functions Framework's CloudEvents conversion; no application test was skipped.
+
+The saved Terraform plan changed only three source pointers. All four active
+functions remain python311; triggers/retry policies, identities, IAM and resource
+limits were preserved. The actual serving archive members match the tested
+repository inputs, including the pinned requirements. The consumer was unchanged.
+
+| Feed | Serving revision | Source generation |
+| --- | --- | --- |
+| Cocoa | publish-price-00019-gik | 1793224804484938 |
+| Oil | publish-eia-data-00004-hoq | 1793224806181398 |
+| Weather | publish-weather-data-00013-quq | 1793224807023093 |
+
+Controlled run producer_failures__e654122__20261028 passed all ten tasks between
+23:04:57 and 23:06:03 Europe/Berlin (UTC+1), outside the normal service window.
+Its BigQuery job was
+airflow_cocoa_daily_run_bq_pipeline_2026_10_28T22_04_51_00_00_e72de539e630c9e04d4376c1bd521397.
+
+- Cloud Logging recorded two ICCO, one EIA and one NASA_POWER completion receipts.
+  Their acknowledged counts exactly matched two, ten and eight new staging rows.
+  Actual observation ranges were cocoa 27 October, oil 14–27 October, and
+  weather 21–28 October; acquisition timestamps were separate, aware instants.
+- Each feed had valid provenance and zero curated reconciliation errors.
+- All 13 quality checks returned zero violations. Joined data, features and
+  historical predictions each contained 4,683 unique dates through 28 October.
+- All 40 unique forecasts covered 29 October–7 December, and three BI source
+  views had no null outputs. Rendered dashboard appearance was not tested.
+
+Failure/empty-window injection was performed in credential-free real-adapter
+fixtures, not by sending poison inputs to production. The deployed controlled
+cycle exercised successful real requests, publication, storage and analytics.
+The existing permissive Airflow completion rules and missing durable raw
+acquisition archive remain open under items 13–15 and 10 respectively.
+
+## Recovery and handoff
+
+Six accepted-table snapshots and a model copy were preserved in
+cocoa-prices-430315.producer_failure_recovery_20261028_e654122. The copied model
+reproduced all 40 accepted forecasts within 1e-8. The three new source archives
+and three rollback copies have explicit, re-read temporary holds and verified
+checksums. Rollback archives and the completion manifest use the private prefix
+gs://raw-historic-data/operations/2026-10-28/producer-failure-signals-e654122/.
+
+For code rollback, pause and reconcile active work, reupload the exact held
+before-archives to immutable source objects, deliberately update source generations,
+review a source-only plan and verify actual serving bytes after applying. These
+copies contain the accepted item 6 date/timestamp and request-budget behavior.
+Table/model restoration is separate and must account for any later releases.
+
+Final checks verified the VM TERMINATED, DAG idle/unpaused for 29 October at
+19:00 Europe/Berlin, legacy Beam units disabled, and both Terraform roots with
+no drift (93 managed resources). The private held completed_manifest.json records
+all serving/rollback checksums, recovery jobs, task states, quality results and
+the four real acquisition receipts. Its generation is 1793225551992366 and
+SHA-256 is 76a748954057a22a433e8bb4f57ceeadbfdd81d516442d91c5120e0f1f92bce1.
+No branch push, PR or hosted CI execution is claimed.

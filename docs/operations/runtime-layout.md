@@ -91,6 +91,9 @@ explicitly pins verified source archive generations for all four active function
 promote a matching tested archive when changing build configuration. Deployment
 evidence must compare the actual serving archive members. See
 [bounded source requests](bounded-source-requests.md) for the producer release.
+The subsequent [producer failure-signal release](producer-failure-signals.md)
+pins the tested Functions Framework adapter and adds structured completion
+receipts; it preserves these source, runtime and trigger interfaces.
 
 The cocoa and weather entry points and their generic installed interfaces
 remain covered by the existing packager and their own release records. The
