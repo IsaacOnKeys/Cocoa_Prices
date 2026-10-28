@@ -1,9 +1,9 @@
 # Cocoa observation-date correction
 
 Checklist item 4; branch codex/cocoa-observation-dates, 2026-10-28.
-Status: daily producer fix tested against fixtures and the live publisher;
-historical backup/candidate preparation and isolated transaction rehearsal in
-progress. Production source/data have not yet been changed for this item.
+Status: producer fix deployed and complete historical/analytics/forecast
+repair published after isolated validation and rollback rehearsal. The controlled
+production workflow and final warehouse acceptance checks passed.
 
 ## Defect and corrected contract
 
@@ -83,19 +83,28 @@ not a claim to have recovered the unknown vintage of 657 legacy messages.
 3. Snapshot staging, curated source tables, joined data, forecasts and historical
    predictions; copy the prior model and verify its prediction matches the
    saved forecast. Store them in an isolated dated recovery dataset.
-4. Rehearse the exact [DML transaction](../../sql/repairs/cocoa_observation_dates.sql)
-   on isolated copies. Inject a preimage change and require an abort with no
-   partial mutations, then verify the valid candidate's counts and values.
-5. Pause the idle DAG in a controlled window. Deploy only the tested producer
-   source, verify its serving files and unchanged non-source settings, then
-   apply the rehearsed transaction. It compares complete preimage multisets,
-   preserves quarantine, replaces only captured legacy staging rows and
-   rewrites only the affected curated interval. No WRITE_TRUNCATE bootstrap
-   or permanent DDL inside a transaction is used.
+4. Rehearse the core [DML transaction](../../sql/repairs/cocoa_observation_dates.sql)
+   on isolated copies. A changed preimage must abort without mutations. Build
+   the complete candidate by executing the actual deployed procedure body
+   against frozen, corrected inputs in the recovery namespace. Freeze its
+   business date to 2026-10-28; require all thirteen feature/output checks,
+   forty unique valid forecasts, and complete BI source views.
+5. Rehearse the concrete [complete-release transaction](../../sql/repairs/cocoa_date_release_20261028.sql)
+   against separate copies. An injected post-write failure must roll back
+   every affected table. Pause the idle DAG; deploy/verify only producer
+   source, retain unchanged non-source settings, copy and verify the candidate
+   model, then publish corrected cocoa, joined data and both prediction tables
+   in one DML transaction. Exact multiset preimages, candidate fingerprints,
+   date/count/domain guards and a same-day expiry prevent stale application.
+   Oil/weather facts must match their backups and are not rewritten. Existing
+   feature/metric/BI view definitions remain unchanged. Restore the prior model
+   if the DML job definitively fails; reconcile an ambiguous job outcome first.
 6. Require a controlled full daily cycle and source/feature/forecast/BI checks
-   before accepting the maintenance result. On failure, restore the exact
-   saved products/model from the recovery dataset and investigate; source
-   rollback cannot reverse acknowledged messages by itself.
+   before accepting the result. Retain the validated candidate as the complete
+   maintenance recovery release; the pre-repair products/model remain separately
+   available for forensic recovery. Source rollback alone cannot reverse
+   acknowledged messages. This one-time repair does not change the normal
+   DAG's publication behavior; recurring atomic releases remain item 20.
 7. Restore the prior pause/VM state and normal schedules. Keep the dated
    recovery artifacts and archive references; generic backfill, versioned
    releases, chronological evaluation and recurring quality gates remain their
@@ -107,3 +116,62 @@ conflicting quotes, future dates, pre-corrected staging and duplicate curated
 keys. SQL rendering permits only the fixed production pair or matching
 isolated rehearsal destinations. Private execution evidence is under
 .build/cocoa-date/; the recovery manifest records actual dataset/object IDs.
+
+## Deployment and repair receipt
+
+- Source changes: b652c5a and f2aa51a. Serving revision:
+  publish-price-00017-yoz; prepared three-file ZIP SHA-256:
+  `04c422b36aeeb05c7cd0ceca0db9e7b93260ffec2268ac5cefd313255fa2b7f0`.
+  Serving files match; runtime, trigger and invocation policy are unchanged.
+- Recovery dataset:
+  `cocoa-prices-430315.cocoa_date_repair_20261028_569854f4`.
+  It contains read-only source/output snapshots, verified model backup,
+  unchanged legacy quarantine, accepted candidates and isolated rehearsals.
+  These are retained application recovery artifacts outside Terraform ownership.
+- Private held evidence prefix:
+  `gs://raw-historic-data/repairs/2026-10-28/cocoa_date_repair_20261028_569854f4/`.
+  prepared_manifest.json records initial snapshots/evidence;
+  validated_bundle_manifest.json records validated candidates, fingerprints,
+  job IDs and successful failure-injection rehearsal. release_transaction.sql
+  is the exact published SQL. Object generations/hashes are recorded in the
+  private execution state; original archives are preserved.
+- Atomic publication job: `b389dcad-4ebf-4a4d-9522-ed6591073d78`.
+- Credential-free regression suite: 159 passed. Parser fixtures produce seven
+  existing Beautiful Soup/lxml deprecation warnings. No hosted CI is claimed.
+
+Checks on BI source views establish warehouse output integrity; rendered
+report behavior and user access still require their later BI acceptance item.
+The model retains its existing evaluation semantics; corrected dates do not
+turn retrospective rescoring into an honest chronological backtest.
+
+## Production acceptance
+
+The controlled run `cocoa_date_correction__f2aa51a__20261028` passed all ten tasks
+from 09:54:45.853444 to 09:55:57.882770 UTC on 2026-10-28. Its procedure job was
+`airflow_cocoa_daily_run_bq_pipeline_2026_10_28T09_54_45_00_00_4135e95b0f993a2025d853cbed9e7ccb`.
+The normal HTTP HEAD probe and POST still produce two cocoa acquisitions; fixing
+that invocation behavior remains item 13. Both new acquisitions retained the
+October 27 source date on October 28, with matching raw date/price evidence.
+
+Final active staging has 277 publisher-history rows plus two corrected live
+acquisitions and no unmarked legacy rows. Curated cocoa has 3,292 unique dated
+facts and matches the accepted candidate exactly. All earlier bootstrap facts
+remain unchanged. Quarantine retains all 707 legacy records unchanged, fifty
+with additional recovered-date evidence and 657 with unknown original source
+dates.
+
+All thirteen feature/output checks passed. Joined/features/prediction-history
+outputs each contain 4,683 unique calendar rows through October 28. Forecasts
+contain forty unique finite positive values for October 29 through December 7.
+The three BI source checks have no missing outputs; all feed freshness views
+reflect the controlled acquisitions. These checks establish structural and
+numeric validity, without claiming predictive accuracy or rendered-chart
+acceptance. The normal daily DAG retains the known permissive failure handling
+and non-atomic publication behavior scheduled for later checklist items.
+
+The DAG is restored unpaused and the Airflow VM is verified TERMINATED outside
+its operating window. All three old Beam services remain disabled/inactive,
+including after a real VM restart. Both Terraform roots have no drift (93
+managed resources). The held completed_manifest.json records final production
+checks and recovery state: generation 1793181569676469, SHA-256
+`f015f53eff1d40a29f180ae7e18d9a05c36572cf4b43888750e6f9b15942b4ec`.

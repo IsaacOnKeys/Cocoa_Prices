@@ -43,7 +43,7 @@ schema from the payload.
 
 | Field | Existing wire type/default | Business interpretation and planned acceptance rule |
 | --- | --- | --- |
-| date | null or string; default null | Source observation date, exactly YYYY-MM-DD and a real calendar date. Required for an accepted observation; reject future dates relative to the release business date. The existing cocoa producer violates this semantic rule until item 4. |
+| date | null or string; default null | Source observation date, exactly YYYY-MM-DD and a real calendar date. Required for an accepted observation; reject future dates relative to the release business date. The deployed cocoa producer preserves the parsed ICCO observation date; see the [date correction](../docs/operations/cocoa-date-correction.md). |
 | cocoa_price | null or double; default null | Finite positive EUR/tonne value. Null is a recorded missing value, not a valid price for publication. |
 | oil_price | null or double; default null | Finite USD/barrel value. Do not impose cocoa's positive-price rule on a different economic series without a justified source-specific policy. |
 | precipitation | null or double; default null | Finite non-negative daily precipitation; zero is valid. Source missing sentinels become null with their original representation retained in raw evidence. |
@@ -80,8 +80,9 @@ incompatible measurement types and truncated binary input for every feed.
 EIA fixtures additionally cover product/unit/date errors, explicit missing
 values, pagination, non-finite prices and published-source disagreement; the
 isolated cloud test exercises the real sink. Full feed-wide business-quality
-publication gates remain checklist item 15, and the known cocoa date and
-cross-feed timestamp defects remain items 4 and 5.
+publication gates remain checklist item 15. Cocoa date correction is recorded
+in [item 4 evidence](../docs/operations/cocoa-date-correction.md); cross-feed
+timestamp corrections remain item 5.
 
 ## Timestamp and availability provenance
 

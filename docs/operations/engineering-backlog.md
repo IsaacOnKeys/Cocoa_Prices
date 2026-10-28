@@ -5,7 +5,6 @@ migration. They were not implemented.
 
 | Priority | Finding | Later work |
 | --- | --- | --- |
-| High | Cocoa observation and published dates differ | Define and test observation/event-date semantics. |
 | High | Historical predictions are not a chronological out-of-sample backtest | Implement chronological/rolling-origin evaluation. |
 | High | Producer/Airflow failure handling can return or skip | Define feed requirements, retries, and alerts. |
 | High | Legacy Beam decoders printed failures; the daily Cloud Run consumer now retries invalid records but lacks durable quarantine | Add durable invalid-record handling and recovery. |
@@ -42,3 +41,12 @@ migration. They were not implemented.
 Historical log-exposure assessment remains a separate operational step.
 No secret values were printed or rotated.
 See the [reliability handoff](reliability-handoff-2026-10-26.md).
+
+## Cocoa date correction, 2026-10-28
+
+The producer now retains the actual ICCO observation date. A guarded, rehearsed
+repair replaces unsupported active date labels using dated publisher history,
+preserves all legacy evidence, and publishes matching analytics and forecasts
+together. See the [deployment and recovery receipt](cocoa-date-correction.md).
+This one-time repair does not implement recurring atomic publication or the
+general backfill framework.

@@ -30,8 +30,9 @@ insertId is a stable best-effort deduplication hint derived from subscription
 and message ID. It is not an exactly-once guarantee. Ambiguous writes can be
 redelivered; durable message identity/idempotency is checklist items 8-9.
 Invalid records remain unacknowledged; durable quarantine and DLQ/replay remain
-items 11-12. The legacy source-date/timestamp interpretation is explicitly
-preserved for items 4-5, and recurring publication gates remain later work.
+items 11-12. The cocoa producer now preserves the publisher observation date. Cross-feed
+timestamp corrections remain item 5; recurring publication gates remain later
+work.
 
 The guarded integration tool is
 [validate_ingestion.py](../../scripts/diagnostics/validate_ingestion.py). Its

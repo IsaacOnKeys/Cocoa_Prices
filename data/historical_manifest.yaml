@@ -1,7 +1,7 @@
 snapshot_date: '2025-10-02'
 snapshot_date_basis: Original GCS upload date; exact acquisition dates were not recorded.
 archived_at: '2026-10-26'
-updated_at: '2026-10-27'
+updated_at: '2026-10-28'
 purpose: Historical warehouse bootstrap and occasional backfills; separate from automated daily ingestion.
 archive_policy:
   protection: GCS temporary hold on each snapshot object and this archived manifest
@@ -30,6 +30,20 @@ datasets:
       checkpoint_sha256: 5b51b24692fd73f686d326b960db84e7199ca6b9978574c3552439801ee6e411
       working_copy_sha256: 77a2674c833b8028fdb0f1739f431dac3a3fc450d31d875cdd932d300c00f5ab
       data_equivalence_verified: true
+    supplemental_acquisitions:
+      - purpose: Guarded observation-date repair; original bootstrap archive remains unchanged.
+        source_url: https://www.icco.org/statistics/
+        acquisition_method: Public dated daily-price table, corroborated with homepage quotes.
+        acquired_at: '2026-10-28T08:49:08.744748+00:00'
+        gcs_uri: gs://raw-historic-data/repairs/2026-10-28/cocoa_date_repair_20261028_569854f4/publisher_history.json
+        generation: '1793178187662493'
+        sha256: d3e7bca2e591eb3b7cfeb12974a565399041367efc1ab59cb63a074ada0db0ed
+        coverage_start: '2024-10-01'
+        coverage_end: '2026-10-27'
+        record_count: 532
+        units: EUR per metric tonne
+        temporary_hold: true
+        vintage_note: Current published history; unknown legacy observation dates and past availability are not inferred.
   oil:
     source: U.S. Energy Information Administration
     source_url: https://www.eia.gov/dnav/pet/hist/RBRTED.htm
