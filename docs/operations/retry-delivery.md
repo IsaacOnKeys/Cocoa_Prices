@@ -102,3 +102,13 @@ checks pass. Terraform validation passes, and a reviewed transport-only plan has
 and three canonical subscription updates. It contains no deletions, function or
 project-IAM changes, and preserves existing push routing, retention and identity.
 Production application and final integration gates remain pending.
+
+The first production wave is applied: all five delivery policies/durable DLQ
+destinations and forwarding grants were read back successfully. Staging migration
+job 8617a5e3-e1d7-4739-bbf1-b2047aad7ce0 added four nullable identity fields to all
+three tables, preserving every existing schema field without rewriting history.
+Consumer revision stage-analytics-data-00008-bul serves the verified five-file
+identity package, ZIP SHA-256
+0220647226347cefecb24367fd1ed104c250f178661c0814fd3b7049f0e6f040.
+Producer promotion, retry enablement, isolated identity/curation IO and final
+full-cycle acceptance remain pending.
