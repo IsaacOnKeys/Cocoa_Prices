@@ -235,8 +235,10 @@ def publish_eia_data(event=None, context=None):
     verify_against_published(observations, end - timedelta(days=14), end, deadline=deadline - 10)
     if not observations:
         # Source-calendar gaps are explicit; publication gates decide freshness.
-        print("EIA acquisition complete: no observations in requested window")
-        return {"source": "EIA", "status": "no_observations", "published": 0}
+        receipt = {"source": "EIA", "status": "no_observations", "published": 0,
+                   "observation_start": None, "observation_end": None, "acquired_at": now.isoformat()}
+        print(json.dumps({"event": "acquisition_complete", **receipt}))
+        return receipt
     with open(os.path.join(os.path.dirname(__file__), SCHEMA_FILE), encoding="utf-8") as handle:
         schema = fastavro.parse_schema(json.load(handle))
     try:
@@ -253,8 +255,11 @@ def publish_eia_data(event=None, context=None):
     except Exception:
         # Partial batches must fail; retries need downstream key deduplication.
         raise RuntimeError("EIA Avro publication failed") from None
-    print(f"EIA acquisition complete: published {len(observations)} observations")
-    return {"source": "EIA", "status": "published", "published": len(observations)}
+    receipt = {"source": "EIA", "status": "published", "published": len(observations),
+               "observation_start": observations[0]["date"], "observation_end": observations[-1]["date"],
+               "acquired_at": now.isoformat()}
+    print(json.dumps({"event": "acquisition_complete", **receipt}))
+    return receipt
 
 
 if __name__ == "__main__":

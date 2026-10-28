@@ -85,3 +85,32 @@ def test_invalid_weather_response_fails_without_logging_body(weather, capsys):
         weather.module.publish_weather_data()
     weather.publisher.publish.assert_not_called()
     assert "private-body-canary" not in capsys.readouterr().out
+
+
+@pytest.mark.parametrize("precips,moistures", [
+    ({}, {}),
+    ([], []),
+    ({"20261026": 1}, {"20261027": 0.4}),
+    ({"20261026": 1, "20261027": "private-body-canary"}, {"20261026": 0.4, "20261027": 0.3}),
+    ({"20261026": float('nan')}, {"20261026": 0.4}),
+    ({"20261026": float('inf')}, {"20261026": 0.4}),
+    ({"20261026": True}, {"20261026": 0.4}),
+    ({"20261029": 1}, {"20261029": 0.4}),
+    ({"20261001": 1}, {"20261001": 0.4}),
+    ({"2026102": 1}, {"2026102": 0.4}),
+])
+def test_invalid_window_is_rejected_before_any_publication(weather, capsys, precips, moistures):
+    weather.data['properties']['parameter'] = {'PRECTOTCORR': precips, 'GWETROOT': moistures}
+    with pytest.raises(RuntimeError, match="Invalid NASA POWER response"):
+        weather.module.publish_weather_data()
+    weather.publisher.publish.assert_not_called()
+    output = capsys.readouterr().out
+    assert 'acquisition_complete' not in output and 'private-body-canary' not in output
+
+
+def test_publisher_credentials_failure_has_no_success_receipt(weather, capsys):
+    weather.module.pubsub_v1.PublisherClient.side_effect = RuntimeError('private-credential-canary')
+    with pytest.raises(RuntimeError, match="publisher initialization failed"):
+        weather.module.publish_weather_data()
+    output = capsys.readouterr().out
+    assert 'acquisition_complete' not in output and 'private-credential-canary' not in output

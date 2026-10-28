@@ -123,6 +123,9 @@ def publish_price(request):
             {"Content-Type": "application/json"},
         )
 
+    print(json.dumps({"event": "acquisition_complete", "source": "ICCO", "status": "published", "published": 1,
+                      "observation_start": payload["date"], "observation_end": payload["date"],
+                      "acquired_at": payload["ingestion_time"]}))
     return (
         json.dumps({"date": payload["date"], "price": cocoa_price}),
         200,

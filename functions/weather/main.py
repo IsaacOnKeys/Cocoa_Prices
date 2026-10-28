@@ -30,10 +30,12 @@ def safe_float(x):
 
 def scrub_weather_val(x):
     """
-    Convert input to float via safe_float, then map NASA missing sentinels to None.
+    Reject malformed numbers, then map explicit source missing values to None.
     Treat any value <= -999 as missing (covers -999, -999.0, sometimes -9999).
     """
     f = safe_float(x)
+    if x is not None and (f is None or isinstance(x, bool)):
+        raise ValueError("Invalid weather measurement")
     if f is not None and f <= SENTINEL_MISSING_MAX:
         return None
     return f
@@ -61,27 +63,33 @@ def publish_weather_data(event=None, context=None):
         data = response.json()
         precips = data["properties"]["parameter"]["PRECTOTCORR"]
         moistures = data["properties"]["parameter"]["GWETROOT"]
+        if not isinstance(precips, dict) or not isinstance(moistures, dict):
+            raise ValueError("Invalid weather series")
+        if not precips or set(precips) != set(moistures):
+            raise ValueError("Empty or unmatched weather series")
+        observations = []
+        for date_str in sorted(precips):
+            observed = datetime.strptime(date_str, "%Y%m%d")
+            if observed.strftime("%Y%m%d") != date_str or not start_date <= date_str <= end_date:
+                raise ValueError("Weather observation outside requested window")
+            observations.append((observed.strftime("%Y-%m-%d"),
+                                 scrub_weather_val(precips[date_str]), scrub_weather_val(moistures[date_str])))
     except Exception:
         raise RuntimeError("Invalid NASA POWER response") from None
 
     acquired_at = datetime.now(timezone.utc).isoformat()
-    publisher = pubsub_v1.PublisherClient()
-    topic_path = publisher.topic_path(PROJECT, TOPIC)
+    try:
+        publisher = pubsub_v1.PublisherClient()
+        topic_path = publisher.topic_path(PROJECT, TOPIC)
+    except Exception:
+        raise RuntimeError("Weather publisher initialization failed") from None
 
     schema_path = os.path.join(os.path.dirname(__file__), SCHEMA_FILE)
     with open(schema_path, "r") as f:
         schema = fastavro.parse_schema(json.load(f))
 
     published = 0
-    # Use the intersection of keys in case one series is missing a date
-    for date_str in sorted(set(precips.keys()) & set(moistures.keys())):
-        # Scrub sentinels to None (NULL in Avro)
-        precipitation = scrub_weather_val(precips[date_str])
-        soil_moisture = scrub_weather_val(moistures[date_str])
-
-        date_obj = datetime.strptime(date_str, "%Y%m%d")
-        date_bq = date_obj.strftime("%Y-%m-%d")
-
+    for date_bq, precipitation, soil_moisture in observations:
         payload = {
             "date": date_bq,
             "precipitation": precipitation,   # None if missing
@@ -107,8 +115,11 @@ def publish_weather_data(event=None, context=None):
         except Exception:
             raise RuntimeError("Weather Avro publication failed; batch incomplete") from None
 
-    if published == 0:
-        print(f"No weather data found for {start_date}â€“{end_date}")
+    receipt = {"source": "NASA_POWER", "status": "published", "published": published,
+               "observation_start": observations[0][0], "observation_end": observations[-1][0],
+               "acquired_at": acquired_at}
+    print(json.dumps({"event": "acquisition_complete", **receipt}))
+    return receipt
 
 
 if __name__ == "__main__":

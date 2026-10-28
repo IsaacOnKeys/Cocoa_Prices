@@ -1,3 +1,4 @@
 fastavro
+functions-framework==3.8.3
 requests
 google-cloud-pubsub

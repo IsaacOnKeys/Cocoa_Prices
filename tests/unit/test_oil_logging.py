@@ -95,7 +95,9 @@ def assert_secret_safe(error, capsys):
 def test_success_publishes_entire_window_and_keeps_key_out_of_logs(oil_handler, capsys):
     oil_handler.requests.get.return_value = page([row(), row("2026-10-19", "118.82")])
     result = oil_handler.module.publish_eia_data()
-    assert result == {"source": "EIA", "status": "published", "published": 2}
+    assert result == {"source": "EIA", "status": "published", "published": 2,
+                      "observation_start": "2026-10-19", "observation_end": "2026-10-20",
+                      "acquired_at": "2026-10-27T18:00:00+00:00"}
     assert CANARY not in capsys.readouterr().out
     oil_handler.module.get_secret.assert_called_once_with("EIA_OIL_API_KEY")
     args, kwargs = oil_handler.requests.get.call_args

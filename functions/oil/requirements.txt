@@ -1,4 +1,5 @@
 requests
+functions-framework==3.8.3
 google-cloud-pubsub
 fastavro
 google-cloud-secret-manager>=2.24.0
