@@ -8,7 +8,7 @@ migration. They were not implemented.
 | High | Cocoa observation and published dates differ | Define and test observation/event-date semantics. |
 | High | Historical predictions are not a chronological out-of-sample backtest | Implement chronological/rolling-origin evaluation. |
 | High | Producer/Airflow failure handling can return or skip | Define feed requirements, retries, and alerts. |
-| High | Beam decoding failures are printed | Add invalid-record handling and recovery. |
+| High | Legacy Beam decoders printed failures; the daily Cloud Run consumer now retries invalid records but lacks durable quarantine | Add durable invalid-record handling and recovery. |
 | High | DLQ topics alone do not establish dead-letter routing | Implement and failure-test routing and monitoring. |
 | Medium | Airflow can proceed after one feed succeeds | Define partial-feed freshness/completeness and quiet-period policies. |
 | Medium | Backfills overwrite curated tables | Isolate writes and define merge/recovery behavior. |

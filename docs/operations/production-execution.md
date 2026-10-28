@@ -1,9 +1,10 @@
 # Production execution decision: checklist item 3
 
-Status: owner selected bounded Cloud Run daily consumers, retaining Beam for
-backfills, on 2026-10-27; branch codex/production-execution. The isolated
-consumer passed real cloud acceptance. Production subscription handoff is the
-next deployment gate; the verified producer functions/triggers remain intact.
+Status: implemented on codex/production-execution. The owner selected bounded
+Cloud Run daily consumers, retaining Beam for backfills. Isolated acceptance
+and the October 27 controlled production cycle passed; final operational
+cleanup/verification completed October 28. Producer functions/triggers remain
+intact. See the [deployment receipt](ingestion-cutover.md).
 
 ## Workload and current limits
 
@@ -14,9 +15,9 @@ inclusive calendar dates. The controlled EIA cycle delivered six oil records
 and completed all ten Airflow tasks in 76 seconds. This is a small daily
 workload, not a load test or a source-availability guarantee.
 
-All three streaming scripts hardcode DirectRunner. They run alongside Airflow
-and PostgreSQL on one scheduled e2-medium VM. The cutover verified them healthy,
-but that does not establish a supported production runner or remove their
+Before the handoff, three scripts hardcoded DirectRunner and ran alongside
+Airflow/PostgreSQL on one scheduled e2-medium VM. They were healthy at preflight,
+but that did not establish a supported production runner or remove their
 shared failure domain. [Apache Beam](https://beam.apache.org/documentation/runners/direct/)
 describes DirectRunner as a development/test runner and reports limited Python
 streaming support. Moving the same runner into another container would not
@@ -81,7 +82,7 @@ multi-node orchestrator is not justified solely by a once-daily workload.
 
 ## Concrete implementation and acceptance gates
 
-For the recommended approach:
+The selected approach was implemented with these gates:
 
 1. Implement one bounded consumer using the three canonical Avro schemas and
    explicit subscription-to-feed/table routing. Preserve source units and
@@ -108,5 +109,6 @@ For the recommended approach:
 
 For Dataflow, use the same isolated data/acceptance checks with a supported SDK,
 runner options, staged schemas, service-account permissions and explicit
-managed-job startup/drain/restart/rollback procedures. No Dataflow job, Cloud Run
-consumer or production subscription change was deployed during this comparison.
+managed-job startup/drain/restart/rollback procedures. No Dataflow job was
+deployed. The selected Cloud Run route and production subscription changes are
+recorded in the deployment receipt.

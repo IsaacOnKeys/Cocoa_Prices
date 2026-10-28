@@ -19,7 +19,6 @@ flowchart LR
     Sources["ICCO · EIA · NASA POWER"] --> Functions["Gen2 Python functions"]
     Functions --> PubSub["Pub/Sub · Avro contracts"]
     subgraph VM["Compute Engine VM"]
-        Beam["Beam DirectRunner consumers"]
         subgraph Docker["Docker Compose"]
             Airflow["Airflow · LocalExecutor"]
             Postgres["PostgreSQL metadata"]
@@ -27,7 +26,7 @@ flowchart LR
         end
     end
     Scheduler["Cloud Scheduler"] -. "VM start / stop" .-> VM
-    PubSub --> Beam --> Staging["BigQuery staging"]
+    PubSub --> Consumer["Cloud Run · bounded authenticated consumers"] --> Staging["BigQuery staging"]
     Airflow -. "trigger ingestion" .-> Functions
     Airflow -. "run procedure" .-> Curated
     subgraph SQL["BigQuery procedure"]
@@ -49,7 +48,7 @@ flowchart LR
 ~~~
 
 Historical bootstrap and operational ingestion are separate acquisition modes.
-The daily path uses functions, Pub/Sub and VM-hosted Beam. Historical inputs
+The daily path uses producer functions, Pub/Sub and bounded Cloud Run consumers. Historical inputs
 were acquired once, archived with provenance, and processed by Beam backfills.
 Cloud Scheduler controls VM uptime; Airflow orchestrates ingestion and SQL.
 
@@ -82,8 +81,9 @@ runtime boundaries and editable diagrams.
 
 ## Run the local checks
 
-Use a dedicated Python 3.12 development environment; production function runtime
-is Python 3.11. Runtime dependencies remain separate for functions, Beam and Airflow.
+Use a dedicated Python 3.12 development environment. Producers use Python 3.11;
+the daily consumer uses Python 3.12. Runtime dependencies remain separate for
+functions, historical/local Beam and Airflow.
 
 ~~~bash
 python -m pip install -r requirements-dev.txt
@@ -95,7 +95,8 @@ python -m pytest -q --basetemp=.build/pytest
 
 These checks need no GCP credentials. The packager creates complete runtime
 roots and deterministic ZIPs under ignored .build/functions/. Each contains
-main.py, its existing requirements file, and a byte-identical canonical schema.
+main.py, its requirements file, and byte-identical canonical schemas: one per
+producer, all three for the daily ingestion consumer.
 
 For local function execution or a future deployment, use the prepared root,
 not the raw `functions/<feed>/` source directory. For example, install the cocoa
@@ -123,6 +124,12 @@ with all ten tasks successful. All three feeds delivered new records; thirteen
 BigQuery checks verified feature calculations, forecast alignment and valid
 outputs. Dashboard source views were also checked. The SQL source now matches
 the existing deployed procedure's calendar and weather sentinel handling.
+
+The subsequent [Cloud Run consumer handoff](docs/operations/ingestion-cutover.md)
+passed isolated failure/recovery tests with the VM stopped and a full production
+cycle using all three managed consumer routes. The old Beam startup units are
+disabled; Beam remains for backfill/local work. Both Terraform roots have
+no drift after the handoff.
 
 No forecasting accuracy, chronological out-of-sample evaluation, working
 dead-letter routing, or rendered-dashboard verification is claimed from these

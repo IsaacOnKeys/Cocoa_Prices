@@ -1,9 +1,10 @@
 # Bounded daily consumer cutover
 
 Owner decision: Cloud Run daily consumers, retaining Beam for backfills.
-Branch: codex/production-execution. Status: isolated acceptance passed;
-controlled production handoff prepared. Existing producer deployments and
-acquisition trigger topics are unchanged.
+Branch: codex/production-execution. Implementation checkpoint: 140fba6.
+Status: production handoff completed; controlled cycle passed October 27,
+final operational verification/cleanup completed October 28. Existing producer
+deployments and acquisition trigger topics are unchanged.
 
 ## Verified candidate
 
@@ -29,9 +30,11 @@ The initial verification reached the correct rows before its acceptance log
 became visible, causing a diagnostic assertion failure. A read-only resumed
 verification confirmed both retry and acceptance for the same delivery. The
 tool now polls for delayed logs; a regression test covers that race.
-Credential-free checks: all 133 tests passed, including namespace and delayed-log
-regressions. Ruff, package membership, 28 Python/five shell syntax checks and
-Terraform formatting/validation passed.
+Final credential-free checks: all 137 tests passed, including namespace,
+exact-destination and delayed-log regressions. The final diagnostic also
+requires saved VM/authentication/initial-sink evidence when resuming a check.
+Ruff, package membership, 28 Python/five shell syntax checks and Terraform
+formatting/validation passed.
 
 ## Production sequence
 
@@ -55,6 +58,45 @@ Terraform formatting/validation passed.
    receipts, restore the VM's original state and leave normal schedules intact.
 7. Remove temporary validation subscriptions/topics/dataset with the guarded
    cleanup tool, refresh both Terraform plans/inventory and document results.
+
+## Production acceptance receipt
+
+Run `cloud_run_cutover__140fba6__20261027` completed 2026-10-27
+21:19:56-21:21:08 UTC with all ten tasks successful and none skipped.
+BigQuery job, location europe-west3:
+`airflow_cocoa_daily_run_bq_pipeline_2026_10_27T21_19_56_00_00_f233df72dc7ab0a4504c9123a921ce06`.
+
+Serving revision stage-analytics-data-00002-xov accepted sixteen distinct
+deliveries: two cocoa, six oil and eight weather. All three old Beam services
+were inactive throughout. The source configuration rollout created this new
+revision; its successful delivery verifies startup after the candidate revision.
+Observed maximum handler duration was 812 ms and peak process memory 56,524
+KiB. These measurements cover the controlled workload only.
+
+The six EIA observation dates/prices and corroboration markers matched the
+accepted source and curated Brent values. Thirteen output checks returned zero
+violations; forecasts contained forty unique finite positive values dated
+October 28-December 6. Joined/features/history contained 4,682 daily rows through
+October 27. The KPI and both indexed-series views were complete. This verifies
+data sources for BI, not rendered dashboard behavior or forecast accuracy.
+
+The three legacy units are now disabled and inactive; their exact unit/DAG
+backups remain at the VM release path. Airflow had no unit dependency on those
+consumers, and database/scheduler/triggerer health passed. The installed DAG's
+SHA-256 is `5b2af3d26e46ecbab8ace09ec16f45489788556b4303e4ef2b02d2b680d850e2`;
+owner/group/mode remain 1001/0/0644. The DAG is unpaused with no active run.
+The VM was restored stopped outside its normal window. Temporary validation
+subscriptions/topics/dataset were removed with namespace-guarded cleanup.
+
+An early VM preflight failed before any consumer was stopped; a subsequent
+read-back confirmed the ten-task graph and no active run, and the guarded
+repeat passed before handoff. After the controlled run was triggered, automatic
+approval review hit a usage limit and could not execute the next status check.
+Verification resumed October 28; the VM had remained running during that
+interruption, then was restored stopped after acceptance. No additional daily
+cycle was triggered to compensate or relabel the October 27 outputs as current.
+Both refreshed Terraform roots returned no-change plans on October 28;
+the inventory contains 93 managed resources including bootstrap.
 
 ## Rollback and support boundaries
 

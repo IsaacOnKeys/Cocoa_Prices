@@ -5,13 +5,13 @@ Terraform defines the Google Cloud infrastructure for project
 
 ## Current status
 
-Verified on 2026-10-27: both roots returned no-change plans after the approved
-EIA cutover. EIA resources were applied/adopted and obsolete resources retired;
-the prior credential remains outside active state for rollback. Backends,
+Verified on 2026-10-28: both roots returned no-change plans after the Cloud Run
+daily-consumer handoff. The earlier EIA migration's prior credential remains
+outside active state for rollback. Backends,
 workspace, provider versions and lockfiles are unchanged. Authentication used
 the existing gcloud session token only in the process environment. See the
-[current GCP ownership map](gcp-inventory.md) for all 87 state-tracked resources
-and the [deployment receipt](../operations/eia-cutover.md).
+[current GCP ownership map](gcp-inventory.md) for all 93 state-tracked resources
+and the [deployment receipt](../operations/ingestion-cutover.md).
 
 The `cocoa-prices-430315-terraform-state` bucket provides the GCS backend. It
 uses uniform bucket-level access, public-access prevention, versioning, 30-day
@@ -23,18 +23,19 @@ prefixes.
 | Resource group | Count | Terraform ownership |
 | --- | ---: | --- |
 | Remote-state bucket | 1 | Separate bootstrap root |
-| Custom service accounts | 3 | `api-fetcher`, `airflow-orchestrator`, `vm-scheduler-sa` |
+| Custom service accounts | 5 | API fetcher, Airflow, VM scheduler, analytics runtime and push identities |
+| Service-account IAM members | 1 | Pub/Sub token minting scoped to the push identity |
 | Compute Engine instances | 1 | `airflow-vm` in `europe-west3-c` |
 | Custom firewall rules | 8 | Airflow UI, SSH, and IAP rules |
 | Application Cloud Storage buckets | 2 | `cocoa-prices-temp-for-bq`, `raw-historic-data` |
 | Bucket IAM members | 4 | Additive application grants |
 | BigQuery datasets | 4 | `cocoa_related`, `cocoa_related_studio`, `models`, `stream_staging` |
-| BigQuery dataset IAM members | 3 | Additive Airflow writer grants |
+| BigQuery dataset IAM members | 4 | Additive Airflow and staging-consumer writer grants |
 | Pub/Sub schemas | 3 | Cocoa, oil, and weather Avro schemas |
 | Pub/Sub topics | 9 | Data, dead-letter, trigger and isolated validation topics |
-| Pub/Sub subscriptions | 4 | Application and isolated validation pull subscriptions |
-| Gen2 Cloud Functions | 3 | Cocoa, oil, and weather publishers |
-| Cloud Run IAM members | 4 | Airflow and EIA Eventarc service-scoped invoker grants |
+| Pub/Sub subscriptions | 4 | Three daily authenticated push and one validation pull subscription |
+| Gen2 Cloud Functions | 4 | Three publishers and the bounded staging consumer |
+| Cloud Run IAM members | 5 | Airflow, EIA Eventarc and Pub/Sub push invoker grants |
 | Cloud Scheduler jobs | 2 | Daily Airflow VM start and stop jobs |
 | Secret Manager containers | 2 | Secret metadata only; no versions or payloads |
 | Secret-level IAM members | 2 | Additive Airflow Fernet and EIA producer accessor grants |
@@ -78,7 +79,7 @@ Terraform resource graph.
 
 ## Verification
 
-Verified on 2026-10-27 with:
+Verified on 2026-10-28 with:
 
 - Terraform 1.15.8
 - Google provider 7.44.0, recorded in both dependency lock files

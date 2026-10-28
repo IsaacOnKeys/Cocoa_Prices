@@ -10,7 +10,7 @@ variable "ingestion_validation_routes" {
 variable "daily_ingestion_push_enabled" {
   description = "Enable the validated Cloud Run consumer on existing daily subscriptions."
   type        = bool
-  default     = false
+  default     = true
 }
 
 locals {

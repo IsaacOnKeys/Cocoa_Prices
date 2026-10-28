@@ -65,7 +65,7 @@
         <mxCell id="lane_processing_t" value="Processing" style="swimlane;rounded=1;startSize=28;fontStyle=1;fontFamily=Roboto;fontSize=12;fillColor=#EAF7EE;strokeColor=#81C784" vertex="1" parent="1t">
           <mxGeometry x="90" y="570" width="900" height="130" as="geometry"/>
         </mxCell>
-        <mxCell id="beam_stream_t" value="Apache Beam (streaming) — DirectRunner on VM" style="rounded=1;whiteSpace=wrap;html=1;fontFamily=Roboto;fontSize=12;fillColor=#E8F5E9;strokeColor=#43A047;strokeWidth=2" vertex="1" parent="lane_processing_t">
+        <mxCell id="daily_consumer_t" value="Cloud Run consumer - stage_analytics_data (authenticated push)" style="rounded=1;whiteSpace=wrap;html=1;fontFamily=Roboto;fontSize=12;fillColor=#E8F5E9;strokeColor=#43A047;strokeWidth=2" vertex="1" parent="lane_processing_t">
           <mxGeometry x="20" y="40" width="860" height="70" as="geometry"/>
         </mxCell>
 

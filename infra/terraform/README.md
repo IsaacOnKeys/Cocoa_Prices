@@ -59,10 +59,11 @@ terraform validate
 terraform plan
 ```
 
-The 2026-10-27 post-cutover review verified both roots with no-change plans.
-Current state tracks 86 application resources plus the bootstrap bucket.
-EIA resources were applied/adopted and obsolete resources retired under the
-owner-approved cutover; the previous credential remains outside active state.
+The 2026-10-28 review verified both roots with no-change plans.
+Current state tracks 92 application resources plus the bootstrap bucket.
+The bounded consumer, dedicated identities and authenticated subscription
+handoff are managed here. Earlier EIA resources were applied/adopted and
+obsolete resources retired; the previous credential remains outside active state.
 See the
 [GCP ownership map](../../docs/infrastructure/gcp-inventory.md) for the verified
 scope and application/runtime ownership boundaries.
@@ -77,8 +78,8 @@ Google-managed service resources, human IAM, or transient jobs and builds.
 Gen2 Cloud Functions own their generated Eventarc subscriptions, Eventarc
 triggers, Cloud Run services, staging buckets, and Artifact Registry repository.
 Terraform manages the functions themselves, explicit Airflow invoker grants
-and the EIA Eventarc identity's service-scoped invoker grant on generated
-Cloud Run services.
+and service-scoped invocation for the EIA Eventarc and Pub/Sub push identities
+on generated Cloud Run services.
 
 The Airflow VM's metadata is intentionally ignored because it includes
 externally managed SSH entries and runtime bootstrap settings. Destructive

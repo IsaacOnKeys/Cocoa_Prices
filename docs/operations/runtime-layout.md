@@ -1,18 +1,22 @@
-# Runtime layout and EIA migration boundaries
+# Runtime layout and ownership
 
 EIA serves production following the verified 2026-10-27 controlled cutover.
 The superseded function/trigger are retired; source/credential recovery material
 is retained. See the [deployment receipt](eia-cutover.md),
 [migration evidence](eia-migration.md) and [service requirements](service-contract.md).
-One passing cycle does not establish the target service guarantees.
+Daily staging uses authenticated Pub/Sub push into the bounded
+stage_analytics_data Cloud Run function. Beam is retained for backfills/local
+checks and emergency rollback; its three VM startup units are disabled.
+See the [consumer handoff](ingestion-cutover.md). One passing cycle does not
+establish the target service guarantees.
 
 ## Stable VM and orchestration interfaces
 
-The captured VM uses enabled systemd services with User/Group beam, interpreter
+The retained, disabled Beam unit references use User/Group beam, interpreter
 `/opt/beam/venv/bin/python`, EnvironmentFile `/opt/beam/.env`, Restart=always and
 RestartSec=5. Its Python 3.11.2 and Beam 2.65.0 were captured in the baseline.
 The EIA oil payload preserves the existing Avro fields and requires no provider
-rename inside these generic installed paths:
+rename inside these preserved rollback paths:
 
 | Repository source | Installed target |
 | --- | --- |
@@ -29,9 +33,28 @@ configuration, secrets and metadata must be checked at cutover; a Git branch
 does not isolate deployed resources or change Airflow Variables.
 
 Repository helper scripts resolve the checkout root. The systemd unit files
-are installation references; moving a source file does not install it on the VM.
+are installation/rollback references; daily startup no longer enables Beam.
+Moving a source file does not install it on the VM.
 The captured Compose definition requires external secret values and is not a
 claim that the runtime can be rebuilt without the remaining deployment work.
+
+## Managed daily consumer
+
+functions/ingestion/ packages to .build/functions/ingestion/, containing the
+handler/requirements and all three canonical schemas. stage_analytics_data is
+a Python 3.12 Gen2 HTTP function in europe-west3. It runs independently of the
+VM with one CPU, 512M memory, concurrency one, maximum three instances,
+minimum zero and a 60-second timeout. Cloud Run IAM requires authentication.
+
+The existing cocoa-prices-sub, oil-prices-sub and weather-data-sub subscriptions
+use authenticated push to that function. Their topic identities and seven-day
+retention are preserved; acknowledgement deadlines are 60 seconds. A delivery
+gets a successful response only after its staging insert is accepted.
+Runtime analytics-staging and delivery analytics-push identities are distinct;
+the runtime gets dataset-scoped stream_staging writer access, and Pub/Sub's
+token-minting grant is scoped to the delivery identity. No new project-wide
+runtime grant is needed. See [consumer boundaries](../../functions/ingestion/README.md)
+for retry, timestamp and exactly-once limitations.
 
 ## EIA function and routing
 

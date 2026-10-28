@@ -73,8 +73,8 @@
           <mxGeometry x="660" y="305" width="160" height="40" as="geometry"/>
         </mxCell>
 
-        <!-- PROCESSING: Beam -->
-        <mxCell id="beam_stream" value="Apache Beam (streaming)&#10;DirectRunner on VM" style="rounded=1;whiteSpace=wrap;html=1;fontFamily=Roboto;fontSize=12;fillColor=#E8F5E9;strokeColor=#43A047;strokeWidth=2" vertex="1" parent="1">
+        <!-- PROCESSING: bounded Cloud Run -->
+        <mxCell id="daily_consumer" value="Cloud Run consumer&#10;stage_analytics_data (authenticated push)" style="rounded=1;whiteSpace=wrap;html=1;fontFamily=Roboto;fontSize=12;fillColor=#E8F5E9;strokeColor=#43A047;strokeWidth=2" vertex="1" parent="1">
           <mxGeometry x="870" y="200" width="190" height="80" as="geometry"/>
         </mxCell>
 
@@ -200,17 +200,17 @@
           <mxGeometry relative="1" as="geometry"/>
         </mxCell>
 
-        <mxCell id="e_topics_beam1" style="endArrow=block;strokeWidth=2;strokeColor=#43A047" edge="1" parent="1" source="topic_cocoa" target="beam_stream">
+        <mxCell id="e_topics_consumer1" style="endArrow=block;strokeWidth=2;strokeColor=#43A047" edge="1" parent="1" source="topic_cocoa" target="daily_consumer">
           <mxGeometry relative="1" as="geometry"/>
         </mxCell>
-        <mxCell id="e_topics_beam2" style="endArrow=block;strokeWidth=2;strokeColor=#43A047" edge="1" parent="1" source="topic_oil" target="beam_stream">
+        <mxCell id="e_topics_consumer2" style="endArrow=block;strokeWidth=2;strokeColor=#43A047" edge="1" parent="1" source="topic_oil" target="daily_consumer">
           <mxGeometry relative="1" as="geometry"/>
         </mxCell>
-        <mxCell id="e_topics_beam3" style="endArrow=block;strokeWidth=2;strokeColor=#43A047" edge="1" parent="1" source="topic_weather" target="beam_stream">
+        <mxCell id="e_topics_consumer3" style="endArrow=block;strokeWidth=2;strokeColor=#43A047" edge="1" parent="1" source="topic_weather" target="daily_consumer">
           <mxGeometry relative="1" as="geometry"/>
         </mxCell>
 
-        <mxCell id="e_beam_bqstg" style="endArrow=block;strokeWidth=2;strokeColor=#2E7D32" edge="1" parent="1" source="beam_stream" target="bq_staging">
+        <mxCell id="e_consumer_bqstg" style="endArrow=block;strokeWidth=2;strokeColor=#2E7D32" edge="1" parent="1" source="daily_consumer" target="bq_staging">
           <mxGeometry relative="1" as="geometry"/>
         </mxCell>
 
@@ -253,7 +253,7 @@
         <mxCell id="e_secrets_funcs" style="dashed=1;dashPattern=3 3;endArrow=none;strokeWidth=1.5;strokeColor=#546E7A;opacity=70" edge="1" parent="1" source="secrets" target="cf_cocoa">
           <mxGeometry relative="1" as="geometry"/>
         </mxCell>
-        <mxCell id="e_logging_beam" style="dashed=1;dashPattern=3 3;endArrow=none;strokeWidth=1.5;strokeColor=#546E7A;opacity=70" edge="1" parent="1" source="logging" target="beam_stream">
+        <mxCell id="e_logging_consumer" style="dashed=1;dashPattern=3 3;endArrow=none;strokeWidth=1.5;strokeColor=#546E7A;opacity=70" edge="1" parent="1" source="logging" target="daily_consumer">
           <mxGeometry relative="1" as="geometry"/>
         </mxCell>
 

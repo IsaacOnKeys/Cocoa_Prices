@@ -25,10 +25,12 @@ implementing statements. One canonical procedure retains the execution order.
   schema per feed. Generated schemas are copies, not independently edited contracts.
 - Use Pub/Sub between producers and consumers. Consumers write staging; SQL
   owns deduplication/MERGE into curated history.
-- Orchestrate source triggers, staging progress and SQL in Airflow. Systemd
-  starts Beam with the VM; Cloud Scheduler owns the VM operating window.
+- Orchestrate source triggers, staging progress and SQL in Airflow. Authenticated
+  Pub/Sub push invokes bounded Cloud Run staging consumers independently of the
+  VM; Cloud Scheduler owns the orchestration VM operating window.
 - Keep source layout independent of installed filenames. /opt/beam and
-  /opt/airflow paths remain stable while repository domains become visible.
+  /opt/airflow paths remain stable; Beam files are retained for local use and
+  emergency rollback, with daily production moved to the managed consumer.
 - Represent existing infrastructure in Terraform state without taking ownership
   of function source deployments, secret payloads or SQL-created objects.
 - Distinguish training/forecasting from evaluation. Current historical

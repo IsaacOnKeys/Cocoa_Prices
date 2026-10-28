@@ -2,7 +2,7 @@
 
 These pipelines process the one-time historical bootstrap snapshots into BigQuery
 curated history. Automated daily ingestion is implemented separately by
-[functions](../../functions/), [streaming consumers](../streaming/) and
+[producer functions](../../functions/), [bounded Cloud Run consumers](../../functions/ingestion/README.md) and
 [Airflow](../../airflow/dags/cocoa_daily.py).
 
 | Script | Protected snapshot input | Existing curated output |

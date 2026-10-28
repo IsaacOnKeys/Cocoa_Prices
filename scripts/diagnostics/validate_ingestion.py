@@ -50,6 +50,13 @@ def checked_state(path):
     return state
 
 
+def check_routes(configured, state):
+    expected = {subscription: {"feed": feed, "table": f"{state['dataset']}.{TABLES[feed]}"}
+                for feed, subscription in state["subscriptions"].items()}
+    if configured != expected:
+        raise ValueError("Validation routes must target only the expected isolated tables")
+
+
 def read_logs(credential, delivery):
     from google.auth.transport.requests import AuthorizedSession
 
@@ -110,7 +117,7 @@ def exercise(path, credential):
     function = response.json()
     assert function["state"] == "ACTIVE"
     configured = json.loads(function["serviceConfig"]["environmentVariables"]["INGESTION_ROUTES"])
-    assert set(configured) == set(state["subscriptions"].values()), "Only isolated routes may be enabled for this check"
+    check_routes(configured, state)
     url = function["serviceConfig"]["uri"]
     vm = http.get(f"https://compute.googleapis.com/compute/v1/projects/{PROJECT}/zones/europe-west3-c/instances/airflow-vm", timeout=30)
     vm.raise_for_status()
@@ -175,6 +182,8 @@ def verify(path, credential):
     from google.cloud import bigquery
 
     state = checked_state(path)
+    if not (state.get("vm_stopped") and state.get("unauthenticated_denied") and state.get("initial_sink_rows") == 0):
+        raise ValueError("Resume requires the exercise's saved authentication, VM and initial-sink evidence")
     bq = bigquery.Client(project=PROJECT, credentials=credential, location="europe-west3")
     deadline = time.monotonic() + 600
     accepted = {}
@@ -199,7 +208,7 @@ def verify(path, credential):
     else:
         raise RuntimeError("Retried-message acceptance log not yet available; resume verify")
     assert any(e.get("event") == "ingestion_retry" and e.get("error_type") == "HTTPError" for e in accepted_logs)
-    state.update(passed=True, production_writes=0, vm_stopped=True, unauthenticated_denied=True,
+    state.update(passed=True, production_writes=0,
                  sink_denial_recovered=True, rows_by_feed={feed: len(rows) for feed, rows in accepted.items()},
                  initial_message_logs=accepted_logs)
     path.write_text(json.dumps(state, indent=2))

@@ -40,7 +40,8 @@ def test_verify_waits_for_delayed_acceptance_log(tmp_path, monkeypatch):
     token = "20261027_0123abcd"
     state = {"token": token, "dataset": f"{MODULE.PROJECT}.ingestion_validation_{token}",
              "subscriptions": {feed: f"projects/{MODULE.PROJECT}/subscriptions/ingestion-validation-{token.replace('_','-')}-{feed}" for feed in MODULE.TABLES},
-             "initial_delivery_id": "a" * 64}
+             "initial_delivery_id": "a" * 64, "vm_stopped": True,
+             "unauthenticated_denied": True, "initial_sink_rows": 0}
     path = tmp_path / "state.json"
     path.write_text(json.dumps(state))
     class Client:
@@ -66,3 +67,22 @@ def test_verify_waits_for_delayed_acceptance_log(tmp_path, monkeypatch):
     MODULE.verify(path, object())
     assert pauses == [5]
     assert json.loads(path.read_text())["passed"] is True
+
+
+@pytest.mark.parametrize("invalid", [None, "production_table", "wrong_feed", "extra_route"])
+def test_route_guard_checks_destinations_not_only_subscription_names(invalid):
+    state = {"dataset": f"{MODULE.PROJECT}.ingestion_validation_20261027_0123abcd",
+             "subscriptions": {"oil": f"projects/{MODULE.PROJECT}/subscriptions/ingestion-validation-20261027-0123abcd-oil"}}
+    subscription = state["subscriptions"]["oil"]
+    configured = {subscription: {"feed": "oil", "table": f"{state['dataset']}.oil_prices"}}
+    if invalid == "production_table":
+        configured[subscription]["table"] = f"{MODULE.PROJECT}.stream_staging.oil_prices"
+    if invalid == "wrong_feed":
+        configured[subscription]["feed"] = "cocoa"
+    if invalid == "extra_route":
+        configured["unrelated"] = configured[subscription]
+    if invalid:
+        with pytest.raises(ValueError):
+            MODULE.check_routes(configured, state)
+    else:
+        MODULE.check_routes(configured, state)
