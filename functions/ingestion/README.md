@@ -9,7 +9,7 @@ Beam remains available for backfills and local compatibility checks.
 Package with `python scripts/deploy/package_functions.py ingestion`. The prepared
 root contains main.py, requirements.txt and all three byte-identical canonical
 schemas. Deploy that root/archive, not this source directory alone. Runtime is
-Python 3.12; it has no Beam or BigQuery SDK dependency.
+Python 3.11; it has no Beam or BigQuery SDK dependency.
 
 GCP_PROJECT and INGESTION_ROUTES define an explicit subscription-to-feed/table
 allowlist. There is no destination derived from an untrusted message field.

@@ -7,7 +7,8 @@ is retained. See the [deployment receipt](eia-cutover.md),
 Daily staging uses authenticated Pub/Sub push into the bounded
 stage_analytics_data Cloud Run function. Beam is retained for backfills/local
 checks and emergency rollback; its three VM startup units are disabled.
-See the [consumer handoff](ingestion-cutover.md). One passing cycle does not
+See the [consumer handoff](ingestion-cutover.md) and
+[Python 3.11 runtime migration](python311-runtime.md). One passing cycle does not
 establish the target service guarantees.
 
 ## Stable VM and orchestration interfaces
@@ -28,7 +29,9 @@ rename inside these preserved rollback paths:
 
 Cloud Scheduler owns VM startup/shutdown at 18:30/20:30 Europe/Berlin daily;
 the Airflow DAG schedules 19:00 Monday-Friday. The existing captured Compose
-runtime uses Airflow 2.10.2, LocalExecutor and postgres:13. Actual installed
+runtime uses the verified Python 3.11 Airflow 2.10.2 build, LocalExecutor and
+postgres:13. The live AIRFLOW_IMAGE_NAME override and Compose default select
+cocoa-airflow:2.10.2-python3.11-81c665f; the prior image/configuration are retained. Actual installed
 configuration, secrets and metadata must be checked at cutover; a Git branch
 does not isolate deployed resources or change Airflow Variables.
 
@@ -42,7 +45,7 @@ claim that the runtime can be rebuilt without the remaining deployment work.
 
 functions/ingestion/ packages to .build/functions/ingestion/, containing the
 handler/requirements and all three canonical schemas. stage_analytics_data is
-a Python 3.12 Gen2 HTTP function in europe-west3. It runs independently of the
+a Python 3.11 Gen2 HTTP function in europe-west3. It runs independently of the
 VM with one CPU, 512M memory, concurrency one, maximum three instances,
 minimum zero and a 60-second timeout. Cloud Run IAM requires authentication.
 

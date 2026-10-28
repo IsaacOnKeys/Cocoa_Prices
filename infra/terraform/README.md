@@ -71,7 +71,8 @@ scope and application/runtime ownership boundaries.
 ## Ownership boundaries
 
 Terraform owns application infrastructure and additive application IAM grants.
-It does not own secret payloads, BigQuery data or SQL-created objects, function
+The consumer build source is explicitly pinned with its runtime. Terraform
+does not own secret payloads, BigQuery data or SQL-created objects, producer
 source deployments, Airflow runtime configuration, VM filesystem contents,
 Google-managed service resources, human IAM, or transient jobs and builds.
 
