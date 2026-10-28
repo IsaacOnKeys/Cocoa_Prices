@@ -99,7 +99,8 @@ python -m pytest -q --basetemp=.build/pytest
 These checks need no GCP credentials. The packager creates complete runtime
 roots and deterministic ZIPs under ignored .build/functions/. Each contains
 main.py, its requirements file, and byte-identical canonical schemas: one per
-producer, all three for the daily ingestion consumer.
+producer, all three for the daily ingestion consumer. Producer roots also contain
+the shared request_policy.py used for bounded source requests and publish waits.
 
 For local function execution or a future deployment, use the prepared root,
 not the raw `functions/<feed>/` source directory. For example, install the cocoa

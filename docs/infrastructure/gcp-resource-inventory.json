@@ -1,6 +1,6 @@
 {
-  "verified_at": "2026-10-28T17:12:46.476006+00:00",
-  "verification": "Live no-change plans after Python 3.11 image/runtime promotion, corrected consumer source ownership, successful full cycle, cold startup and restored stopped VM; bootstrap unchanged.",
+  "verified_at": "2026-10-28T21:41:38.302989+00:00",
+  "verification": "Live no-change plans after bounded source-request promotion, explicit source ownership for all four Python 3.11 functions, a successful ten-task cycle, output validation and restored stopped VM; bootstrap unchanged.",
   "managed_instance_count": 93,
   "resources": [
     {
@@ -469,6 +469,6 @@
       "id": "cocoa-prices-430315-terraform-state"
     }
   ],
-  "external_retained_rollback_resources": "Python 3.11 recovery snapshots/model are in cocoa-prices-430315.python311_recovery_20261028_81227170; exact image/configuration/package evidence and held source bundle are described in docs/operations/python311-runtime.md. Prior oil credential/source, dated archives and disabled VM Beam units remain preserved for rollback; The Cocoa repair dataset cocoa-prices-430315.cocoa_date_repair_20261028_569854f4 and held repair evidence are application recovery artifacts outside Terraform ownership; Held prior timestamp source artifacts are retained under raw-historic-data/operations/2026-10-28/timestamp-provenance-39b935d/; see docs/operations/timestamp-provenance.md, docs/operations/cocoa-date-correction.md, docs/operations/eia-cutover.md and docs/operations/ingestion-cutover.md.",
+  "external_retained_rollback_resources": "Bounded-source-request recovery snapshots/model are in cocoa-prices-430315.source_request_recovery_20261028_7363e2a and held producer rollback archives/manifest are described in docs/operations/bounded-source-requests.md. Python 3.11 recovery snapshots/model are in cocoa-prices-430315.python311_recovery_20261028_81227170; exact image/configuration/package evidence and held source bundle are described in docs/operations/python311-runtime.md. Prior oil credential/source, dated archives and disabled VM Beam units remain preserved for rollback; The Cocoa repair dataset cocoa-prices-430315.cocoa_date_repair_20261028_569854f4 and held repair evidence are application recovery artifacts outside Terraform ownership; Held prior timestamp source artifacts are retained under raw-historic-data/operations/2026-10-28/timestamp-provenance-39b935d/; see docs/operations/timestamp-provenance.md, docs/operations/cocoa-date-correction.md, docs/operations/eia-cutover.md and docs/operations/ingestion-cutover.md.",
   "baseline_record": "https://github.com/IsaacOnKeys/Cocoa_Prices/blob/0236abaad185d1f6b475aa6f4c4a105058c95aad/docs/infrastructure/gcp-resource-inventory.json"
 }

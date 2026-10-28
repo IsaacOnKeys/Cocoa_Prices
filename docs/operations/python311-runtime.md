@@ -119,9 +119,11 @@ package and an audit of any deliveries during the superseded revision.
 
 The consumer build source is now explicitly managed using its immutable object
 name/generation. Future application releases must update the source pointer
-before applying consumer build changes. Producer source ignores remain a separate
-application-deployment ownership limitation for item 32; capture/verify their
-actual package before any future build-configuration change.
+before applying consumer build changes. Producer source ignores remained an
+application-deployment ownership limitation at this checkpoint. The subsequent
+[bounded-source-request release](bounded-source-requests.md) removes them and
+pins all three verified producer archives. Future build changes must preserve
+those deliberate source pointers and verify the actual serving bytes.
 
 ## Verified build and production receipt
 

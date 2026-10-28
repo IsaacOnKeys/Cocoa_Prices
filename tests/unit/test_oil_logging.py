@@ -73,10 +73,11 @@ def oil_handler(monkeypatch, tmp_path):
             return datetime(2026, 10, 27, 18, tzinfo=timezone.utc).astimezone(tz)
 
     module.datetime = FixedDateTime
+    secret_lookup = module.get_secret
     module.get_secret = MagicMock(return_value=CANARY)
     verify = module.verify_against_published
     module.verify_against_published = MagicMock()
-    return SimpleNamespace(module=module, requests=requests, publisher=publisher, verify=verify)
+    return SimpleNamespace(module=module, requests=requests, publisher=publisher, verify=verify, secret_lookup=secret_lookup)
 
 
 def decoded_publications(handler):
@@ -234,6 +235,16 @@ def test_eia_wire_passes_existing_beam_decoder_and_row_mapping(oil_handler, monk
 def test_expired_deadline_makes_no_request(oil_handler):
     with pytest.raises(RuntimeError, match="deadline exceeded"):
         oil_handler.module.fetch_observations(CANARY, date(2026, 10, 1), date(2026, 10, 27), deadline=0)
+
+
+def test_secret_access_has_a_finite_timeout_without_sdk_retry(oil_handler):
+    client = MagicMock()
+    client.access_secret_version.return_value.payload.data = CANARY.encode()
+    oil_handler.module.secretmanager.SecretManagerServiceClient = MagicMock(return_value=client)
+    assert oil_handler.secret_lookup("EIA_OIL_API_KEY") == CANARY
+    client.access_secret_version.assert_called_once_with(
+        request={"name": "projects/unit-test-project/secrets/EIA_OIL_API_KEY/versions/latest"}, timeout=10, retry=None
+    )
     oil_handler.requests.get.assert_not_called()
 
 

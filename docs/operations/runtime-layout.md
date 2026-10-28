@@ -85,11 +85,12 @@ when only the Airflow account had that grant; Terraform now includes the
 service-scoped trigger-account grant. Secret access, topic publishing and
 consumer permissions are distinct requirements and need runtime verification.
 
-Function packages contain main.py, requirements.txt and a byte-identical oil
-schema. Deploy from the prepared root/archive. Terraform ignores subsequent
-application source drift; do not use a source generation from a different
-function or silently claim a new source was deployed because the repository
-changed. Deployment evidence must compare the actual serving archive members.
+Producer packages contain main.py, requirements.txt, request_policy.py and a
+byte-identical canonical schema. Deploy from the prepared root/archive. Terraform
+explicitly pins verified source archive generations for all four active functions;
+promote a matching tested archive when changing build configuration. Deployment
+evidence must compare the actual serving archive members. See
+[bounded source requests](bounded-source-requests.md) for the producer release.
 
 The cocoa and weather entry points and their generic installed interfaces
 remain covered by the existing packager and their own release records. The

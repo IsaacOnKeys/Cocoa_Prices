@@ -2,21 +2,21 @@ locals {
   cloud_functions = {
     publish_price = {
       entry_point       = "publish_price"
-      source_object     = "publish_price/function-source.zip"
-      source_generation = 1757954320101566
+      source_object     = "publish_price/bounded-df6caeb6fe5f8c676466e28290c6a6e942218ecaf51fe24f0650edfe966f9d6b.zip"
+      source_generation = 1793223073388889
       trigger_topic     = null
     }
     # Serving EIA producer; cutover evidence: docs/operations/eia-cutover.md.
     publish_eia_data = {
       entry_point       = "publish_eia_data"
-      source_object     = "publish_eia_data/eia-a020ce805a64b2a909b7489187d1b003ac1d79444d06ca0950b800bbdc84da34.zip"
-      source_generation = 1793114362502907
+      source_object     = "publish_eia_data/bounded-f12a183f65a713c427625a4757900e3bd99cb75665ca73f4e88d2f54abdd316f.zip"
+      source_generation = 1793223074257112
       trigger_topic     = "eia-oil-trigger"
     }
     publish_weather_data = {
       entry_point       = "publish_weather_data"
-      source_object     = "publish_weather_data/function-source.zip"
-      source_generation = 1759406696390100
+      source_object     = "publish_weather_data/bounded-4dfb0858edd15d2ad561f9da147bc616c323b88792dddceeb4351bc02c0050d5.zip"
+      source_generation = 1793223074876944
       trigger_topic     = "weather-trigger"
     }
   }
@@ -81,9 +81,8 @@ resource "google_cloudfunctions2_function" "functions" {
   lifecycle {
     prevent_destroy = true
 
-    # Application deployments own source archives. Terraform owns the
-    # function's infrastructure and must not roll code backward.
-    ignore_changes = [build_config[0].source]
+    # Source generations are promoted explicitly with verified serving bytes.
+    # Ignoring source does not prevent stale artifacts during build changes.
   }
 }
 

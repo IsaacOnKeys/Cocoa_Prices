@@ -57,7 +57,7 @@ prefixes.
 | Dataflow jobs, Cloud Build jobs, images, and bucket objects | Transient application/runtime artifacts |
 | BigQuery tables, views, procedures, models, and their data | Owned by Beam and SQL application workflows |
 | Secret versions and values | Sensitive runtime data must not enter Terraform state |
-| Function source archive generations | Consumer source is explicitly pinned with its runtime. Producer source ignores remain; reconcile actual artifacts before build changes because a stale configured source can be resubmitted. See [the 3.11 migration](../operations/python311-runtime.md). |
+| Function source archive generations | All four active functions explicitly pin verified source artifacts. Source changes require deliberate promotion and serving-byte checks; ignoring source cannot prevent stale artifacts during build changes. See [bounded source requests](../operations/bounded-source-requests.md) and [the 3.11 migration](../operations/python311-runtime.md). |
 | VM metadata and filesystem contents | Externally managed SSH, bootstrap, and runtime configuration |
 | Default project groups and human BigQuery access | Separate from additive application IAM |
 
