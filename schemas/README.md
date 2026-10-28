@@ -81,8 +81,9 @@ EIA fixtures additionally cover product/unit/date errors, explicit missing
 values, pagination, non-finite prices and published-source disagreement; the
 isolated cloud test exercises the real sink. Full feed-wide business-quality
 publication gates remain checklist item 15. Cocoa date correction is recorded
-in [item 4 evidence](../docs/operations/cocoa-date-correction.md); cross-feed
-timestamp corrections remain item 5.
+in [item 4 evidence](../docs/operations/cocoa-date-correction.md); the completed
+[timestamp contract](../docs/operations/timestamp-provenance.md) defines separate
+UTC acquisition/receipt fields and flagged unknown/invalid instants.
 
 ## Timestamp and availability provenance
 

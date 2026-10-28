@@ -2,7 +2,8 @@
 
 stage_analytics_data is a bounded HTTP handler hosted as a private Gen2 Cloud
 Run function. Authenticated Pub/Sub push delivers existing binary Avro messages;
-source producers, trigger topics, units and staging table columns are preserved.
+producer topics, units and original staging columns are preserved. Nullable
+provenance columns retain acquisition and receipt separately.
 Beam remains available for backfills and local compatibility checks.
 
 Package with `python scripts/deploy/package_functions.py ingestion`. The prepared
@@ -30,9 +31,11 @@ insertId is a stable best-effort deduplication hint derived from subscription
 and message ID. It is not an exactly-once guarantee. Ambiguous writes can be
 redelivered; durable message identity/idempotency is checklist items 8-9.
 Invalid records remain unacknowledged; durable quarantine and DLQ/replay remain
-items 11-12. The cocoa producer now preserves the publisher observation date. Cross-feed
-timestamp corrections remain item 5; recurring publication gates remain later
-work.
+items 11-12. The cocoa producer preserves the publisher observation date. All feeds retain
+UTC producer acquisition, raw timestamp text and consumer receipt separately;
+unknown/invalid acquisition stays NULL with a status flag. See the
+[timestamp contract](../../docs/operations/timestamp-provenance.md). Recurring
+publication gates remain later work.
 
 The guarded integration tool is
 [validate_ingestion.py](../../scripts/diagnostics/validate_ingestion.py). Its
@@ -41,7 +44,10 @@ requires the Airflow VM stopped, rejects unauthenticated calls, tests every
 schema and nullable measurement, denies then restores test-sink access, and
 requires both retry and eventual acceptance for the original message. Verify
 can resume read-only polling when IAM/log propagation delays observation.
-Cleanup refuses production or unrelated datasets/subscriptions.
+The timestamps phase additionally verifies offset/missing/invalid/legacy-naive/
+future cases and replay through actual storage. Temporary validation routes can
+coexist with the exact unchanged production routes. Cleanup refuses production
+or unrelated datasets/subscriptions.
 
 See the [execution decision](../../docs/operations/production-execution.md) and
 [deployment/rollback procedure](../../docs/operations/ingestion-cutover.md).
