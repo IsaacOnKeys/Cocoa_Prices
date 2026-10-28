@@ -37,11 +37,14 @@ def cocoa(monkeypatch, tmp_path):
     framework = ModuleType("functions_framework")
     framework.http = lambda fn: fn
     requests = ModuleType("requests")
-    requests.get = Mock(return_value=SimpleNamespace(text=html([("23/10/2026", "5,075.02")])))
+    requests.RequestException = TimeoutError
+    requests.get = Mock(return_value=SimpleNamespace(status_code=200, text=html([("23/10/2026", "5,075.02")])))
     for module in (google, cloud, pubsub, framework, requests):
         monkeypatch.setitem(sys.modules, module.__name__, module)
     runtime = tmp_path / "cocoa"
     runtime.mkdir()
+    (runtime / "request_policy.py").write_bytes((ROOT / "functions/shared/request_policy.py").read_bytes())
+    monkeypatch.syspath_prepend(str(runtime))
     for name, source in (("main.py", "functions/cocoa/main.py"), ("cocoa_schema.avsc", "schemas/cocoa_schema.avsc")):
         (runtime / name).write_bytes((ROOT / source).read_bytes())
     spec = importlib.util.spec_from_file_location("cocoa_dates_under_test", runtime / "main.py")
@@ -61,6 +64,7 @@ def test_previous_observation_date_is_preserved_in_wire_raw_and_response(cocoa):
     body, status, _ = cocoa.module.publish_price(None)
     assert status == 200 and json.loads(body) == {"date": "2026-10-23", "price": 5075.02}
     cocoa.publisher.publish.assert_called_once()
+    cocoa.publisher.publish.return_value.result.assert_called_with(timeout=10)
     binary = cocoa.publisher.publish.call_args.args[1]
     schema = json.loads((ROOT / "schemas/cocoa_schema.avsc").read_bytes())
     payload = fastavro.schemaless_reader(io.BytesIO(binary), schema)
@@ -101,3 +105,11 @@ def test_acquisition_failure_does_not_invent_today_as_an_observation(cocoa):
     cocoa.requests.get.side_effect = TimeoutError("source timeout")
     assert cocoa.module.publish_price(None)[1] == 500
     cocoa.publisher.publish.assert_not_called()
+
+
+def test_cocoa_publish_timeout_fails_without_exposing_sdk_error(cocoa, capsys):
+    cocoa.publisher.publish.return_value.result.side_effect = TimeoutError("private-sdk-canary")
+    body, status, _ = cocoa.module.publish_price(None)
+    assert status == 500
+    assert "private-sdk-canary" not in body + capsys.readouterr().out
+    cocoa.publisher.publish.return_value.result.assert_called_with(timeout=10)

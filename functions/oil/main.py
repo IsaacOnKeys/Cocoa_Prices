@@ -12,6 +12,7 @@ from html.parser import HTMLParser
 import fastavro
 import requests
 from google.cloud import pubsub_v1, secretmanager
+from request_policy import INVOCATION_SECONDS, get, publish_timeout
 
 SCHEMA_FILE = "oil_schema.avsc"
 PROJECT = os.getenv("GCP_PROJECT", "cocoa-prices-430315")
@@ -96,15 +97,8 @@ def parse_published_observations(html, start, end):
 
 
 def fetch_published_observations(start, end, *, deadline=None):
-    remaining = 25 if deadline is None else deadline - time.monotonic()
-    if remaining <= 1:
-        raise RuntimeError("EIA corroboration deadline exceeded")
-    try:
-        response = requests.get(PUBLISHED_URL, timeout=(min(5, remaining / 2), min(20, remaining / 2)))
-    except requests.RequestException:
-        raise RuntimeError("EIA published table request failed") from None
-    if response.status_code != 200:
-        raise RuntimeError(f"EIA published table HTTP status {response.status_code}")
+    deadline = time.monotonic() + 40 if deadline is None else deadline
+    response = get(requests, PUBLISHED_URL, deadline=deadline, label="EIA published table")
     try:
         return parse_published_observations(response.text, start, end)
     except (ValueError, TypeError, KeyError):
@@ -124,7 +118,7 @@ def verify_against_published(observations, start, end, *, deadline=None):
 def get_secret(secret_id, project_id=None):
     client = secretmanager.SecretManagerServiceClient()
     name = f"projects/{project_id or PROJECT}/secrets/{secret_id}/versions/latest"
-    response = client.access_secret_version(request={"name": name}, timeout=10)
+    response = client.access_secret_version(request={"name": name}, timeout=10, retry=None)
     return response.payload.data.decode("UTF-8")
 
 
@@ -189,15 +183,7 @@ def fetch_observations(api_key, start, end, *, page_size=5000, deadline=None):
             "offset": offset,
             "length": page_size,
         }
-        try:
-            response = requests.get(
-                URL, params=params, timeout=(min(5, remaining / 2), min(20, remaining / 2))
-            )
-        except requests.RequestException:
-            # Requests errors can contain the full URL and API key.
-            raise RuntimeError("EIA API request failed") from None
-        if response.status_code != 200:
-            raise RuntimeError(f"EIA API HTTP status {response.status_code}")
+        response = get(requests, URL, params=params, deadline=deadline, label="EIA API")
         try:
             payload = response.json()
             if payload.get("error"):
@@ -242,11 +228,11 @@ def to_wire_record(observation, acquired_at):
 
 
 def publish_eia_data(event=None, context=None):
-    deadline = time.monotonic() + 50
+    deadline = time.monotonic() + INVOCATION_SECONDS
     now = datetime.now(timezone.utc)
     end = now.date()
-    observations = fetch_observations(load_api_key(), end - timedelta(days=14), end, deadline=deadline)
-    verify_against_published(observations, end - timedelta(days=14), end, deadline=deadline)
+    observations = fetch_observations(load_api_key(), end - timedelta(days=14), end, deadline=deadline - 10)
+    verify_against_published(observations, end - timedelta(days=14), end, deadline=deadline - 10)
     if not observations:
         # Source-calendar gaps are explicit; publication gates decide freshness.
         print("EIA acquisition complete: no observations in requested window")
@@ -263,7 +249,7 @@ def publish_eia_data(event=None, context=None):
             remaining = deadline - time.monotonic()
             if remaining <= 0:
                 raise RuntimeError("EIA publication deadline exceeded")
-            publisher.publish(topic, buffer.getvalue(), googclient_schemaencoding="BINARY").result(timeout=min(10, remaining))
+            publisher.publish(topic, buffer.getvalue(), googclient_schemaencoding="BINARY").result(timeout=publish_timeout(deadline))
     except Exception:
         # Partial batches must fail; retries need downstream key deduplication.
         raise RuntimeError("EIA Avro publication failed") from None

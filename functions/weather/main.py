@@ -1,11 +1,13 @@
 import io
 import json
 import os
+import time
 from datetime import datetime, timedelta, timezone
 
 import fastavro
 import requests
 from google.cloud import pubsub_v1
+from request_policy import INVOCATION_SECONDS, get, publish_timeout
 
 SCHEMA_FILE = "weather_schema.avsc"
 PROJECT = os.getenv("GCP_PROJECT", "cocoa-prices-430315")
@@ -38,6 +40,7 @@ def scrub_weather_val(x):
 
 
 def publish_weather_data(event=None, context=None):
+    deadline = time.monotonic() + INVOCATION_SECONDS
     today = datetime.now(timezone.utc)
     start_date = (today - timedelta(days=7)).strftime("%Y%m%d")
     end_date = today.strftime("%Y%m%d")
@@ -52,18 +55,14 @@ def publish_weather_data(event=None, context=None):
     )
 
     print(f"Fetching weather data from {url}")
-    response = requests.get(url)
-    if response.status_code != 200:
-        print(f"Weather API error {response.status_code}: {response.text[:200]}")
-        return
+    response = get(requests, url, deadline=deadline - 10, label="NASA POWER")
 
     try:
         data = response.json()
         precips = data["properties"]["parameter"]["PRECTOTCORR"]
         moistures = data["properties"]["parameter"]["GWETROOT"]
-    except Exception as e:
-        print(f"Failed to parse weather response: {e}, payload={response.text[:500]}")
-        return
+    except Exception:
+        raise RuntimeError("Invalid NASA POWER response") from None
 
     acquired_at = datetime.now(timezone.utc).isoformat()
     publisher = pubsub_v1.PublisherClient()
@@ -91,23 +90,22 @@ def publish_weather_data(event=None, context=None):
             "raw_payload": json.dumps(data),
         }
 
-        print("Payload prepared:", payload)
-
         try:
             buf = io.BytesIO()
             fastavro.schemaless_writer(buf, schema, payload)
             avro_bytes = buf.getvalue()
 
+            timeout = publish_timeout(deadline)
             future = publisher.publish(
                 topic_path,
                 avro_bytes,
                 googclient_schemaencoding="BINARY",
             )
-            future.result()
+            future.result(timeout=min(timeout, publish_timeout(deadline)))
             print(f"[OK] Published Avro message for {date_bq} to {topic_path}")
             published += 1
-        except Exception as e:
-            print(f"[FAIL] Failed to publish for {date_bq}: {e}")
+        except Exception:
+            raise RuntimeError("Weather Avro publication failed; batch incomplete") from None
 
     if published == 0:
         print(f"No weather data found for {start_date}â€“{end_date}")

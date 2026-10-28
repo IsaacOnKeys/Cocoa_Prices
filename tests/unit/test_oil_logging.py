@@ -57,6 +57,8 @@ def oil_handler(monkeypatch, tmp_path):
     monkeypatch.delenv("OIL_TOPIC", raising=False)
     runtime = tmp_path / "oil"
     runtime.mkdir()
+    (runtime / "request_policy.py").write_bytes((ROOT / "functions/shared/request_policy.py").read_bytes())
+    monkeypatch.syspath_prepend(str(runtime))
     for source, target in (
         (ROOT / "functions/oil/main.py", "main.py"),
         (ROOT / "schemas/oil_schema.avsc", "oil_schema.avsc"),

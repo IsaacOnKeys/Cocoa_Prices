@@ -2,6 +2,7 @@ import io
 import json
 import os
 import re
+import time
 from datetime import UTC, date, datetime
 
 import fastavro
@@ -9,6 +10,7 @@ import functions_framework
 import requests
 from bs4 import BeautifulSoup, FeatureNotFound
 from google.cloud import pubsub_v1
+from request_policy import INVOCATION_SECONDS, get, publish_timeout
 
 URL = "https://www.icco.org/home/"
 HEADERS = {"User-Agent": "Mozilla/5.0"}
@@ -28,9 +30,10 @@ def safe_float(x):
         return None
 
 
-def _scrape_price() -> tuple[date, float]:
+def _scrape_price(*, deadline=None) -> tuple[date, float]:
     print(f"Fetching ICCO cocoa price from {URL}")
-    html = requests.get(URL, headers=HEADERS, timeout=15).text
+    deadline = time.monotonic() + 40 if deadline is None else deadline
+    html = get(requests, URL, headers=HEADERS, deadline=deadline, label="ICCO").text
     try:
         soup = BeautifulSoup(html, "lxml")
     except FeatureNotFound:
@@ -65,12 +68,13 @@ def _scrape_price() -> tuple[date, float]:
 
 @functions_framework.http
 def publish_price(request):
+    deadline = time.monotonic() + INVOCATION_SECONDS
     try:
-        observation_date, cocoa_price = _scrape_price()
-    except Exception as e:
-        print(f"[FAIL] Scraping error: {e}")
+        observation_date, cocoa_price = _scrape_price(deadline=deadline - 10)
+    except Exception:
+        print("[FAIL] ICCO acquisition failed")
         return (
-            json.dumps({"error": str(e)}),
+            json.dumps({"error": "ICCO acquisition failed"}),
             500,
             {"Content-Type": "application/json"},
         )
@@ -103,17 +107,18 @@ def publish_price(request):
 
         publisher = pubsub_v1.PublisherClient()
         topic_path = publisher.topic_path(PROJECT, TOPIC)
+        timeout = publish_timeout(deadline)
         future = publisher.publish(
             topic_path,
             avro_bytes,
             googclient_schemaencoding="BINARY",
         )
-        future.result()
+        future.result(timeout=min(timeout, publish_timeout(deadline)))
         print(f"[OK] Published Avro message for {payload['date']} to {topic_path}")
-    except Exception as e:
-        print(f"[FAIL] Failed to publish Avro message: {e}")
+    except Exception:
+        print("[FAIL] Cocoa Avro publication failed")
         return (
-            json.dumps({"error": str(e)}),
+            json.dumps({"error": "Cocoa Avro publication failed"}),
             500,
             {"Content-Type": "application/json"},
         )

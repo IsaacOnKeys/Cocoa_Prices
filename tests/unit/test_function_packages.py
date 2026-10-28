@@ -27,10 +27,13 @@ def test_complete_runtime_and_deterministic_archive(feed, tmp_path):
     }
     schema_feeds = ("cocoa", "oil", "weather") if feed == "ingestion" else (feed,)
     expected.update({f"{name}_schema.avsc": (ROOT / "schemas" / f"{name}_schema.avsc").read_bytes() for name in schema_feeds})
+    if feed != "ingestion":
+        expected["request_policy.py"] = (ROOT / "functions/shared/request_policy.py").read_bytes()
+        (fixture_root / "functions/shared").mkdir(parents=True)
     (fixture_root / source_dir).mkdir(parents=True)
     (fixture_root / "schemas").mkdir()
     for name, payload in expected.items():
-        parent = fixture_root / ("schemas" if name.endswith(".avsc") else source_dir)
+        parent = fixture_root / ("functions/shared" if name == "request_policy.py" else "schemas" if name.endswith(".avsc") else source_dir)
         (parent / name).write_bytes(payload)
     # Build inputs may contain private/generated files; only allowlisted files may ship.
     (fixture_root / source_dir / ".env").write_text("PRIVATE_FIXTURE=do-not-package\n")

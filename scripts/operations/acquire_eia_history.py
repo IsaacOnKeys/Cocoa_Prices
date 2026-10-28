@@ -7,6 +7,7 @@ import json
 import os
 import shutil
 import subprocess
+import sys
 from datetime import date, datetime, timezone
 from pathlib import Path
 
@@ -16,7 +17,11 @@ ROOT = Path(__file__).resolve().parents[2]
 def load_producer():
     spec = importlib.util.spec_from_file_location("eia_archive_producer", ROOT / "functions/oil/main.py")
     module = importlib.util.module_from_spec(spec)
-    spec.loader.exec_module(module)
+    sys.path.insert(0, str(ROOT / "functions/shared"))
+    try:
+        spec.loader.exec_module(module)
+    finally:
+        sys.path.pop(0)
     return module
 
 
