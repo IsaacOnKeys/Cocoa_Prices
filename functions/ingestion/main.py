@@ -8,7 +8,7 @@ import math
 import os
 import re
 import time
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from functools import lru_cache
 from pathlib import Path
 
@@ -54,18 +54,40 @@ def session():
     return AuthorizedSession(credentials, max_refresh_attempts=1)
 
 
-def source_timestamp(value, received):
-    """Preserve the deployed cocoa timestamp interpretation pending contract item 5."""
+# All current producers use ISO timestamps with second/microsecond precision.
+# Only the verified legacy weather producer used naive datetime.utcnow().
+AWARE_TIMESTAMP = re.compile(r"\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d{1,6})?(?:Z|[+-]\d{2}:\d{2})")
+NAIVE_TIMESTAMP = re.compile(r"\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d{1,6})?")
+
+
+def timestamp_fields(feed, value, received):
+    """Keep acquisition provenance; missing/invalid times never become 'now'."""
+    acquired = None
+    status = "missing" if value is None else "invalid"
     try:
-        if isinstance(value, (int, float)):
-            stamp = datetime.fromtimestamp(value / 1000 if value > 1e12 else value, timezone.utc)
-        else:
-            stamp = datetime.fromisoformat(value.replace("Z", "+00:00"))
-            if stamp.tzinfo is None:
-                stamp = stamp.replace(tzinfo=timezone.utc)
-        return stamp.astimezone(timezone.utc).isoformat()
-    except (TypeError, ValueError, AttributeError, OverflowError, OSError):
-        return received
+        if isinstance(value, str) and AWARE_TIMESTAMP.fullmatch(value):
+            acquired = datetime.fromisoformat(value.replace("Z", "+00:00"))
+            status = "valid"
+        elif feed == "weather" and isinstance(value, str) and NAIVE_TIMESTAMP.fullmatch(value):
+            acquired = datetime.fromisoformat(value).replace(tzinfo=timezone.utc)
+            status = "legacy_naive_utc"
+        if acquired is not None:
+            acquired = acquired.astimezone(timezone.utc)
+            # Bound tolerated source clock skew to five minutes.
+            if acquired > datetime.fromisoformat(received.replace("Z", "+00:00")) + timedelta(minutes=5):
+                acquired, status = None, "future"
+    except (ValueError, OverflowError):
+        acquired, status = None, "invalid"
+    normalized = acquired.isoformat() if acquired is not None else None
+    return {
+        "ingestion_time": normalized,
+        "producer_acquired_at": normalized,
+        "producer_timestamp_raw": value,
+        "consumer_received_at": received,
+        # These feeds expose observation dates, not verified publication instants.
+        "source_published_at": None,
+        "timestamp_status": status,
+    }
 
 
 def decode_row(feed, payload, received):
@@ -73,12 +95,10 @@ def decode_row(feed, payload, received):
     record = fastavro.schemaless_reader(stream, schema(feed))
     if stream.read(1):
         raise ValueError("Trailing Avro data")
-    # Keep staging/wire compatibility. Source-date and timestamp corrections are
-    # separate checklist items; receipt time is still used for oil/weather.
     row = {
         "date": record["date"],
         **{key: record[key] for key in MEASUREMENTS[feed]},
-        "ingestion_time": source_timestamp(record["ingestion_time"], received) if feed == "cocoa" else received,
+        **timestamp_fields(feed, record["ingestion_time"], received),
         "raw_payload": record["raw_payload"] or json.dumps(record, ensure_ascii=False, allow_nan=False),
     }
     if any(value is not None and not math.isfinite(value) for key, value in row.items() if key in MEASUREMENTS[feed]):
@@ -141,5 +161,6 @@ def stage_analytics_data(request):
         # in items 11/12, rather than recreating the old print-and-drop behavior.
         emit("ingestion_retry", started, feed=feed, delivery_id=delivery_id, error_type=type(error).__name__)
         return "Not accepted; retry required", 503
-    emit("ingestion_accepted", started, feed=feed, delivery_id=delivery_id, payload_bytes=len(payload))
+    emit("ingestion_accepted", started, feed=feed, delivery_id=delivery_id, payload_bytes=len(payload),
+         timestamp_status=row["timestamp_status"])
     return "", 204

@@ -53,8 +53,12 @@ def checked_state(path):
 def check_routes(configured, state):
     expected = {subscription: {"feed": feed, "table": f"{state['dataset']}.{TABLES[feed]}"}
                 for feed, subscription in state["subscriptions"].items()}
-    if configured != expected:
-        raise ValueError("Validation routes must target only the expected isolated tables")
+    production = {
+        f"projects/{PROJECT}/subscriptions/{subscription}": {"feed": feed, "table": f"{PROJECT}.stream_staging.{TABLES[feed]}"}
+        for feed, subscription in (("cocoa", "cocoa-prices-sub"), ("oil", "oil-prices-sub"), ("weather", "weather-data-sub"))
+    }
+    if configured not in (expected, {**production, **expected}):
+        raise ValueError("Validation routes must target only the expected isolated tables, with optional unchanged production routes")
 
 
 def read_logs(credential, delivery):
@@ -68,7 +72,7 @@ def read_logs(credential, delivery):
         "orderBy": "timestamp desc",
     }, timeout=30)
     result.raise_for_status()
-    allowed = {"event", "feed", "delivery_id", "duration_ms", "instance_age_ms", "peak_rss_kib", "error_type"}
+    allowed = {"event", "feed", "delivery_id", "duration_ms", "instance_age_ms", "peak_rss_kib", "error_type", "timestamp_status"}
     return [{"timestamp": e.get("timestamp"), "revision": e.get("resource", {}).get("labels", {}).get("revision_name"),
              **{k: v for k, v in e.get("jsonPayload", {}).items() if k in allowed}}
             for e in result.json().get("entries", [])]
@@ -96,6 +100,8 @@ def prepare(path, credential):
         fields = [bigquery.SchemaField("date", "DATE")]
         fields += [bigquery.SchemaField(name, "FLOAT64") for name in MEASUREMENTS[feed]]
         fields += [bigquery.SchemaField("ingestion_time", "TIMESTAMP"), bigquery.SchemaField("raw_payload", "STRING")]
+        fields += [bigquery.SchemaField(name, "TIMESTAMP") for name in ("producer_acquired_at", "consumer_received_at", "source_published_at")]
+        fields += [bigquery.SchemaField(name, "STRING") for name in ("producer_timestamp_raw", "timestamp_status")]
         bq.create_table(bigquery.Table(f"{state['dataset']}.{table}", schema=fields))
         publisher.create_topic(request={
             "name": subscriptions[feed].replace("/subscriptions/", "/topics/"),
@@ -215,6 +221,80 @@ def verify(path, credential):
     print(json.dumps({k: state[k] for k in ("passed", "production_writes", "vm_stopped", "unauthenticated_denied", "sink_denial_recovered", "rows_by_feed")}))
 
 
+def exercise_timestamps(path, credential):
+    """Test actual Avro/managed storage provenance without production messages."""
+    from google.cloud import bigquery, pubsub_v1
+
+    state = checked_state(path)
+    if not state.get("passed") or not state.get("vm_stopped"):
+        raise ValueError("Timestamp checks require the completed isolated baseline exercise")
+    from google.auth.transport.requests import AuthorizedSession
+
+    http = AuthorizedSession(credential)
+    response = http.get(f"https://cloudfunctions.googleapis.com/v2/projects/{PROJECT}/locations/europe-west3/functions/stage_analytics_data", timeout=30)
+    response.raise_for_status()
+    check_routes(json.loads(response.json()["serviceConfig"]["environmentVariables"]["INGESTION_ROUTES"]), state)
+    vm = http.get(f"https://compute.googleapis.com/compute/v1/projects/{PROJECT}/zones/europe-west3-c/instances/airflow-vm", timeout=30)
+    vm.raise_for_status()
+    assert vm.json()["status"] == "TERMINATED", "Timestamp exercise requires the VM stopped"
+    publisher = pubsub_v1.PublisherClient(credentials=credential)
+    bq = bigquery.Client(project=PROJECT, credentials=credential, location="europe-west3")
+    source = "2026-10-20T10:15:30+00:00"
+    expected = {}
+    for feed in TABLES:
+        cases = {
+            "offset": ("2026-10-20T12:15:30+02:00", source, "valid", 1),
+            "missing": (None, None, "missing", 1),
+            "invalid": ("invalid_fixture_timestamp", None, "invalid", 1),
+            "naive": ("2026-10-20T10:15:30", source if feed == "weather" else None,
+                      "legacy_naive_utc" if feed == "weather" else "invalid", 1),
+            "future": ("2099-01-01T00:00:00Z", None, "future", 1),
+            "replay": (source, source, "valid", 2),
+        }
+        expected[feed] = cases
+        for case, (raw, normalized, status, count) in cases.items():
+            record = {"date": "2026-10-22", "ingestion_time": raw, **MEASUREMENTS[feed],
+                      "raw_payload": json.dumps({"validation": state["token"], "timestamp_case": case})}
+            buffer = io.BytesIO()
+            fastavro.schemaless_writer(buffer, json.loads((ROOT / "schemas" / f"{feed}_schema.avsc").read_bytes()), record)
+            topic = state["subscriptions"][feed].replace("/subscriptions/", "/topics/")
+            for attempt in range(count):
+                if attempt:
+                    time.sleep(1)
+                publisher.publish(topic, buffer.getvalue(), googclient_schemaencoding="BINARY").result(timeout=30)
+    deadline = time.monotonic() + 180
+    accepted = {}
+    while time.monotonic() < deadline:
+        accepted = {feed: list(bq.query(f"SELECT * FROM `{state['dataset']}.{table}` WHERE date=DATE '2026-10-22'").result())
+                    for feed, table in TABLES.items()}
+        if all(len(rows) >= 7 for rows in accepted.values()):
+            break
+        time.sleep(5)
+    else:
+        raise RuntimeError("Timestamp fixture deliveries did not all reach isolated storage")
+    counts = {}
+    for feed, rows in accepted.items():
+        counts[feed] = {}
+        for case, (raw, normalized, status, count) in expected[feed].items():
+            matches = [r for r in rows if json.loads(r["raw_payload"]).get("timestamp_case") == case]
+            assert len(matches) >= count
+            for row in matches:
+                assert json.loads(row["raw_payload"])["validation"] == state["token"]
+                acquired = row["producer_acquired_at"].isoformat() if row["producer_acquired_at"] else None
+                assert acquired == normalized
+                assert row["ingestion_time"] == row["producer_acquired_at"]
+                assert row["producer_timestamp_raw"] == raw
+                assert row["timestamp_status"] == status
+                assert row["consumer_received_at"].utcoffset().total_seconds() == 0
+                assert row["source_published_at"] is None
+            if case == "replay":
+                assert len({r["consumer_received_at"] for r in matches}) >= 2
+            counts[feed][case] = len(matches)
+    state.update(timestamp_checks_passed=True, timestamp_case_counts=counts)
+    path.write_text(json.dumps(state, indent=2))
+    print(json.dumps({"timestamp_checks_passed": True, "production_writes": 0, "cases": counts}))
+
+
 def cleanup(path, credential):
     from google.api_core.exceptions import NotFound
     from google.cloud import bigquery, pubsub_v1
@@ -239,10 +319,10 @@ def cleanup(path, credential):
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("action", choices=("prepare", "exercise", "verify", "cleanup"))
+    parser.add_argument("action", choices=("prepare", "exercise", "verify", "timestamps", "cleanup"))
     parser.add_argument("--state", type=Path, required=True)
     args = parser.parse_args()
-    {"prepare": prepare, "exercise": exercise, "verify": verify, "cleanup": cleanup}[args.action](args.state, credentials())
+    {"prepare": prepare, "exercise": exercise, "verify": verify, "timestamps": exercise_timestamps, "cleanup": cleanup}[args.action](args.state, credentials())
 
 
 if __name__ == "__main__":

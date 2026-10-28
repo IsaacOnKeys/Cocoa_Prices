@@ -86,3 +86,17 @@ def test_route_guard_checks_destinations_not_only_subscription_names(invalid):
             MODULE.check_routes(configured, state)
     else:
         MODULE.check_routes(configured, state)
+
+
+def test_isolated_routes_can_coexist_with_exact_unchanged_production_routes():
+    state = {"dataset": f"{MODULE.PROJECT}.ingestion_validation_20261028_0123abcd",
+             "subscriptions": {"oil": f"projects/{MODULE.PROJECT}/subscriptions/ingestion-validation-20261028-0123abcd-oil"}}
+    configured = {state["subscriptions"]["oil"]: {"feed": "oil", "table": state["dataset"]+".oil_prices"}}
+    configured.update({
+        f"projects/{MODULE.PROJECT}/subscriptions/{subscription}": {"feed": feed, "table": f"{MODULE.PROJECT}.stream_staging.{MODULE.TABLES[feed]}"}
+        for feed, subscription in (("cocoa", "cocoa-prices-sub"), ("oil", "oil-prices-sub"), ("weather", "weather-data-sub"))
+    })
+    MODULE.check_routes(configured, state)
+    configured[f"projects/{MODULE.PROJECT}/subscriptions/oil-prices-sub"]["table"] = state["dataset"]+".oil_prices"
+    with pytest.raises(ValueError):
+        MODULE.check_routes(configured, state)

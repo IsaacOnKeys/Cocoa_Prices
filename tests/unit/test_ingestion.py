@@ -63,10 +63,11 @@ def test_real_binary_reaches_sink_before_ack(consumer, monkeypatch, feed, capsys
         assert row["raw_payload"] == '{"source":"fixture"}'
         assert all(row[key] == value for key, value in MEASUREMENTS[feed].items())
         assert len(identity) == 64
-        if feed == "cocoa":
-            assert row["ingestion_time"] == SOURCE_TIME
-        else:
-            assert row["ingestion_time"] != SOURCE_TIME
+        assert row["ingestion_time"] == row["producer_acquired_at"] == SOURCE_TIME
+        assert row["producer_timestamp_raw"] == SOURCE_TIME
+        assert row["consumer_received_at"] != SOURCE_TIME
+        assert row["timestamp_status"] == "valid"
+        assert row["source_published_at"] is None
         events.append("write accepted")
     monkeypatch.setattr(consumer, "insert_row", write)
     assert consumer.stage_analytics_data(request(envelope(feed)))[1] == 204
@@ -156,3 +157,62 @@ def test_non_post_never_consumes_input(consumer):
     req = request({},method="HEAD")
     assert consumer.stage_analytics_data(req)[1] == 405
     assert req.stream.tell() == 0
+
+
+@pytest.mark.parametrize("feed", MEASUREMENTS)
+@pytest.mark.parametrize("stamp,normalized,status", [
+    ("2026-10-20T12:15:30+02:00", SOURCE_TIME, "valid"),
+    ("2026-10-20T03:15:30-07:00", SOURCE_TIME, "valid"),
+    ("2026-10-20T10:15:30Z", SOURCE_TIME, "valid"),
+    (None, None, "missing"),
+    ("", None, "invalid"),
+    ("2026-10-20", None, "invalid"),
+    ("2026-02-30T10:15:30Z", None, "invalid"),
+    ("2026-10-20T10:15:30+25:00", None, "invalid"),
+    ("PRIVATE_INVALID_TIMESTAMP", None, "invalid"),
+    ("2099-01-01T00:00:00Z", None, "future"),
+])
+def test_timestamp_provenance_survives_real_avro_and_replay(consumer, feed, stamp, normalized, status):
+    record = {"date": "2026-10-20", **MEASUREMENTS[feed], "ingestion_time": stamp, "raw_payload": None}
+    binary = base64.b64decode(envelope(feed, record)["message"]["data"])
+    first = consumer.decode_row(feed, binary, "2026-10-27T10:00:00+00:00")
+    replay = consumer.decode_row(feed, binary, "2026-10-28T10:00:00+00:00")
+    for row in (first, replay):
+        assert row["ingestion_time"] == row["producer_acquired_at"] == normalized
+        assert row["producer_timestamp_raw"] == stamp
+        assert row["timestamp_status"] == status
+        assert row["source_published_at"] is None
+        assert json.loads(row["raw_payload"]) == record
+    assert first["consumer_received_at"] != replay["consumer_received_at"]
+
+
+@pytest.mark.parametrize("feed", MEASUREMENTS)
+def test_naive_time_is_only_normalized_for_the_verified_legacy_weather_writer(consumer, feed):
+    value = "2026-10-20T10:15:30"
+    row = consumer.timestamp_fields(feed, value, "2026-10-27T10:00:00+00:00")
+    assert row["producer_timestamp_raw"] == value
+    assert row["producer_acquired_at"] == (SOURCE_TIME if feed == "weather" else None)
+    assert row["timestamp_status"] == ("legacy_naive_utc" if feed == "weather" else "invalid")
+
+
+@pytest.mark.parametrize("stamp,status", [
+    ("2026-10-27T10:05:00Z", "valid"),
+    ("2026-10-27T10:05:00.000001Z", "future"),
+    ("2026-10-27T12:05:00+02:00", "valid"),
+])
+def test_future_clock_skew_is_bounded_after_utc_normalization(consumer, stamp, status):
+    row = consumer.timestamp_fields("oil", stamp, "2026-10-27T10:00:00+00:00")
+    assert row["timestamp_status"] == status
+    assert (row["producer_acquired_at"] is None) == (status == "future")
+
+
+def test_invalid_timestamp_is_flagged_without_logging_its_contents(consumer, monkeypatch, capsys):
+    record = {"date": "2026-10-20", "oil_price": 72.5, "ingestion_time": "PRIVATE_INVALID_TIMESTAMP", "raw_payload": None}
+    sink = Mock()
+    monkeypatch.setattr(consumer, "insert_row", sink)
+    assert consumer.stage_analytics_data(request(envelope(record=record)))[1] == 204
+    row = sink.call_args.args[1]
+    assert row["ingestion_time"] is None and row["producer_acquired_at"] is None
+    logs = capsys.readouterr().out
+    assert '"timestamp_status": "invalid"' in logs
+    assert "PRIVATE_INVALID_TIMESTAMP" not in logs

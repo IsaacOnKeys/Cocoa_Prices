@@ -1,7 +1,7 @@
 import io
 import json
 import os
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 
 import fastavro
 import requests
@@ -38,7 +38,7 @@ def scrub_weather_val(x):
 
 
 def publish_weather_data(event=None, context=None):
-    today = datetime.utcnow()
+    today = datetime.now(timezone.utc)
     start_date = (today - timedelta(days=7)).strftime("%Y%m%d")
     end_date = today.strftime("%Y%m%d")
 
@@ -65,6 +65,7 @@ def publish_weather_data(event=None, context=None):
         print(f"Failed to parse weather response: {e}, payload={response.text[:500]}")
         return
 
+    acquired_at = datetime.now(timezone.utc).isoformat()
     publisher = pubsub_v1.PublisherClient()
     topic_path = publisher.topic_path(PROJECT, TOPIC)
 
@@ -86,7 +87,7 @@ def publish_weather_data(event=None, context=None):
             "date": date_bq,
             "precipitation": precipitation,   # None if missing
             "soil_moisture": soil_moisture,   # None if missing
-            "ingestion_time": datetime.utcnow().isoformat(),
+            "ingestion_time": acquired_at,
             "raw_payload": json.dumps(data),
         }
 
@@ -109,7 +110,7 @@ def publish_weather_data(event=None, context=None):
             print(f"[FAIL] Failed to publish for {date_bq}: {e}")
 
     if published == 0:
-        print(f"No weather data found for {start_date}–{end_date}")
+        print(f"No weather data found for {start_date}â€“{end_date}")
 
 
 if __name__ == "__main__":
