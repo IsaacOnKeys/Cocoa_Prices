@@ -56,8 +56,8 @@ WHERE T.date BETWEEN @interval_start AND @interval_end
   AND JSON_VALUE(T.raw_payload, '$.date_basis') IS NULL
   AND EXISTS (
     SELECT 1 FROM `${STAGING_BEFORE}` S
-    WHERE T.date IS NOT DISTINCT FROM S.date
-      AND T.cocoa_price IS NOT DISTINCT FROM S.cocoa_price
+    WHERE T.date = S.date
+      AND T.cocoa_price = S.cocoa_price
       AND T.ingestion_time IS NOT DISTINCT FROM S.ingestion_time
       AND T.raw_payload IS NOT DISTINCT FROM S.raw_payload
   );
