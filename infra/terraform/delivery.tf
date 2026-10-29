@@ -68,7 +68,8 @@ resource "google_pubsub_subscription" "dead_letters" {
   project                    = var.project_id
   name                       = "${each.key}-sub"
   topic                      = google_pubsub_topic.topics[each.key].id
-  ack_deadline_seconds       = 600
+  # Cloud Storage export normalizes the transport ACK deadline to max_duration.
+  ack_deadline_seconds       = 60
   message_retention_duration = "604800s"
   cloud_storage_config {
     bucket          = google_storage_bucket.dead_letter_recovery.name
@@ -130,27 +131,16 @@ resource "google_storage_bucket" "dead_letter_recovery" {
   }
 }
 
-# Supported export permissions apply only to recovery storage. The service agent
-# can create message files, read bucket metadata/listing, and cannot read payloads
-# or create/alter the operator replay ledger.
+# Native export requires these bucket-level grants without object conditions.
+# Keep operator replay ledgers in the separate raw bucket, outside these grants.
 resource "google_storage_bucket_iam_member" "dead_letter_exports" {
   for_each = {
-    creator = {
-      role       = "roles/storage.objectCreator"
-      expression = "resource.name.startsWith('projects/_/buckets/${var.project_id}-dead-letters/objects/messages/v1/')"
-    }
-    metadata = {
-      role       = "roles/storage.legacyBucketReader"
-      expression = "resource.name == 'projects/_/buckets/${var.project_id}-dead-letters'"
-    }
+    creator  = "roles/storage.objectCreator"
+    metadata = "roles/storage.legacyBucketReader"
   }
   bucket = google_storage_bucket.dead_letter_recovery.name
-  role   = each.value.role
+  role   = each.value
   member = local.pubsub_service_agent
-  condition {
-    title      = "dead_letter_export_${each.key}"
-    expression = each.value.expression
-  }
 }
 
 resource "google_pubsub_topic_iam_member" "dead_letter_publisher" {

@@ -25,7 +25,7 @@ resource "google_monitoring_alert_policy" "dead_letter_forwarded" {
   }
   documentation {
     mime_type = "text/markdown"
-    content   = "Inspect the native Avro recovery export, diagnose the original failure and use the pinned-generation replay procedure in docs/operations/dead-letter-recovery.md. No automatic replay. Notification routing is tracked in checklist item 25; this policy creates console incidents."
+    content   = "Inspect the native Avro recovery export, diagnose the original failure and use the pinned-generation replay procedure in docs/operations/dead-letter-recovery.md. No automatic replay. Notification routing is tracked in checklist item 26; this policy creates console incidents."
   }
   alert_strategy {
     auto_close = "1800s"
@@ -54,7 +54,7 @@ resource "google_monitoring_alert_policy" "dead_letter_export_stalled" {
   }
   documentation {
     mime_type = "text/markdown"
-    content   = "Check cloudStorageConfig.state, bucket permissions and availability. Do not replace or delete the subscription: seven days of unacknowledged retention protect export failures. Follow docs/operations/dead-letter-recovery.md. Notification routing remains checklist item 25."
+    content   = "Check cloudStorageConfig.state, bucket permissions and availability. Do not replace or delete the subscription: seven days of unacknowledged retention protect export failures. Follow docs/operations/dead-letter-recovery.md. Notification routing remains checklist item 26."
   }
   alert_strategy {
     auto_close = "1800s"
@@ -66,7 +66,7 @@ resource "google_monitoring_dashboard" "dead_letter_recovery" {
   dashboard_json = jsonencode({
     displayName = "Cocoa dead-letter recovery"
     gridLayout = {
-      columns = 1
+      columns = "1"
       widgets = [for chart in [
         { title = "Messages forwarded to recovery", filter = local.delivery_source_filter, metric = "dead_letter_message_count", aligner = "ALIGN_SUM" },
         { title = "Recovery export backlog by region", filter = local.delivery_export_filter, metric = "num_unacked_messages_by_region", aligner = "ALIGN_MAX" },
@@ -75,7 +75,8 @@ resource "google_monitoring_dashboard" "dead_letter_recovery" {
         title = chart.title
         xyChart = {
           dataSets = [{
-            plotType = "LINE"
+            plotType   = "LINE"
+            targetAxis = "Y1"
             timeSeriesQuery = {
               timeSeriesFilter = {
                 filter      = "${chart.filter} AND metric.type = \"pubsub.googleapis.com/subscription/${chart.metric}\""

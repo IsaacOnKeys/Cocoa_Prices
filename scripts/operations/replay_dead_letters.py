@@ -120,33 +120,39 @@ def replay(record, *, bucket, publisher, subscriber, project, dead_letter, topic
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("uri", help="gs://<project>-dead-letters/messages/v1/<topic>/<export>.avro")
+    parser.add_argument("uri", help="gs://<recovery-bucket>/messages/v1/<topic>/<export>.avro")
     parser.add_argument("--generation", type=int, required=True)
     parser.add_argument("--sha256", required=True)
     parser.add_argument("--publish", action="store_true")
     parser.add_argument("--record", type=int)
     parser.add_argument("--topic")
     parser.add_argument("--replay-key")
+    parser.add_argument("--project", default="cocoa-prices-430315")
+    parser.add_argument("--ledger-bucket", help="Separate operator recovery bucket; never the export bucket")
     parser.add_argument("--max-replays", type=int, choices=(1, 2, 3), default=1)
     parser.add_argument("--allow-uncertain", action="store_true")
     args = parser.parse_args()
-    match = re.fullmatch(r"gs://([a-z][a-z0-9-]+)-dead-letters/(messages/v1/([A-Za-z][A-Za-z0-9._~+%-]{2,254})/[^/]+\.avro)", args.uri)
+    match = re.fullmatch(r"gs://([a-z0-9][a-z0-9._-]{1,220}[a-z0-9])/(messages/v1/([A-Za-z][A-Za-z0-9._~+%-]{2,254})/[^/]+\.avro)", args.uri)
     if (not match or args.generation <= 0
-            or (args.publish and (args.record is None or args.record < 0 or not args.topic or not args.replay_key))
-            or (not args.publish and (args.record is not None or args.topic or args.replay_key or args.max_replays != 1 or args.allow_uncertain))):
-        parser.error("Pin export URI/generation/SHA; publishing requires an explicit record, topic and replay key")
+            or not re.fullmatch(r"[a-z][a-z0-9-]+", args.project)
+            or (args.publish and (args.record is None or args.record < 0 or not args.topic or not args.replay_key
+                                  or not args.ledger_bucket or args.ledger_bucket == match[1]))
+            or (not args.publish and (args.record is not None or args.topic or args.replay_key or args.ledger_bucket or args.max_replays != 1 or args.allow_uncertain))):
+        parser.error("Pin export URI/generation/SHA; publishing requires a record, topic, replay key and separate ledger bucket")
     from google.cloud import storage
 
-    project = match[1]
-    bucket = storage.Client(project=project).bucket(project + "-dead-letters")
+    project = args.project
+    gcs = storage.Client(project=project)
+    bucket = gcs.bucket(match[1])
     blob = bucket.blob(match[2], generation=args.generation)
     blob.reload(timeout=10, retry=None)
     if blob.size > MAX_BYTES:
         raise ValueError("Export exceeds maximum size")
     records = verified_records(blob.download_as_bytes(if_generation_match=args.generation, timeout=30, retry=None), args.sha256)
     destination = f"projects/{project}/topics/{match[3]}"
-    expected_subscription = f"projects/{project}/subscriptions/{match[3]}-sub"
-    if any(r["subscription_name"] != expected_subscription for r in records):
+    expected_subscription = match[3] + "-sub"
+    valid_subscriptions = {expected_subscription, f"projects/{project}/subscriptions/{expected_subscription}"}
+    if any(r["subscription_name"] not in valid_subscriptions for r in records):
         raise ValueError("Export path/subscription mismatch")
     result = {"records_verified": len(records), "data_sha256": [digest(r["data"]) for r in records]}
     if args.publish:
@@ -155,7 +161,7 @@ def main():
         if args.record >= len(records):
             raise ValueError("Record index outside the verified export")
         evidence = {"uri": args.uri, "generation": str(args.generation), "sha256": args.sha256, "record": args.record}
-        result["replay"] = replay(records[args.record], bucket=bucket, publisher=pubsub_v1.PublisherClient(),
+        result["replay"] = replay(records[args.record], bucket=gcs.bucket(args.ledger_bucket), publisher=pubsub_v1.PublisherClient(),
                                   subscriber=pubsub_v1.SubscriberClient(), project=project, dead_letter=destination,
                                   topic=args.topic, key=args.replay_key, evidence=evidence,
                                   max_replays=args.max_replays, allow_uncertain=args.allow_uncertain)
