@@ -53,10 +53,11 @@ resource "google_service_account_iam_member" "ingestion_push_tokens" {
 }
 
 resource "google_cloudfunctions2_function" "ingestion" {
-  project  = var.project_id
-  location = var.region
-  name     = "stage_analytics_data"
-  labels   = { app = "cocoa-prices", component = "staging-ingestion" }
+  depends_on = [google_storage_bucket_iam_member.ingestion_quarantine]
+  project    = var.project_id
+  location   = var.region
+  name       = "stage_analytics_data"
+  labels     = { app = "cocoa-prices", component = "staging-ingestion" }
 
   build_config {
     runtime           = "python311"
@@ -85,9 +86,10 @@ resource "google_cloudfunctions2_function" "ingestion" {
     ingress_settings                 = "ALLOW_ALL"
     all_traffic_on_latest_revision   = true
     environment_variables = {
-      GCP_PROJECT      = var.project_id
-      INGESTION_ROUTES = jsonencode(merge(local.daily_ingestion_routes, var.ingestion_validation_routes))
-      LOG_EXECUTION_ID = "true"
+      GCP_PROJECT                 = var.project_id
+      INGESTION_ROUTES            = jsonencode(merge(local.daily_ingestion_routes, var.ingestion_validation_routes))
+      LOG_EXECUTION_ID            = "true"
+      INGESTION_QUARANTINE_BUCKET = "raw-historic-data"
     }
   }
 
@@ -111,4 +113,18 @@ resource "google_bigquery_dataset_iam_member" "ingestion_staging_writer" {
   dataset_id = google_bigquery_dataset.datasets["stream_staging"].dataset_id
   role       = "roles/bigquery.dataEditor"
   member     = "serviceAccount:${google_service_account.ingestion_runtime.email}"
+}
+
+# The consumer can only create/read failure evidence, never overwrite/delete it
+# or inspect other raw/archive prefixes. Operators retain recovery ownership.
+resource "google_storage_bucket_iam_member" "ingestion_quarantine" {
+  for_each = toset(["roles/storage.objectCreator", "roles/storage.objectViewer"])
+  bucket   = google_storage_bucket.application["raw-historic-data"].name
+  role     = each.value
+  member   = "serviceAccount:${google_service_account.ingestion_runtime.email}"
+  condition {
+    title       = "ingestion_quarantine_prefix"
+    description = "Only immutable staging failure evidence"
+    expression  = "resource.name.startsWith('projects/_/buckets/raw-historic-data/objects/quarantine/v1/')"
+  }
 }

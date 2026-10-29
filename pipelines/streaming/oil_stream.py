@@ -5,7 +5,6 @@ from datetime import date, datetime, timedelta, timezone
 
 import apache_beam as beam
 import fastavro
-from apache_beam.options.pipeline_options import PipelineOptions
 
 # ---- Config (env-first with safe defaults)
 PROJECT = os.environ.get("GOOGLE_CLOUD_PROJECT") or os.environ.get(
@@ -67,9 +66,12 @@ class DecodeAvro(beam.DoFn):
     def process(self, element):
         buf = io.BytesIO(element)
         try:
-            yield fastavro.schemaless_reader(buf, self.schema)
-        except Exception as e:
-            print("Avro decode error:", e)
+            record = fastavro.schemaless_reader(buf, self.schema)
+            if buf.read(1):
+                raise ValueError("Trailing Avro data")
+        except Exception:
+            raise RuntimeError("Legacy Avro decode failed; recover the original input") from None
+        yield record
 
 
 class ToBQRow(beam.DoFn):
@@ -85,23 +87,11 @@ class ToBQRow(beam.DoFn):
 
 # ---- Pipeline
 def run():
-    options = PipelineOptions(
-        ["--runner=DirectRunner", "--streaming", f"--project={PROJECT}"]
+    raise RuntimeError(
+        "Legacy daily Beam streaming is retired. Use the Cloud Run consumer and "
+        "scripts/operations/replay_daily_inputs.py for retained-input recovery. "
+        "Apache Beam remains supported in pipelines/backfill."
     )
-    with beam.Pipeline(options=options) as p:
-        (
-            p
-            | "Read" >> beam.io.ReadFromPubSub(subscription=SUBSCRIPTION)
-            | "Decode Avro" >> beam.ParDo(DecodeAvro(AVRO_SCHEMA_PATH))
-            | "ToBQRow" >> beam.ParDo(ToBQRow())
-            | "WriteToBigQuery"
-            >> beam.io.WriteToBigQuery(
-                table=BQ_TABLE,
-                schema="date:DATE,oil_price:FLOAT64,ingestion_time:TIMESTAMP,raw_payload:STRING",
-                write_disposition=beam.io.BigQueryDisposition.WRITE_APPEND,
-                create_disposition=beam.io.BigQueryDisposition.CREATE_NEVER,
-            )
-        )
 
 
 if __name__ == "__main__":

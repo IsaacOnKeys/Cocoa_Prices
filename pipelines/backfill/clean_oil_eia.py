@@ -27,6 +27,7 @@ import time
 from datetime import datetime, timezone
 
 import apache_beam as beam
+from backfill_recovery import invalid_record
 from apache_beam.options.pipeline_options import (
     GoogleCloudOptions,
     PipelineOptions,
@@ -88,7 +89,10 @@ def extract_and_clean(file_content):
             value = float(value) if value not in (None, "", ".", "NA", "--", "-") else None
         except (ValueError, TypeError):
             value = None
-        yield {"date": date, "brent_price_eu": value}
+        record = {"date": date, "brent_price_eu": value}
+        if value is None or not math.isfinite(value):
+            record['_raw_line'] = json.dumps(obs)
+        yield record
 
 
 class ValidateAndTransform(beam.DoFn):
@@ -217,11 +221,12 @@ def run():
 
         (
             combined_invalid_records
+            | "Retain Invalid Evidence" >> beam.Map(invalid_record, 'oil')
             | "Write Invalid to BigQuery"
             >> beam.io.WriteToBigQuery(
                 table="cocoa-prices-430315:cocoa_related.invalid_brent_prices",
                 schema="date:STRING, brent_price_eu:STRING, Errors:STRING",
-                write_disposition=beam.io.BigQueryDisposition.WRITE_TRUNCATE,
+                write_disposition=beam.io.BigQueryDisposition.WRITE_APPEND,
                 create_disposition=beam.io.BigQueryDisposition.CREATE_IF_NEEDED,
                 custom_gcs_temp_location="gs://cocoa-prices-temp-for-bq",
             )

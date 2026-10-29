@@ -18,11 +18,13 @@ python pipelines/backfill/clean_precipitation.py \
 """
 
 import logging
+import math
 import os
 import time
 from datetime import datetime, timedelta
 
 import apache_beam as beam
+from backfill_recovery import invalid_record
 from apache_beam.options.pipeline_options import (
     GoogleCloudOptions,
     PipelineOptions,
@@ -94,8 +96,10 @@ def parse_csv(line):
         The value "-999" is specified in the dataset documentation as a placeholder for missing data.
         Reference: Dataset Header - "The value for missing source data that cannot be computed or is outside of the source's availability range: -999"
         """
-        precipitation = float(row[2]) if row[2] != "-999" else None
-        soil_moisture = float(row[3]) if row[3] != "-999" else None
+        precipitation = float(row[2])
+        soil_moisture = float(row[3])
+        precipitation = None if precipitation <= -999 else precipitation
+        soil_moisture = None if soil_moisture <= -999 else soil_moisture
 
         parsed = {
             "YEAR": int(row[0]),
@@ -104,11 +108,10 @@ def parse_csv(line):
             "soil_moisture": soil_moisture,
         }
 
-        logging.info(f"Parsed line successfully: {parsed}")
+        parsed['_raw_line'] = line
         return parsed
-    except (ValueError, TypeError) as e:
-        logging.warning(f"Skipping line due to parsing error: {line}, Error: {e}")
-        return None
+    except (ValueError, TypeError):
+        return {'_parse_error': 'malformed_csv', '_raw_line': line}
 
 
 def clean_and_transform(element):
@@ -123,7 +126,9 @@ def clean_and_transform(element):
               or None if the input element is invalid.
     """
     if element is None:
-        return None
+        raise ValueError('Missing historical weather input')
+    if element.get('_parse_error'):
+        return element
 
     year = element.get("YEAR")
     doy = element.get("DOY")
@@ -132,15 +137,17 @@ def clean_and_transform(element):
         if year is None or doy is None:
             raise ValueError(f"Invalid YEAR or DOY: {element}")
         date = datetime(year, 1, 1) + timedelta(days=doy - 1)
+        if doy < 1 or date.year != year:
+            raise ValueError('Invalid day of year')
         date_str = date.strftime("%Y-%m-%d")
-    except (ValueError, TypeError) as e:
-        logging.warning(f"Skipping element due to date error: {element}, Error: {e}")
-        return None
+    except (ValueError, TypeError):
+        return {**element, '_parse_error': 'invalid_year_or_day'}
 
     return {
         "date": date_str,
         "precipitation": element.get("precipitation"),
         "soil_moisture": element.get("soil_moisture"),
+        "_raw_line": element.get("_raw_line"),
     }
 
 
@@ -154,15 +161,9 @@ def filter_missing_data(element):
     Returns:
         bool: True if the data is complete, False otherwise.
     """
-    if (
-        element is not None
-        and element.get("precipitation") is not None
-        and element.get("soil_moisture") is not None
-        and element.get("date") is not None
-    ):
-        return True
-    logging.warning(f"Filtering out missing data: {element}")
-    return False
+    if element is None:
+        raise ValueError('Missing historical weather input')
+    return True  # Explicit missing measurements must reach the invalid-record sink.
 
 
 class ValidateAndTransform(beam.DoFn):
@@ -227,6 +228,9 @@ class ValidateAndTransform(beam.DoFn):
             Input: {"date": "invalid-date", "precipitation": "N/A", "soil_moisture": 0.8}
             Output: Yields a tagged output with validation errors.
         """
+        if element.get('_parse_error'):
+            yield beam.pvalue.TaggedOutput('invalid', element)
+            return
         valid = True
         errors = []
 
@@ -254,6 +258,13 @@ class ValidateAndTransform(beam.DoFn):
         if soil_moisture is not None and not isinstance(soil_moisture, float):
             valid = False
             errors.append("soil_moisture is not a float")
+
+        if isinstance(precipitation, float) and (not math.isfinite(precipitation) or precipitation < 0):
+            valid = False
+            errors.append('Invalid precipitation measurement')
+        if isinstance(soil_moisture, float) and (not math.isfinite(soil_moisture) or not 0 <= soil_moisture <= 1):
+            valid = False
+            errors.append('Invalid soil moisture measurement')
 
         # Date Range Validation
         if date_obj and not (self.start_date <= date_obj <= self.end_date):
@@ -359,7 +370,6 @@ def run():
                 skip_header_lines=1,
             )
             | "Parse CSV" >> beam.Map(parse_csv)
-            | "Filter Parsed Data" >> beam.Filter(lambda x: x is not None)
             | "Clean & Transform" >> beam.Map(clean_and_transform)
             | "Filter Missing Data" >> beam.Filter(filter_missing_data)
         )
@@ -417,11 +427,12 @@ def run():
 
         (
             combined_invalid_records
+            | "Retain Invalid Evidence" >> beam.Map(invalid_record, 'weather')
             | "Write Invalid to BigQuery"
             >> beam.io.WriteToBigQuery(
                 table="cocoa-prices-430315:cocoa_related.invalid_precipitation",
                 schema="date:STRING, precipitation:STRING, soil_moisture:STRING, Errors:STRING",
-                write_disposition=beam.io.BigQueryDisposition.WRITE_TRUNCATE,
+                write_disposition=beam.io.BigQueryDisposition.WRITE_APPEND,
                 create_disposition=beam.io.BigQueryDisposition.CREATE_IF_NEEDED,
                 custom_gcs_temp_location="gs://cocoa-prices-temp-for-bq",
             )

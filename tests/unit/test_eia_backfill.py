@@ -13,6 +13,7 @@ ROOT = Path(__file__).resolve().parents[2]
 
 @pytest.fixture
 def cleaner(monkeypatch):
+    monkeypatch.syspath_prepend(str(ROOT / 'pipelines/backfill'))
     beam = ModuleType("apache_beam")
     beam.__path__ = []
     beam.DoFn = object

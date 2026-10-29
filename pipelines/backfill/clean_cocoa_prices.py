@@ -23,11 +23,14 @@ python pipelines/backfill/clean_cocoa_prices.py \
 
 import csv
 import logging
+import json
+import math
 import os
 import time
 from datetime import datetime
 
 import apache_beam as beam
+from backfill_recovery import invalid_record
 from apache_beam.options.pipeline_options import (
     GoogleCloudOptions,
     PipelineOptions,
@@ -89,9 +92,8 @@ def parse_csv(line):
             "Date": row[0].strip('"'),
             "Euro_Price": row[4].strip('"'),
         }
-    except Exception as e:
-        logging.warning(f"Skipping malformed line: {line}, Error: {e}")
-        return None
+    except Exception:
+        return {"Date": None, "Euro_Price": None, "_parse_error": "malformed_csv", "_raw_line": line}
 
 
 class ValidateAndTransform(beam.DoFn):
@@ -114,6 +116,10 @@ class ValidateAndTransform(beam.DoFn):
     """
 
     def process(self, element):
+        if element.get('_parse_error'):
+            yield beam.pvalue.TaggedOutput('invalid', element)
+            return
+        original = dict(element)
         valid = True
         errors = []
 
@@ -121,18 +127,18 @@ class ValidateAndTransform(beam.DoFn):
         try:
             date_obj = datetime.strptime(element["Date"], "%d/%m/%Y")
             element["Date"] = date_obj.strftime("%Y-%m-%d")
-        except ValueError:
+        except (ValueError, TypeError):
             valid = False
             errors.append(f"Invalid date format: {element['Date']}")
 
         # Validate and transform 'Euro_Price'
-        euro_price_str = element["Euro_Price"].replace(",", "")
+        euro_price_str = str(element.get("Euro_Price", "")).replace(",", "")
         try:
             element["Euro_Price"] = float(euro_price_str)
-            if element["Euro_Price"] <= 0:
+            if not math.isfinite(element["Euro_Price"]) or element["Euro_Price"] <= 0:
                 valid = False
                 errors.append("Euro_Price must be positive")
-        except ValueError:
+        except (ValueError, TypeError):
             valid = False
             errors.append("Invalid Euro_Price")
 
@@ -142,6 +148,7 @@ class ValidateAndTransform(beam.DoFn):
             # Convert 'Euro_Price' to string for invalid records
             element["Euro_Price"] = str(element.get("Euro_Price", ""))
             element["Errors"] = "; ".join(errors)
+            element['_raw_line'] = json.dumps(original, default=str)
             yield beam.pvalue.TaggedOutput("invalid", element)
 
 
@@ -228,13 +235,15 @@ def run():
             custom_gcs_temp_location="gs://cocoa-prices-temp-for-bq",
         )
 
-        all_invalid_records | "Write Invalid to BigQuery" >> beam.io.WriteToBigQuery(
+        (all_invalid_records
+         | "Retain Invalid Evidence" >> beam.Map(invalid_record, 'cocoa')
+         | "Write Invalid to BigQuery" >> beam.io.WriteToBigQuery(
             table="cocoa-prices-430315:cocoa_related.invalid_cocoa",
             schema="Date:STRING, Euro_Price:STRING, Errors:STRING",
-            write_disposition=beam.io.BigQueryDisposition.WRITE_TRUNCATE,
+            write_disposition=beam.io.BigQueryDisposition.WRITE_APPEND,
             create_disposition=beam.io.BigQueryDisposition.CREATE_IF_NEEDED,
             custom_gcs_temp_location="gs://cocoa-prices-temp-for-bq",
-        )
+        ))
 
 
 if __name__ == "__main__":

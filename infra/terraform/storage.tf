@@ -54,7 +54,7 @@ resource "google_storage_bucket" "application" {
     }
   }
 
-  # Only new daily inputs expire. Historical data and held release artifacts
+  # Only daily inputs/failure evidence expire. Historical data and held release artifacts
   # retain their existing policy. Versioned deletes remain recoverable for 30 days.
   dynamic "lifecycle_rule" {
     for_each = each.key == "raw-historic-data" ? {
@@ -69,7 +69,7 @@ resource "google_storage_bucket" "application" {
         age                        = 400
         with_state                 = lifecycle_rule.value.state
         days_since_noncurrent_time = lifecycle_rule.value.noncurrent_days
-        matches_prefix             = ["daily-inputs/v1/"]
+        matches_prefix             = ["daily-inputs/v1/", "quarantine/v1/"]
       }
     }
   }

@@ -106,8 +106,9 @@ def test_nullable_measurements_and_raw_payload_fallback(feed, monkeypatch):
 def test_invalid_avro_is_not_emitted_as_a_row(feed, monkeypatch, capsys):
     consumer = load_consumer(monkeypatch, feed)
     decoder = consumer.module.DecodeAvro(ROOT / "schemas" / f"{feed}_schema.avsc")
-    assert list(decoder.process(b"")) == []
-    assert "Avro decode error:" in capsys.readouterr().out
+    with pytest.raises(RuntimeError, match="recover the original input"):
+        list(decoder.process(b""))
+    assert not capsys.readouterr().out
 
 
 @pytest.mark.parametrize(("value", "expected"), [
@@ -181,16 +182,10 @@ def test_cocoa_repository_configuration_is_retained(key, attribute, expected, mo
     ("oil", "oil-prices-sub", "stream_staging.oil_prices"),
     ("weather", "weather-data-sub", "stream_staging.precipitation_moisture"),
 ])
-def test_pipeline_construction_keeps_runner_and_destinations(feed, subscription, table, monkeypatch):
+def test_retired_daily_streaming_cannot_consume_production_messages(feed, subscription, table, monkeypatch):
     consumer = load_consumer(monkeypatch, feed)
-    consumer.module.run()
-    consumer.options.PipelineOptions.assert_called_once_with(
-        ["--runner=DirectRunner", "--streaming", "--project=cocoa-prices-430315"]
-    )
-    consumer.beam.io.ReadFromPubSub.assert_called_once_with(
-        subscription=f"projects/cocoa-prices-430315/subscriptions/{subscription}"
-    )
-    call = consumer.beam.io.WriteToBigQuery.call_args
-    assert call.kwargs["table"] == f"cocoa-prices-430315:{table}"
-    assert call.kwargs["write_disposition"] == "WRITE_APPEND"
-    assert call.kwargs["create_disposition"] == "CREATE_NEVER"
+    with pytest.raises(RuntimeError, match="Legacy daily Beam streaming is retired"):
+        consumer.module.run()
+    consumer.beam.Pipeline.assert_not_called()
+    consumer.beam.io.ReadFromPubSub.assert_not_called()
+    consumer.beam.io.WriteToBigQuery.assert_not_called()

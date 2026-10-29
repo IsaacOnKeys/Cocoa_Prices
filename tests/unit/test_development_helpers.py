@@ -3,7 +3,6 @@
 import os
 import shutil
 import subprocess
-import time
 from pathlib import Path
 
 import pytest
@@ -21,32 +20,17 @@ def test_helpers_resolve_repository_and_share_pid_location(tmp_path):
     helpers.mkdir(parents=True)
     for name in ("stream_start", "stream_stop"):
         shutil.copyfile(ROOT / "scripts/development" / name, helpers / name)
-    feeds = ("cocoa", "oil", "weather")
-    (fixture_root / "pipelines/streaming").mkdir(parents=True)
-    for feed in feeds:
-        (fixture_root / f"pipelines/streaming/{feed}_stream.py").write_text("# stub; never imported\n")
-    posix_root = subprocess.run(
-        [bash, "-c", 'cd "$1" && pwd', "_", fixture_root.as_posix()],
-        check=True, capture_output=True, text=True,
-    ).stdout.strip()
-    subprocess.run(
-        [bash, "-c", 'python() { printf "%s\\n" "$1"; }; source "$1"',
-         "_", (helpers / "stream_start").as_posix()],
-        cwd=tmp_path, check=True, capture_output=True, text=True,
+    started = subprocess.run(
+        [bash, str(helpers / "stream_start")], cwd=tmp_path,
+        capture_output=True, text=True,
     )
-    deadline = time.monotonic() + 5
-    while time.monotonic() < deadline:
-        if all((fixture_root / f"{feed}.log").exists()
-               and (fixture_root / f"{feed}.log").stat().st_size for feed in feeds):
-            break
-        time.sleep(0.01)
-    for feed in feeds:
-        assert (fixture_root / f"{feed}.log").read_text().strip() == (
-            f"{posix_root}/pipelines/streaming/{feed}_stream.py"
-        )
+    assert started.returncode == 1 and 'Daily Beam streaming is retired' in started.stderr
     pid_file = fixture_root / "stream_pids.txt"
-    pids = pid_file.read_text().splitlines()
-    assert len(pids) == 3 and all(pid.isdigit() for pid in pids)
+    assert not pid_file.exists()
+    assert not list(fixture_root.glob('*.log'))
+    # The stop helper can still clean a pre-existing legacy PID file.
+    pids = ['23121', '23122', '23123']
+    pid_file.write_text('\n'.join(pids)+'\n')
     stopped = subprocess.run(
         [bash, "-c", 'kill() { printf "stub-kill:%s\\n" "$1"; }; source "$1"',
          "_", (helpers / "stream_stop").as_posix()],

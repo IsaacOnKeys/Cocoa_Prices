@@ -49,6 +49,7 @@ def main():
     parser.add_argument("--scripts-dir", type=Path, default=ROOT / "pipelines/backfill")
     parser.add_argument("--output-dir", type=Path, required=True)
     parser.add_argument("--cloud-dataset", help="Optional newly created, labeled isolated dataset; never production")
+    parser.add_argument('--recovery-cases', action='store_true', help='Include malformed, missing and nonfinite inputs; prove append-only cloud invalid output')
     args = parser.parse_args()
     token = checked_namespace(args.cloud_dataset) if args.cloud_dataset else None
     output = args.output_dir.resolve()
@@ -56,6 +57,11 @@ def main():
         raise ValueError("Refusing to overwrite an existing runtime receipt")
     output.mkdir(parents=True, exist_ok=True)
     import apache_beam as beam
+    sys.path.insert(0, str(args.scripts_dir.resolve()))
+    import backfill_recovery
+
+    if (args.scripts_dir/'backfill_recovery.py').read_bytes() != (ROOT/'pipelines/backfill/backfill_recovery.py').read_bytes():
+        raise ValueError('Packaged recovery helper differs from the checkout')
 
     client = None
     if token:
@@ -78,10 +84,16 @@ def main():
         if feed == "oil":
             payload = json.loads(data)
             payload["response"]["data"].append({"period": "not-a-date", "value": "NA", "series": "RBRTE", "units": "$/BBL"})
+            if args.recovery_cases:
+                payload['response']['data'].append({'period': '2026-10-20', 'value': 'PRIVATE malformed number', 'series': 'RBRTE', 'units': '$/BBL'})
             fixture.write_text(json.dumps(payload, indent=2), encoding="utf-8")
         else:
             bad = b'"not-a-date","0","0","0","bad-price"' if feed == "cocoa" else b"2013,365,1.0,0.5"
-            fixture.write_bytes(data.rstrip(b"\r\n") + b"\n" + bad + b"\n")
+            extra = b''
+            if args.recovery_cases:
+                extra = (b'PRIVATE malformed CSV\n"20/10/2026","0","0","0","nan"\n' if feed == 'cocoa'
+                         else b'2014,1,-999,0.5\nPRIVATE malformed CSV\n2014,367,1.0,0.5\n')
+            fixture.write_bytes(data.rstrip(b"\r\n") + b"\n" + bad + b"\n" + extra)
         observed = set()
 
         def reader(path, *positional, **kwargs):
@@ -104,6 +116,8 @@ def main():
             target = mapped_table(original, feed, args.cloud_dataset or f"{PROJECT}.runtime_validation_20000101_00000000")
             name = original.rsplit(".", 1)[1]
             observed.add(name)
+            if name == invalid_table and kwargs['write_disposition'] != beam.io.BigQueryDisposition.WRITE_APPEND:
+                raise ValueError('Invalid historical evidence must be append-only')
             if token:
                 kwargs["table"] = target
                 kwargs["custom_gcs_temp_location"] = f"gs://cocoa-prices-temp-for-bq/runtime-validation/{token}/"
@@ -111,8 +125,12 @@ def main():
             return LocalSink(name)
 
         argv = [str(source), "--runner=DirectRunner", "--direct_num_workers=1", "--direct_running_mode=in_memory"]
-        with patch.object(beam.io, "ReadFromText", reader), patch.object(beam.io, "WriteToBigQuery", writer), patch.object(sys, "argv", argv):
-            runpy.run_path(str(source), run_name="__main__")
+        iterations = 2 if token and args.recovery_cases else 1
+        contract = backfill_recovery.SOURCES[feed]
+        with patch.object(beam.io, "ReadFromText", reader), patch.object(beam.io, "WriteToBigQuery", writer), patch.object(sys, "argv", argv), patch.dict(
+                backfill_recovery.SOURCES, {feed: (str(fixture), contract[1], contract[2])}):
+            for _ in range(iterations):
+                runpy.run_path(str(source), run_name="__main__")
         if observed != {valid_table, invalid_table}:
             raise RuntimeError("The expected valid/invalid sinks were not both exercised")
         results = {}
@@ -126,9 +144,16 @@ def main():
         valid, invalid = results[valid_table], results[invalid_table]
         def canonical(rows):
             return sorted(rows, key=lambda r: r.get("date", r.get("Date")))
-        if canonical(valid) != canonical(EXPECTED[feed]) or len(invalid) != 1 or not invalid[0].get("Errors"):
+        expected_invalid = ({'cocoa': 3, 'oil': 2, 'weather': 4}[feed] if args.recovery_cases else 1) * iterations
+        if canonical(valid) != canonical(EXPECTED[feed]) or len(invalid) != expected_invalid or not invalid[0].get("Errors"):
             raise RuntimeError(f"Unexpected {feed} fixture output; inspect isolated evidence")
-        summary[feed] = {"valid": len(valid), "invalid": len(invalid), "source_sha256": hashlib.sha256(source.read_bytes()).hexdigest()}
+        for row in invalid:
+            evidence = json.loads(row['Errors'])
+            if (evidence['version'] != 1 or evidence['source_uri'] != str(fixture)
+                    or hashlib.sha256(evidence['raw_payload'].encode()).hexdigest() != evidence['input_sha256']):
+                raise RuntimeError('Historical failure evidence is incomplete')
+        summary[feed] = {"valid": len(valid), "invalid": len(invalid), "graph_executions": iterations,
+                         "source_sha256": hashlib.sha256(source.read_bytes()).hexdigest(), 'failure_evidence_verified': True}
     result = {"python": sys.version.split()[0], "beam": beam.__version__, "cloud_dataset": args.cloud_dataset,
               "production_writes": 0, "feeds": summary}
     (output / "receipt.json").write_text(json.dumps(result, indent=2), encoding="utf-8")
