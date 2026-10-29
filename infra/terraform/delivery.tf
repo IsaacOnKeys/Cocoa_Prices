@@ -68,13 +68,88 @@ resource "google_pubsub_subscription" "dead_letters" {
   project                    = var.project_id
   name                       = "${each.key}-sub"
   topic                      = google_pubsub_topic.topics[each.key].id
-  ack_deadline_seconds       = 10
+  ack_deadline_seconds       = 600
   message_retention_duration = "604800s"
+  cloud_storage_config {
+    bucket          = google_storage_bucket.dead_letter_recovery.name
+    filename_prefix = "messages/v1/${each.key}/"
+    filename_suffix = ".avro"
+    max_duration    = "60s"
+    max_bytes       = 1048576
+    avro_config {
+      write_metadata   = true
+      use_topic_schema = false
+    }
+  }
   expiration_policy {
     ttl = ""
   }
   lifecycle {
     prevent_destroy = true
+  }
+  depends_on = [google_storage_bucket_iam_member.dead_letter_exports]
+}
+
+resource "google_storage_bucket" "dead_letter_recovery" {
+  name                        = "${var.project_id}-dead-letters"
+  project                     = var.project_id
+  location                    = var.region
+  uniform_bucket_level_access = true
+  public_access_prevention    = "enforced"
+  force_destroy               = false
+  labels                      = { app = "cocoa-prices", component = "dead-letter-recovery" }
+  versioning {
+    enabled = true
+  }
+  soft_delete_policy {
+    retention_duration_seconds = 0
+  }
+  lifecycle_rule {
+    action {
+      type = "Delete"
+    }
+    condition {
+      age            = 400
+      with_state     = "LIVE"
+      matches_prefix = ["messages/v1/"]
+    }
+  }
+  lifecycle_rule {
+    action {
+      type = "Delete"
+    }
+    condition {
+      age                        = 400
+      with_state                 = "ARCHIVED"
+      days_since_noncurrent_time = 30
+      matches_prefix             = ["messages/v1/"]
+    }
+  }
+  lifecycle {
+    prevent_destroy = true
+  }
+}
+
+# Supported export permissions apply only to recovery storage. The service agent
+# can create message files, read bucket metadata/listing, and cannot read payloads
+# or create/alter the operator replay ledger.
+resource "google_storage_bucket_iam_member" "dead_letter_exports" {
+  for_each = {
+    creator = {
+      role       = "roles/storage.objectCreator"
+      expression = "resource.name.startsWith('projects/_/buckets/${var.project_id}-dead-letters/objects/messages/v1/')"
+    }
+    metadata = {
+      role       = "roles/storage.legacyBucketReader"
+      expression = "resource.name == 'projects/_/buckets/${var.project_id}-dead-letters'"
+    }
+  }
+  bucket = google_storage_bucket.dead_letter_recovery.name
+  role   = each.value.role
+  member = local.pubsub_service_agent
+  condition {
+    title      = "dead_letter_export_${each.key}"
+    expression = each.value.expression
   }
 }
 
