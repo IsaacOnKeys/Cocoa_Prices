@@ -5,6 +5,10 @@ Checklist item 20, branch `codex/atomic-analytics-release`; implementation
 publication boundary needed before completing recurring candidate quality gates
 in item 15. Native and production validation completed 2026-10-29.
 
+The subsequent [recurring quality cutover](recurring-quality-gates.md) supersedes
+this receipt's deployed DAG/procedure hashes. This document retains the original
+atomic-publication acceptance evidence and recovery references.
+
 `analytics_delivery` holds the current release marker, run registry, immutable
 application input snapshots, candidate artifacts and recovery events. The nine
 Airflow task IDs and all six existing serving table names remain stable. Three

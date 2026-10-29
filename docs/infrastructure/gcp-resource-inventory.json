@@ -1,6 +1,6 @@
 {
-  "verified_at": "2026-10-29T21:12:39.709876+00:00",
-  "verification": "Live no-change plans after atomic analytics publication deployment. The new analytics_delivery dataset has one scoped Airflow writer grant; application SQL owns its registry, frozen inputs, versioned artifacts and rollback procedures. Pinned nine-task Python 3.11 DAG installed. Native isolated SQL failure/rollback proofs and actual Airflow SDK reattachment passed. Controlled production acquisition rejected NASA age 8 > 7 before SQL, retaining all six October 28 serving fingerprints and the legacy model. BI freshness now follows the accepted release and labels EIA correctly. Temporary validation datasets and runtime grants removed; DAG unpaused/idle at checkpoint and maintenance VM restored to stopped.",
+  "verified_at": "2026-10-29T22:17:25.466514+00:00",
+  "verification": "Live no-change plans after recurring quality gates: 38 shared input/output checks, 28 native fault/validity cases, integrated failure/rollback proofs and a final positive 38-check build. Exact supplier observation manifests reach the pinned nine-task Python 3.11 DAG. Controlled production acquisition rejected NASA precipitation age 8 > 7 before SQL, preserving all six serving tables/model and accepted marker. Seven labelled validation datasets removed; DAG unpaused/idle at checkpoint, maintenance VM restored stopped. Protected rollback resources and held quality evidence remain.",
   "managed_instance_count": 122,
   "resources": [
     {

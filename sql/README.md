@@ -13,6 +13,12 @@ outside that transaction. The old [zero-argument entrypoint](procedures/run_dail
 explicitly refuses direct publication. Its previous definition remains in Git
 history and the cutover recovery archive.
 
+The renderer embeds [input](quality/input_checks.sql) and
+[output](quality/output_checks.sql) quality fragments in that procedure. Their
+38 named checks retain actionable error/warning results before publication;
+the fragments are not independent deployment scripts. See
+[recurring gate acceptance](../docs/operations/recurring-quality-gates.md).
+
 | Stage | Implementation / behavior |
 | --- | --- |
 | [1. Curated data](01_curated_data/README.md) | Frozen curated baseline plus the accepted current acquisition; candidate source series and daily join |
