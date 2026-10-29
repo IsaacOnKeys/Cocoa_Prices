@@ -65,7 +65,7 @@ links to the implementing statements in the single executable procedure.
 | Area | Start here | What it demonstrates |
 | --- | --- | --- |
 | Ingestion and contracts | [functions/](functions/), [schemas/](schemas/) | Separate producers, nullable Avro contracts, self-contained deployment artifacts |
-| Streaming | [pipelines/streaming/](pipelines/streaming/) | Pub/Sub binary decoding and BigQuery staging |
+| Legacy streaming | [pipelines/streaming/](pipelines/streaming/) | Historical compatibility helpers; entrypoints retired |
 | Orchestration | [airflow/dags/cocoa_daily.py](airflow/dags/cocoa_daily.py) | Feed triggers, progress sensors, quiet period and SQL coordination |
 | Curated data | [sql/01_curated_data/](sql/01_curated_data/README.md) | Deduplication/MERGE, daily calendar and forward fill |
 | Feature engineering | [sql/02_feature_engineering/](sql/02_feature_engineering/README.md) | 1/7/28-day cocoa lags, seven-row oil/weather means, calendar categories and the 40-day target |

@@ -1,7 +1,7 @@
 {
-  "verified_at": "2026-10-29T15:20:24.521204+00:00",
-  "verification": "Live no-change plans after raw-input archiving deployment. Three Python 3.11 producers persist complete checksummed batches before publication; raw bucket versioning and prefix-scoped 400-day lifecycle are configured. Managed isolated replay reconstructed 85 records through Pub/Sub and the unchanged actual consumer into disposable BigQuery tables; all temporary resources removed. Nine-task completion DAG is unchanged and unpaused; maintenance VM stopped.",
-  "managed_instance_count": 112,
+  "verified_at": "2026-10-29T16:53:05.110410+00:00",
+  "verification": "Live no-change plans after native-validated daily quarantine and historical reject recovery. Consumer Python 3.11 source and two prefix-only storage grants verified; all three producers, canonical routes, schemas and nine-task DAG unchanged. Managed twelve-case probe and rebuilt Python 3.11.18/Beam 2.65.0 graphs passed; isolated resources and temporary grant removed. DAG unpaused/idle and maintenance VM stopped.",
+  "managed_instance_count": 114,
   "resources": [
     {
       "root": "main",
@@ -557,6 +557,16 @@
       "root": "main",
       "address": "google_storage_bucket_iam_member.application[\"temp_compute_object_admin\"]",
       "id": "b/cocoa-prices-temp-for-bq/roles/storage.objectAdmin/serviceAccount:494039866722-compute@developer.gserviceaccount.com"
+    },
+    {
+      "root": "main",
+      "address": "google_storage_bucket_iam_member.ingestion_quarantine[\"roles/storage.objectCreator\"]",
+      "id": "b/raw-historic-data/roles/storage.objectCreator/serviceAccount:analytics-staging@cocoa-prices-430315.iam.gserviceaccount.com/ingestion_quarantine_prefix/Only immutable staging failure evidence/resource.name.startsWith('projects/_/buckets/raw-historic-data/objects/quarantine/v1/')"
+    },
+    {
+      "root": "main",
+      "address": "google_storage_bucket_iam_member.ingestion_quarantine[\"roles/storage.objectViewer\"]",
+      "id": "b/raw-historic-data/roles/storage.objectViewer/serviceAccount:analytics-staging@cocoa-prices-430315.iam.gserviceaccount.com/ingestion_quarantine_prefix/Only immutable staging failure evidence/resource.name.startsWith('projects/_/buckets/raw-historic-data/objects/quarantine/v1/')"
     },
     {
       "root": "bootstrap",

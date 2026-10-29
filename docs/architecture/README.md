@@ -29,8 +29,9 @@ implementing statements. One canonical procedure retains the execution order.
   Pub/Sub push invokes bounded Cloud Run staging consumers independently of the
   VM; Cloud Scheduler owns the orchestration VM operating window.
 - Keep source layout independent of installed filenames. /opt/beam and
-  /opt/airflow paths remain stable; Beam files are retained for local use and
-  emergency rollback, with daily production moved to the managed consumer.
+  /opt/airflow paths remain stable; old Beam copies remain disabled as recovery
+  material. Current daily streaming entrypoints refuse startup; production uses
+  the managed consumer, with Beam retained for historical backfills.
 - Represent existing infrastructure in Terraform state without taking ownership
   of function source deployments, secret payloads or SQL-created objects.
 - Distinguish training/forecasting from evaluation. Current historical

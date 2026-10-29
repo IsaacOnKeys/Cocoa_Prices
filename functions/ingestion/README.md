@@ -16,13 +16,16 @@ allowlist. There is no destination derived from an untrusted message field.
 Cloud Run IAM authenticates the push identity; public invocation must stay
 disabled. The delivery identity has a service-scoped invoker grant, and Pub/Sub
 can mint its tokens through a grant scoped to that identity. The separate
-runtime identity receives only staging-dataset writer access, with no project
-query-job or secret-access grant added by this component.
+runtime identity receives staging-dataset writer access and create/read access
+conditional on the quarantine object prefix, with no project query-job or
+secret-access grant added by this component.
 
-Requests are limited to a 2 MiB envelope and one canonical Avro record. Each
-request makes one BigQuery insertAll call, with bounded transport/refresh waits;
-row-level errors and HTTP failures return 503. Success returns 204 only after
-accepted storage. The platform enforces a 60-second timeout, one concurrent
+Requests are limited to a 16 MiB envelope and one canonical Avro record. Healthy
+requests make one BigQuery insertAll call. Permanent invalid input/row rejection
+receives 204 only after its complete envelope is stored and read-back verified
+in immutable quarantine. Transient or ambiguous sink failures retain diagnostic
+evidence and return 503; an unverified quarantine also returns 503. The platform
+enforces a 60-second timeout, one concurrent
 request per instance, at most three instances and no minimum instances.
 Logs contain outcome, hashed delivery identity, duration and process peak memory;
 they omit payloads, tokens, sink response bodies and arbitrary exception text.
@@ -30,8 +33,10 @@ they omit payloads, tokens, sink response bodies and arbitrary exception text.
 insertId is a stable best-effort deduplication hint derived from subscription
 and message ID. It is not an exactly-once guarantee. Ambiguous writes can be
 redelivered; durable message identity/idempotency is checklist items 8-9.
-Invalid records remain unacknowledged; durable quarantine and DLQ/replay remain
-items 11-12. The cocoa producer preserves the publisher observation date. All feeds retain
+See [quarantine and native validation](../../docs/operations/invalid-record-quarantine.md).
+Quarantined records do not establish required-feed completion; incomplete input
+withholds publication. DLQ operations/replay remain item 12. The cocoa producer
+preserves the publisher observation date. All feeds retain
 UTC producer acquisition, raw timestamp text and consumer receipt separately;
 unknown/invalid acquisition stays NULL with a status flag. See the
 [timestamp contract](../../docs/operations/timestamp-provenance.md). Recurring

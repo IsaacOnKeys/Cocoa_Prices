@@ -5,8 +5,10 @@ The superseded function/trigger are retired; source/credential recovery material
 is retained. See the [deployment receipt](eia-cutover.md),
 [migration evidence](eia-migration.md) and [service requirements](service-contract.md).
 Daily staging uses authenticated Pub/Sub push into the bounded
-stage_analytics_data Cloud Run function. Beam is retained for backfills/local
-checks and emergency rollback; its three VM startup units are disabled.
+stage_analytics_data Cloud Run function. Beam provides historical backfills;
+the old VM streaming installation remains disabled as recovery material.
+Current streaming entrypoints refuse startup; retained-input replay uses the
+supported consumer.
 See the [consumer handoff](ingestion-cutover.md) and
 [Python 3.11 runtime migration](python311-runtime.md). One passing cycle does not
 establish the target service guarantees.
@@ -38,6 +40,8 @@ does not isolate deployed resources or change Airflow Variables.
 Repository helper scripts resolve the checkout root. The systemd unit files
 are installation/rollback references; daily startup no longer enables Beam.
 Moving a source file does not install it on the VM.
+The streaming mappings describe the preserved historical copies; current retired
+entrypoints were not installed over them.
 The captured Compose definition requires external secret values and is not a
 claim that the runtime can be rebuilt without the remaining deployment work.
 
@@ -52,7 +56,9 @@ minimum zero and a 60-second timeout. Cloud Run IAM requires authentication.
 The existing cocoa-prices-sub, oil-prices-sub and weather-data-sub subscriptions
 use authenticated push to that function. Their topic identities and seven-day
 retention are preserved; acknowledgement deadlines are 60 seconds. A delivery
-gets a successful response only after its staging insert is accepted.
+gets an ACK after accepted staging or verified durable quarantine. Transient
+sink/storage failures remain retryable; quarantined records do not count toward
+required-feed completion. See [recovery behavior](invalid-record-quarantine.md).
 Runtime analytics-staging and delivery analytics-push identities are distinct;
 the runtime gets dataset-scoped stream_staging writer access, and Pub/Sub's
 token-minting grant is scoped to the delivery identity. No new project-wide

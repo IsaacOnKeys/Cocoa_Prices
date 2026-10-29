@@ -117,6 +117,11 @@ does not remove Airflow/PostgreSQL's VM dependency. External missed-run alerts,
 runtime restore, durable quarantine, idempotency and atomic publication remain
 their numbered checklist items.
 
+Subsequent October 29 [quarantine deployment](invalid-record-quarantine.md)
+implements durable invalid-input handling. Current daily Beam entrypoints are
+retired; the old disabled installation is preserved recovery material. Use the
+supported retained-input replay rather than starting current legacy scripts.
+
 Private evidence: `.build/ingestion/` contains source verification, validation
 receipt, before-state snapshots, reviewed plans and apply logs. VM backups and
 receipts use `/opt/airflow/releases/ingestion-41acd6d/`.

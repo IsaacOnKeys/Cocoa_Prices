@@ -31,15 +31,24 @@ python -m pip install -r pipelines/requirements.txt
 ~~~
 
 The existing scripts retain DirectRunner and historical DataflowRunner support,
-destinations, validation and WRITE_TRUNCATE behavior. Moving paths does not
-make a production backfill safe to run as a check. No backfill was executed
-during repository validation.
+destinations and validation. Curated writes still use WRITE_TRUNCATE; invalid
+tables now append JSON evidence in Errors with original input, source reference,
+checksum and rejection time. NASA protocol metadata is explicitly recognized;
+malformed/missing observations reach the invalid sink. Moving paths does not
+make a production backfill safe to run as a check. The
+[quarantine validation](../../docs/operations/invalid-record-quarantine.md)
+executes actual graphs against isolated fixtures/tables and records the boundary
+between DirectRunner cloud IO, worker packaging and remote Dataflow execution.
 
 Their REQUIREMENTS_FILE references resolve to pipelines/requirements.txt
 from the script location. That existing variable remains unused by the actual
 PipelineOptions; this migration did not activate previously unused options.
 For a separately reviewed Dataflow submission, pass an explicit requirements
-file using the supported Beam CLI options. Historical custom-image references
+file using the supported Beam CLI options. The scripts default --setup_file to
+the adjacent setup.py, staging the shared backfill_recovery module. An operator's
+explicit setup file is preserved and must include that module. See [Beam's worker
+dependency guidance](https://beam.apache.org/documentation/sdks/python-pipeline-dependencies/).
+Historical custom-image references
 in source comments document earlier usage, not an existing deployment pipeline.
 
 ## Backfill Docker recipe versus Airflow Docker
@@ -51,8 +60,8 @@ docker build -f pipelines/backfill/Dockerfile -t cocoa-backfill:python3.11 pipel
 The image pins its Python 3.11 base digest and installs pipelines/requirements.txt,
 including Beam 2.65.0. This aligns the image with the existing nine pinned Beam
 requirements instead of retaining a separate 2.61.0 dependency family. The build
-context is pipelines/; its .dockerignore permits only the three cleaners and
-runtime build inputs. Scripts remain under /app, and their /requirements.txt
+context is pipelines/; its .dockerignore permits the cleaners, recovery helper,
+worker setup package and runtime build inputs. Scripts remain under /app, and their /requirements.txt
 submission reference exists in the image. The image retains its Python entry point.
 
 This is a local DirectRunner/client image, not a Dataflow SDK worker harness.

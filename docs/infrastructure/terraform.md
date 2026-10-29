@@ -6,11 +6,11 @@ Terraform defines the Google Cloud infrastructure for project
 ## Current status
 
 Verified on 2026-10-29: both roots returned no-change plans after deployment of
-[replayable daily inputs](../operations/daily-raw-inputs.md). The earlier EIA migration's prior credential remains
+[daily quarantine](../operations/invalid-record-quarantine.md). The earlier EIA migration's prior credential remains
 outside active state for rollback. Backends,
 workspace, provider versions and lockfiles are unchanged. Authentication used
 the existing gcloud session token only in the process environment. See the
-[current GCP ownership map](gcp-inventory.md) for all 112 state-tracked resources
+[current GCP ownership map](gcp-inventory.md) for all 114 state-tracked resources
 and the [completion receipt](../operations/ingestion-completion.md).
 
 The acquisition component passed its managed and full-cycle checks. Its source
@@ -22,9 +22,11 @@ the maintenance VM stopped with normal scheduled startup retained. Serving
 outputs remain October 28.
 
 The raw bucket now has versioning and lifecycle rules limited to
-`daily-inputs/v1/`: live inputs become eligible after 400 days, and noncurrent
+`daily-inputs/v1/` and `quarantine/v1/`: live inputs become eligible after 400 days, and noncurrent
 versions also require 30 days since becoming noncurrent. Historical and operation
 prefixes keep their prior lifecycle behavior. The temporary bucket is unchanged.
+The consumer has create/read grants conditional on the quarantine prefix; no
+overwrite/delete, bucket-list, project query-job or secret-access grant is added.
 
 The `cocoa-prices-430315-terraform-state` bucket provides the GCS backend. It
 uses uniform bucket-level access, public-access prevention, versioning, 30-day

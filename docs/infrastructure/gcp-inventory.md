@@ -1,6 +1,6 @@
 # GCP ownership and Terraform adoption
 
-Verified 2026-10-29 after daily raw-input archive deployment. Main tracks 111
+Verified 2026-10-29 after daily quarantine deployment. Main tracks 113
 application resource instances; bootstrap tracks one state bucket. Both roots
 returned exit 0 with live no-change plans. Three existing subscriptions use
 authenticated push; the new bounded consumer has dedicated runtime/delivery
@@ -20,10 +20,12 @@ and the maintenance VM stopped with normal scheduled startup retained. The
 completion gates before SQL; the obsolete interval-based sleep is removed.
 
 All three producers now archive full Avro inputs before publication. Raw-bucket
-versioning and 400-day lifecycle rules are limited to the new daily-input prefix;
+versioning and 400-day lifecycle rules are limited to daily-input and quarantine prefixes;
 noncurrent deletion also requires 30 days. The [archive receipt](../operations/daily-raw-inputs.md)
-records isolated replay and production reconciliation. No new resource, IAM or
-delivery route was needed.
+records isolated replay and production reconciliation. The
+[quarantine receipt](../operations/invalid-record-quarantine.md) adds two scoped
+storage IAM members for the existing consumer. No new service or delivery route
+was needed; the current inventory contains 114 managed resources.
 
 This evidence is stronger than a prototype configuration, but does not prove
 that the original infrastructure was created through Terraform or that routine
@@ -51,11 +53,11 @@ deployments historically used it.
 | main | `google_service_account` | 5 |
 | main | `google_service_account_iam_member` | 1 |
 | main | `google_storage_bucket` | 2 |
-| main | `google_storage_bucket_iam_member` | 4 |
+| main | `google_storage_bucket_iam_member` | 6 |
 | bootstrap | `google_storage_bucket` | 1 |
 
 
-The [refreshed inventory](gcp-resource-inventory.json) lists 112 managed addresses
+The [refreshed inventory](gcp-resource-inventory.json) lists 114 managed addresses
 and external IDs, including bootstrap, plus its exact historical baseline link.
 It is not a Terraform state file. Credentials/private state remain outside Git.
 
