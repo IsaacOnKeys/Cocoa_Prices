@@ -70,8 +70,9 @@ FROM source_input s JOIN expected_observations e USING(feed,date,observation_id)
 UNION ALL
 SELECT 'input','frozen_provenance','error',COUNTIF(timestamp_status IS DISTINCT FROM 'valid'
   OR producer_acquired_at IS NULL OR producer_acquired_at<p_run_started_at OR producer_acquired_at>input_cutoff
-  OR consumer_received_at IS NULL OR consumer_received_at>input_cutoff OR source_published_at IS NULL),
-  'Current rows retain valid acquisition, receipt and transport provenance'
+  OR consumer_received_at IS NULL OR consumer_received_at>input_cutoff
+  OR source_published_at>input_cutoff),
+  'Current rows retain valid acquisition/receipt times; unknown supplier publication times remain NULL'
 FROM source_input WHERE kind='stage'
 UNION ALL
 SELECT 'input','finite_measurements','error',COUNTIF(IS_NAN(price) OR IS_INF(price)

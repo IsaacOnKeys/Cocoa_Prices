@@ -31,7 +31,7 @@ CREATE TEMP TABLE source_input AS
    IF(kind='stage',LOWER(TO_HEX(SHA256(CONCAT(feed,CAST(b.date AS STRING))))),NULL) AS observation_id,
    IF(kind='stage',TIMESTAMP '2014-04-01 18:00:01+00',NULL) AS producer_acquired_at,
    IF(kind='stage',TIMESTAMP '2014-04-01 18:00:03+00',NULL) AS consumer_received_at,
-   IF(kind='stage',TIMESTAMP '2014-04-01 18:00:02+00',NULL) AS source_published_at,
+   CAST(NULL AS TIMESTAMP) AS source_published_at,
    IF(kind='stage','valid',NULL) AS timestamp_status
  FROM base_data b CROSS JOIN UNNEST(['cocoa','oil','weather']) feed CROSS JOIN UNNEST(['baseline','stage']) kind
  WHERE (kind='baseline' AND b.date<p_business_date) OR (kind='stage' AND b.date>=DATE_SUB(p_business_date,INTERVAL 30 DAY));
@@ -76,6 +76,13 @@ SET p_sources = (SELECT TO_JSON(STRUCT(
 # Each case mutates data independently of the checker expressions.
 CASES = [
     ("complete", "", False, False, None),
+    (
+        "future_source_publication_rejected",
+        "UPDATE source_input SET source_published_at=TIMESTAMP_ADD(input_cutoff,INTERVAL 1 SECOND) WHERE kind='stage' AND feed='cocoa';",
+        False,
+        False,
+        "frozen_provenance",
+    ),
     (
         "missing_source_revision",
         "DELETE source_input WHERE kind='stage' AND feed='cocoa' AND date=p_business_date;",

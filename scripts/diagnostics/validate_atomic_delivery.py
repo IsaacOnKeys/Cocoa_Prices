@@ -217,7 +217,7 @@ def exercise(path, inject_failures=True):
           (date,{fields},ingestion_time,raw_payload,producer_acquired_at,producer_timestamp_raw,
            consumer_received_at,source_published_at,timestamp_status,delivery_id,pubsub_message_id,acquisition_id,observation_id)
           SELECT d,{expression},@acquired,'synthetic-publication-fixture',@acquired,CAST(@acquired AS STRING),
-            TIMESTAMP_ADD(@acquired,INTERVAL 2 SECOND),TIMESTAMP_ADD(@acquired,INTERVAL 1 SECOND),'valid',
+            TIMESTAMP_ADD(@acquired,INTERVAL 2 SECOND),CAST(NULL AS TIMESTAMP),'valid',
             TO_HEX(SHA256(CAST(d AS STRING))),CAST(d AS STRING),@acquisition,
             LOWER(TO_HEX(SHA256(CONCAT(@acquisition,CAST(d AS STRING)))))
           FROM UNNEST(GENERATE_DATE_ARRAY(DATE_SUB(@business,INTERVAL 30 DAY),@business)) d'''
@@ -367,7 +367,7 @@ def rollback(path):
         measure = {'cocoa':'cocoa_price','oil':'oil_price','weather':'precipitation,soil_moisture'}[feed]
         sql = f'''INSERT `{PROJECT}.{n["staging"]}.{table}`
           SELECT date,{measure},@acquired,raw_payload,@acquired,CAST(@acquired AS STRING),
-            TIMESTAMP_ADD(@acquired,INTERVAL 2 SECOND),TIMESTAMP_ADD(@acquired,INTERVAL 1 SECOND),'valid',
+            TIMESTAMP_ADD(@acquired,INTERVAL 2 SECOND),CAST(NULL AS TIMESTAMP),'valid',
             delivery_id,pubsub_message_id,@identity,LOWER(TO_HEX(SHA256(CONCAT(observation_id,'stale-base-proof'))))
           FROM `{PROJECT}.{n["staging"]}.{table}` WHERE acquisition_id=@original AND delivery_id!='late-fixture' '''
         query(bq,state,sql,params=[bigquery.ScalarQueryParameter('acquired','TIMESTAMP',acquired),
