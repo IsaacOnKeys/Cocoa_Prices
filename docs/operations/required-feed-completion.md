@@ -1,9 +1,9 @@
 # Required-feed completion and source eligibility
 
-Checklist item 13, branch `codex/required-feed-completion`. Implementation,
-credential-free checks and native isolated GCS/BigQuery validation pass. Live DAG
-installation and the controlled production rejection check remain pending.
-Serving outputs remain the restored October 28 release; the DAG is paused.
+Checklist item 13, branch `codex/required-feed-completion`. Deployed and verified on 2026-10-29. All credential-free and native isolated
+checks passed. A controlled live run rejected the actual eight-day NASA gap
+before SQL; the six October 28 serving tables and model remain unchanged.
+The DAG is now unpaused with the required gate enforcing the existing limit.
 
 All three feeds are mandatory under the [service contract](service-contract.md).
 The previous increasing-timestamp/one-row predicate, soft-fail sensor timeout and
@@ -95,7 +95,7 @@ actual identity-v1 samples. Candidate SHA-256:
 `59551d0f1fdbf33dd83cc7d805dd420ebf412e619a98ebc26cbcbfd193d877b8`.
 The staged file location was checked explicitly to prevent DagBag fallback to
 an installed older DAG; candidate bytes were transferred with compression to
-fit Windows command limits. The live DAG has not yet been replaced.
+fit Windows command limits. The identical candidate is now installed at the stable live path.
 
 The [isolated validation helper](../../scripts/diagnostics/validate_required_feeds.py)
 created bucket/dataset namespace `20261029_2039893f`. The actual candidate gate ran
@@ -110,3 +110,50 @@ no temporary or production IAM grant was introduced.
 No hosted CI, rendered BI, achieved SLO, generic release atomicity or improved
 forecast accuracy is claimed. The current NASA delay must remain visible and
 blocked; changing the seven-day limit would require the owner's acceptance.
+
+
+## Live deployment and rejection proof
+
+Implementation `83c9638`. Only the DAG and its non-secret completion-timeout
+configuration changed; all four function source archives were re-read and matched
+the unchanged Python 3.11 packages byte-for-byte. No producer/consumer, schema,
+Beam, topic, SQL procedure, model or IAM deployment was needed. The file was
+replaced atomically with UID 1001/GID 0/mode 0644, then parsed in the actual
+container. Scheduler adoption was verified through Airflow 2.10.2's
+SerializedDagModel record, using the required ALL_SUCCESS rule and one-minute
+sensor execution limits. An initial verification helper used an unsupported
+serialized-DAG API; that helper was corrected while scheduling remained paused.
+
+Run `required_feeds__83c9638__20261029` executed 11:11:02-11:11:53 UTC
+(12:11 Berlin), explicitly marked engineering validation. Capture and all three
+producer triggers succeeded. Cocoa and EIA completion gates passed. Weather
+failed permanently because its latest valid precipitation remained eight days
+old, above seven. The settle, BigQuery pipeline and summary tasks became
+upstream_failed; the DAG correctly became failed. No pipeline job was submitted.
+All six serving row counts/fingerprints and the model etag are unchanged, and the
+SQL procedure hash is unchanged. The October 28 outputs remain visible; this
+is a verified rejection, not a failed implementation or a current release claim.
+
+The DAG is unpaused and idle, with its next normal opportunity October 29 at
+18:00 UTC. A still-stale source will fail the gate rather than refresh outputs.
+The VM is temporarily running for consecutive item 14 maintenance; legacy daily
+Beam units remain disabled/inactive. Both Terraform roots have no drift and
+inventory remains 112 managed resources. No sustained delivery or alert receipt
+has been demonstrated.
+
+Held DAG source/rollback objects and the complete manifest are under
+`gs://raw-historic-data/operations/2026-10-29/required-feeds-83c9638/`.
+The before-source SHA-256 is
+`fe1f8863e451f8fae09db5c218daebca0debe00c4833d6b1dc7b2da71633e0ba`;
+the installed source SHA-256 is recorded above. Exact generations, all isolated
+outcomes/removal, effective native policy, controlled task states/rejection,
+source proof references and unchanged serving state are retained in the manifest.
+Generation `1793272773145000`, SHA-256
+`1fc27cfd5835f11e8bac5af591e598d15608657e68d35cba673d9867b10c1d5d`.
+
+For recovery, pause/confirm no active run before changing the DAG. Preserve the
+accepted source-age policy and October 28 serving data; do not resume the older
+permissive DAG merely to obtain a green run. The exact prior file is root-only
+at `/opt/airflow/releases/required-feeds-20261029/cocoa_daily.before.py` and held
+in GCS. Restore a compatible corrected gate and validate native parsing, complete
+and rejected source cases, serving bytes and scheduler adoption before unpausing.

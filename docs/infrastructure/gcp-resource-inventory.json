@@ -1,6 +1,6 @@
 {
-  "verified_at": "2026-10-29T09:42:32.471709+00:00",
-  "verification": "Live no-change plans after acquisition coverage promotion, verified four Python 3.11 source packages and three durable coverage settings, isolated live-source/outage/correction validation and complete ten-task production cycle, output/coverage reconciliation, NASA age breach recorded, candidate withheld and October 28 serving outputs restored; DAG paused and VM stopped; bootstrap unchanged.",
+  "verified_at": "2026-10-29T11:17:39.355487+00:00",
+  "verification": "Live no-change plans after required-feed completion gate installation; all four Python 3.11 function packages unchanged and byte-verified. Native isolated receipt/staging validation passed. A real eight-day NASA age caused the expected failed DAG run, no SQL pipeline job and unchanged October 28 serving tables/model. DAG unpaused and idle; VM temporarily running for consecutive item 14 maintenance; bootstrap unchanged.",
   "managed_instance_count": 112,
   "resources": [
     {

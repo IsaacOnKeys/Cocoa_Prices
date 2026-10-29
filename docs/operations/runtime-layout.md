@@ -110,8 +110,12 @@ acquisitions and stores publish-acknowledged inventories/progress in GCS. The
 coverage bucket settings; schemas and the consumer are unchanged. Its October 29
 cycle exposed NASA measurements eight days old, above the seven-day limit. The
 candidate was withheld and the verified October 28 serving outputs/model restored.
-The DAG is deliberately paused, with the VM stopped, until required-feed/freshness
-enforcement is installed. Successful ingestion is not current-source eligibility.
+The [required-feed gate](required-feed-completion.md) is now installed: every
+current run/attempt must have a complete matching staging inventory and valid
+measurement ages before SQL. Its controlled run rejected the eight-day NASA gap
+and left all October 28 serving tables/model unchanged. The DAG is unpaused with
+this enforcement; the VM is temporarily running for item 14 maintenance.
+Successful ingestion is not current-source eligibility.
 
 The cocoa and weather entry points and their generic installed interfaces
 remain covered by the existing packager and their own release records. The

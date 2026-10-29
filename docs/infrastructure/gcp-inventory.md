@@ -1,6 +1,6 @@
 # GCP ownership and Terraform adoption
 
-Verified 2026-10-29 after the acquisition coverage release. Main tracks 111
+Verified 2026-10-29 after required-feed gate installation. Main tracks 111
 application resource instances; bootstrap tracks one state bucket. Both roots
 returned exit 0 with live no-change plans. Three existing subscriptions use
 authenticated push; the new bounded consumer has dedicated runtime/delivery
@@ -12,8 +12,10 @@ credential/source outside active provider configuration for rollback.
 
 The latest [coverage receipt](../operations/acquisition-coverage.md) distinguishes
 successful collection from a NASA freshness breach: the October 29 candidate was
-withheld, verified October 28 outputs/model restored, and the DAG is deliberately
-paused with the VM stopped pending required-feed/freshness enforcement.
+withheld and verified October 28 outputs/model restored. The
+[required-feed gate](../operations/required-feed-completion.md) now rejects the
+eight-day NASA breach before SQL, preserving those outputs. The DAG is unpaused
+and the VM temporarily running for consecutive item 14 maintenance.
 
 This evidence is stronger than a prototype configuration, but does not prove
 that the original infrastructure was created through Terraform or that routine
