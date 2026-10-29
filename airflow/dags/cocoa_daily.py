@@ -15,7 +15,6 @@ from airflow.operators.python import PythonOperator
 from airflow.providers.google.cloud.hooks.bigquery import BigQueryHook
 from airflow.providers.google.cloud.hooks.pubsub import PubSubHook
 from airflow.providers.google.cloud.hooks.gcs import GCSHook
-from airflow.providers.google.cloud.operators.bigquery import BigQueryInsertJobOperator
 from airflow.sensors.python import PythonSensor
 from airflow.utils.trigger_rule import TriggerRule
 
@@ -24,8 +23,10 @@ TZ = pendulum.timezone("Europe/Berlin")
 
 GCP_PROJECT = Variable.get("GCP_PROJECT", default_var="cocoa-prices-430315")
 BQ_LOC = Variable.get("BQ_LOCATION", default_var="europe-west3")
-BQ_PROC = Variable.get("BQ_PROC", default_var="cocoa_related.run_daily_pipeline")
+BQ_PROC = Variable.get("BQ_PROC", default_var="analytics_delivery.run_daily_pipeline")
 BQ_PROC_FQN = f"{GCP_PROJECT}.{BQ_PROC}"
+# Deployment pins the verified routine body before installing this DAG.
+RELEASE_PROCEDURE_SHA256 = "UNDEPLOYED"
 
 BQ_STG = {
     "cocoa": Variable.get(
@@ -350,6 +351,108 @@ def make_wait_callable(feed_key: str, table_fqn: str):
     return _wait_callable
 
 
+def _release_request(ti, dag_run, procedure_body):
+    code_id = hashlib.sha256(procedure_body.encode()).hexdigest()
+    if code_id != RELEASE_PROCEDURE_SHA256:
+        raise AirflowFailException("Release procedure differs from the verified deployment pin")
+    if not re.fullmatch(r"[a-z][a-z0-9-]+\.[A-Za-z_][A-Za-z0-9_]*\.run_daily_pipeline", BQ_PROC_FQN):
+        raise AirflowFailException("Invalid release procedure configuration")
+    scope = ti.xcom_pull(task_ids="capture_baseline", key="baseline")
+    if not scope:
+        raise AirflowFailException("Current release scope is missing")
+    accepted = {}
+    for feed in SOURCE_CONTRACT:
+        source = ti.xcom_pull(task_ids=f"wait_{feed}_rows", key="accepted_source")
+        if (not source or source.get("acquisition_id") != _expected_acquisition(feed, dag_run)
+                or _utc(source["acquired_at"]) < _utc(scope["run_started_at"])):
+            raise AirflowFailException(f"{feed}: accepted current acquisition is missing")
+        accepted[feed] = source
+    release = hashlib.sha256(json.dumps([dag_run.dag_id, dag_run.run_id], separators=(",", ":")).encode()).hexdigest()
+    values = [
+        ("release", "STRING", release), ("business", "DATE", scope["business_date"]),
+        ("run", "STRING", dag_run.run_id), ("started", "TIMESTAMP", scope["run_started_at"]),
+        ("sources", "STRING", json.dumps(accepted, sort_keys=True, separators=(",", ":"))),
+        ("code", "STRING", code_id), ("stage", "STRING", None),
+    ]
+    return {"release_id": release, "code_id": code_id,
+            "query": f"CALL `{BQ_PROC_FQN}`(@release,@business,@run,@started,@sources,@code,@stage)",
+            "parameters": [{"name": name, "parameterType": {"type": kind},
+                            "parameterValue": {"value": value}} for name, kind, value in values]}
+
+
+def _same_release_job(actual, request):
+    def parameters(items):
+        result = {}
+        for item in items:
+            name, kind = item["name"], item["parameterType"]["type"]
+            if name in result:
+                return None
+            value = item.get("parameterValue", {}).get("value")
+            if value is not None and kind == "TIMESTAMP":
+                value = _utc(value).isoformat()
+            result[name] = (kind, value)
+        return result
+    return actual["query"] == request["query"] and parameters(actual.get("queryParameters", [])) == parameters(request["parameters"])
+
+
+def _run_release_job(client, request):
+    from google.api_core.exceptions import Conflict, NotFound
+    from google.cloud import bigquery
+
+    # GET job metadata omits the value key for SQL NULL; jobs.insert needs it.
+    parameters = [{**p, "parameterValue": {**p.get("parameterValue", {}),
+                   "value": p.get("parameterValue", {}).get("value")}} for p in request["parameters"]]
+    config = bigquery.QueryJobConfig.from_api_repr({
+        "jobTimeoutMs": "1200000",
+        "labels": {"app": "cocoa-prices", "component": "atomic-release", "release": request["release_id"][:32]},
+        "query": {"queryParameters": parameters, "useLegacySql": False, "maximumBytesBilled": "1073741824"},
+    })
+    retryable = {"backendError", "internalError", "rateLimitExceeded", "jobRateLimitExceeded"}
+    for attempt in range(2):
+        job_id = "cocoa_release_"+request["release_id"]+"_"+str(attempt)
+        try:
+            job = client.get_job(job_id, location=BQ_LOC, retry=None, timeout=30)
+        except NotFound:
+            try:
+                job = client.query(request["query"], job_config=config, job_id=job_id,
+                                   location=BQ_LOC, retry=None, job_retry=None, timeout=30)
+            except Conflict:
+                job = client.get_job(job_id, location=BQ_LOC, retry=None, timeout=30)
+            except Exception:
+                raise AirflowException(f"Release submission uncertain; reconcile {job_id}") from None
+        except Exception:
+            raise AirflowException(f"Release lookup unavailable; retain {job_id}") from None
+        actual = job.to_api_repr()["configuration"]["query"]
+        if not _same_release_job(actual, request):
+            raise AirflowFailException("Release job identity is already bound to a different request")
+        if job.state == "DONE" and job.error_result:
+            if job.error_result.get("reason") in retryable:
+                continue
+            raise AirflowFailException(f"Release job failed its contract: {job_id}")
+        try:
+            rows = list(job.result(timeout=1260, job_retry=None))
+        except Exception:
+            raise AirflowException(f"Release did not confirm completion; reattach {job_id}") from None
+        if len(rows) != 1 or rows[0]["release_id"] != request["release_id"] or rows[0]["status"] != "published":
+            raise AirflowFailException("Release result does not confirm a completed publication")
+        return {**{key: (value.isoformat() if isinstance(value, (date, datetime)) else value)
+                   for key, value in dict(rows[0]).items()}, "job_id": job_id, "code_id": request["code_id"]}
+    raise AirflowFailException("Release exhausted its two confirmed execution attempts")
+
+
+def run_release_fn(ti, dag_run):
+    client = BigQueryHook(gcp_conn_id="gcp_default", location=BQ_LOC).get_client(project_id=GCP_PROJECT, location=BQ_LOC)
+    try:
+        body = client.get_routine(BQ_PROC_FQN, retry=None, timeout=30).body
+    except Exception:
+        raise AirflowException("Verified release procedure is unavailable") from None
+    request = _release_request(ti, dag_run, body)
+    ti.xcom_push(key="release_request", value={"release_id": request["release_id"], "code_id": request["code_id"]})
+    result = _run_release_job(client, request)
+    ti.log.info("Published release %s with model %s in job %s", result["release_id"], result["model_id"], result["job_id"])
+    return result
+
+
 # ===== DAG =====
 with DAG(
     dag_id="cocoa_daily",
@@ -397,14 +500,12 @@ with DAG(
 
         wait_tasks.append(wait_rows)
 
-    run_bq_pipeline = BigQueryInsertJobOperator(
+    run_bq_pipeline = PythonOperator(
         task_id="run_bq_pipeline",
-        gcp_conn_id="gcp_default",
-        configuration={
-            "query": {"query": f"CALL `{BQ_PROC_FQN}`();", "useLegacySql": False}
-        },
-        location=BQ_LOC,
-        retries=2,
+        python_callable=run_release_fn,
+        execution_timeout=timedelta(minutes=22),
+        retries=1,
+        retry_delay=timedelta(seconds=30),
         trigger_rule=TriggerRule.ALL_SUCCESS,
     )
 

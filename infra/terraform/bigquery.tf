@@ -4,12 +4,14 @@ locals {
     "cocoa_related_studio",
     "models",
     "stream_staging",
+    "analytics_delivery",
   ])
 
   airflow_writer_datasets = toset([
     "cocoa_related",
     "models",
     "stream_staging",
+    "analytics_delivery",
   ])
 }
 
