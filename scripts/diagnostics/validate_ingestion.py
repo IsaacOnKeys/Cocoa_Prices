@@ -6,12 +6,11 @@ import io
 import json
 import os
 import re
-import runpy
 import shutil
 import subprocess
 import time
 import uuid
-from datetime import datetime, timedelta, timezone
+from datetime import datetime, timezone
 from pathlib import Path
 
 import fastavro
@@ -298,91 +297,15 @@ def exercise_timestamps(path, credential):
 
 
 def identity_merge_sql(feed, token):
-    """Use the actual curated MERGE, allowing only guarded temporary destinations."""
+    """Retired direct-MERGE validation cannot bypass release publication."""
     if feed not in TABLES or not re.fullmatch(r"[0-9]{8}_[0-9a-f]{8}", token):
         raise ValueError("Invalid isolated merge namespace")
-    dataset = f"{PROJECT}.ingestion_validation_{token}"
-    targets = {"cocoa": "cocoa", "oil": "brent_prices", "weather": "precipitation"}
-    production = f"`{PROJECT}.cocoa_related.{targets[feed]}`"
-    source = f"`{PROJECT}.stream_staging.{TABLES[feed]}`"
-    text = (ROOT / "sql/procedures/run_daily_pipeline.sql").read_text(encoding="utf-8-sig")
-    matches = [s for s in re.findall(r"MERGE\s+.*?;", text, re.DOTALL) if s.startswith("MERGE " + production + " ")]
-    if len(matches) != 1 or source not in matches[0]:
-        raise ValueError("Curated SQL changed; reconcile the isolated validation contract")
-    destination = f"{dataset}.identity_curated_{feed}"
-    sql = matches[0].replace(production, f"`{destination}`").replace(
-        source, f"(SELECT * FROM `{dataset}.{TABLES[feed]}` WHERE JSON_VALUE(raw_payload, '$.case')='identity')"
-    )
-    if f"`{PROJECT}.cocoa_related." in sql or f"`{PROJECT}.stream_staging." in sql:
-        raise ValueError("Refusing a live source or destination in validation DML")
-    return destination, sql
+    raise RuntimeError("Direct MERGE validation is retired; use validate_atomic_delivery.py for frozen-input publication and recovery")
 
 
 def exercise_identities(path, credential):
-    """Prove republish/revision identity and actual MERGE behavior, without live writes."""
-    from google.cloud import bigquery, pubsub_v1
-
-    state = checked_state(path)
-    if not state.get("passed"):
-        raise ValueError("Run the authenticated delivery/sink-recovery verification first")
-    if state.get("identity_cases"):
-        raise ValueError("Identity exercise already started; inspect its receipt instead of republishing")
-    bq = bigquery.Client(project=PROJECT, credentials=credential, location="europe-west3")
-    if bq.get_dataset(state["dataset"]).labels.get("purpose") != "ingestion-validation":
-        raise ValueError("Dataset does not carry the isolated validation label")
-    publisher = pubsub_v1.PublisherClient(credentials=credential)
-    policy = runpy.run_path(str(ROOT / "functions/shared/request_policy.py"))
-    sources = {"cocoa": "ICCO", "oil": "EIA", "weather": "NASA_POWER"}
-    targets = {"cocoa": "cocoa", "oil": "brent_prices", "weather": "precipitation"}
-    projections = {"cocoa": "Euro_Price AS cocoa_price", "oil": "brent_price_eu AS oil_price",
-                   "weather": "precipitation, soil_moisture"}
-    state["identity_cases"] = {}
-    path.write_text(json.dumps(state, indent=2))
-    for feed, values in MEASUREMENTS.items():
-        acquired = datetime.now(timezone.utc)
-        corrected = {**values, next(iter(values)): next(iter(values.values())) + 1.0}
-        acquisition = policy["acquisition_identity"](sources[feed], key=state["token"] + ":identity:" + feed)
-        ids = []
-        # Newer correction first; older duplicate observations arrive afterwards.
-        for measurements, instant in ((corrected, acquired + timedelta(seconds=1)), (values, acquired), (values, acquired)):
-            record = {"date": "2026-10-20", **measurements, "ingestion_time": instant.isoformat(),
-                      "raw_payload": json.dumps({"validation": state["token"], "case": "identity"})}
-            buffer = io.BytesIO()
-            fastavro.schemaless_writer(buffer, json.loads((ROOT / "schemas" / f"{feed}_schema.avsc").read_bytes()), record)
-            observation = policy["observation_identity"](sources[feed], record["date"], measurements)
-            topic = state["subscriptions"][feed].replace("/subscriptions/", "/topics/")
-            ids.append(publisher.publish(topic, buffer.getvalue(), googclient_schemaencoding="BINARY",
-                                         acquisition_id=acquisition, observation_id=observation).result(timeout=30))
-        state["identity_cases"][feed] = {"acquisition_id": acquisition, "message_ids": ids, "expected": corrected}
-        path.write_text(json.dumps(state, indent=2))
-        deadline = time.monotonic() + 180
-        rows = []
-        while time.monotonic() < deadline:
-            rows = list(bq.query(f"SELECT * FROM `{state['dataset']}.{TABLES[feed]}` WHERE acquisition_id='{acquisition}'",
-                                 job_config=bigquery.QueryJobConfig(maximum_bytes_billed=1_073_741_824)).result(timeout=60))
-            if len(rows) >= 3 and {r['pubsub_message_id'] for r in rows} == set(ids):
-                break
-            time.sleep(5)
-        assert len(rows) >= 3 and {r['pubsub_message_id'] for r in rows} == set(ids)
-        assert len({r['delivery_id'] for r in rows}) == 3 and len({r['observation_id'] for r in rows}) == 2
-        for row in rows:
-            expected = hashlib.sha256(f"{state['subscriptions'][feed]}\0{row['pubsub_message_id']}".encode()).hexdigest()
-            assert row['delivery_id'] == expected and row['timestamp_status'] == 'valid'
-        destination, merge = identity_merge_sql(feed, state['token'])
-        bq.create_table(bigquery.Table(destination, schema=bq.get_table(f"{PROJECT}.cocoa_related.{targets[feed]}").schema))
-        jobs = []
-        for _ in range(2):
-            job = bq.query(merge, job_config=bigquery.QueryJobConfig(maximum_bytes_billed=1_073_741_824))
-            list(job.result(timeout=60))
-            jobs.append(job.job_id)
-        result = list(bq.query(f"SELECT {projections[feed]} FROM `{destination}`").result(timeout=60))
-        assert len(result) == 1 and dict(result[0]) == corrected
-        state['identity_cases'][feed].update(staging_rows=len(rows), distinct_transport_messages=3, observation_revisions=2, curated_rows_after_repeated_merge=1,
-                                           latest_value_matches=True, merge_jobs=jobs)
-        path.write_text(json.dumps(state, indent=2))
-    state['identity_checks_passed'] = True
-    path.write_text(json.dumps(state, indent=2))
-    print(json.dumps({'identity_checks_passed': True, 'feeds': state['identity_cases'], 'production_writes': 0}))
+    """Refuse the obsolete workflow before publishing probe messages or writing data."""
+    raise RuntimeError("Direct MERGE validation is retired; use validate_atomic_delivery.py for frozen-input publication and recovery")
 
 
 def cleanup(path, credential):

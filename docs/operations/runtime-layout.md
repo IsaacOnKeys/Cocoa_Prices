@@ -37,6 +37,14 @@ cocoa-airflow:2.10.2-python3.11-81c665f; the prior image/configuration are retai
 configuration, secrets and metadata must be checked at cutover; a Git branch
 does not isolate deployed resources or change Airflow Variables.
 
+The nine-task DAG calls `analytics_delivery.run_daily_pipeline` after all three
+required-feed gates. Its installed source pins the routine-body SHA256 and
+reattaches deterministic BigQuery jobs after uncertain responses. The explicit
+`BQ_PROC` Variable now selects that procedure; the former zero-argument entrypoint
+refuses direct publication. Registry/frozen inputs/artifacts are in the scoped
+delivery dataset, and `cocoa_related_studio.release_status` identifies the accepted
+release/model. See [atomic release and rollback](atomic-analytics-release.md).
+
 Repository helper scripts resolve the checkout root. The systemd unit files
 are installation/rollback references; daily startup no longer enables Beam.
 Moving a source file does not install it on the VM.

@@ -3,13 +3,13 @@
 The trained model is scored with ML.PREDICT. Each input row at date t produces
 a prediction for date t + 40 calendar days.
 
-**Implementation:** [recent-row forecasts](../procedures/run_daily_pipeline.sql#L130-L143)
-and [full-history scoring for evaluation](../procedures/run_daily_pipeline.sql#L145-L157).
+**Implementation:** [candidate forecasts and historical scoring](../procedures/run_analytics_release.sql).
 
 ## Forecast output
 
-Inputs are models.cocoa_linreg_40 and the most recent 40 calendar rows from
-cocoa_related.features_live. The input selection removes target_40.
+Inputs are the release-specific model and most recent 40 frozen candidate
+feature rows. The input selection removes target_40. The model identity is
+retained in analytics_delivery.release_runs and the active release_status view.
 
 The output table cocoa_related.forecast_40d contains:
 

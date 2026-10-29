@@ -1,64 +1,40 @@
-# Curated data to evaluation
+# Analytics release SQL
 
-The folder structure makes the conceptual sequence explicit:
+The canonical release procedure is
+[run_analytics_release.sql](procedures/run_analytics_release.sql). Render validated
+identifiers with [render_delivery_sql.py](../scripts/deploy/render_delivery_sql.py).
+Airflow calls `analytics_delivery.run_daily_pipeline` with a logical release,
+business date, exact accepted acquisitions and a verified procedure-body hash.
 
-~~~text
-sql/
-  01_curated_data/          MERGE, calendar alignment, forward fill
-  02_feature_engineering/   price lags, oil/weather windows, calendar, target
-  03_model_training/        BigQuery ML linear regression
-  04_prediction/            40-day forecasts and historical scoring
-  05_evaluation/            actual-price alignment, MAPE, backtest limitations
-  procedures/
-    run_daily_pipeline.sql
-~~~
+The procedure freezes its input snapshot, builds candidates and a versioned
+model, retains artifacts, then commits all six serving tables and the active
+release marker in one DML transaction. Permanent model/table creation stays
+outside that transaction. The old [zero-argument entrypoint](procedures/run_daily_pipeline.sql)
+explicitly refuses direct publication. Its previous definition remains in Git
+history and the cutover recovery archive.
 
-[Curated data](01_curated_data/README.md) ->
-[feature engineering](02_feature_engineering/README.md) ->
-[model training](03_model_training/README.md) ->
-[prediction](04_prediction/README.md) ->
-[backtesting / evaluation](05_evaluation/README.md).
+| Stage | Implementation / behavior |
+| --- | --- |
+| [1. Curated data](01_curated_data/README.md) | Frozen curated baseline plus the accepted current acquisition; candidate source series and daily join |
+| [2. Features](02_feature_engineering/README.md) | Current price, 1/7/28-day lags, seven-row means, calendar and 40-day label |
+| [3. Model](03_model_training/README.md) | A retained `models.cocoa_release_<release_id>` trained from frozen candidate features |
+| [4. Prediction](04_prediction/README.md) | Forty unique future dates and historical scores from that model |
+| [5. Evaluation](05_evaluation/README.md) | Existing fitted-model historical error; chronological evaluation remains separate work |
 
-Each numbered directory explains its stage's inputs, outputs and decisions,
-with direct links to the implementing statements. These directories provide
-the conceptual review order. Execution remains in the single canonical
-[run_daily_pipeline.sql](procedures/run_daily_pipeline.sql) procedure.
+[020_atomic_delivery.sql](migrations/020_atomic_delivery.sql) creates permanent
+release-control/artifact tables. The [explicit bootstrap](migrations/020_atomic_delivery_bootstrap.sql)
+seeds an independently verified baseline without inventing publication times.
+[Rollback](procedures/rollback_analytics_release.sql) verifies the current marker
+and retained fingerprints before restoring all six tables atomically.
+[Serving views](serving/analytics_delivery.sql) bind freshness and model/status
+metadata to the accepted release, including the corrected EIA supplier label.
 
-| Stage | Input | Output | Implementation |
-| --- | --- | --- | --- |
-| [1. Curated data](01_curated_data/README.md) | Historical base tables and daily staging | Curated base tables; joined_daily_cocoa_oil_weather | [SQL stages 1-2](procedures/run_daily_pipeline.sql#L4-L87) |
-| [2. Feature engineering](02_feature_engineering/README.md) | Aligned daily prices and weather | features_live: current price, 1/7/28-day lags, inclusive seven-row oil/weather means, weekday/month, target_40 | [SQL stage 3](procedures/run_daily_pipeline.sql#L90-L113) |
-| [3. Model training](03_model_training/README.md) | Engineered predictors and observed target_40 labels | models.cocoa_linreg_40 | [SQL stage 4](procedures/run_daily_pipeline.sql#L115-L128) |
-| [4. Prediction](04_prediction/README.md) | Model and recent/full-history feature rows | forecast_40d and historical scores | [SQL stages 5-6](procedures/run_daily_pipeline.sql#L130-L157) |
-| [5. Backtesting / evaluation](05_evaluation/README.md) | Historical scores and observed prices | pred_hist_40d; mape_40d | [SQL stages 6-7](procedures/run_daily_pipeline.sql#L145-L172) |
+The stable `features_live` and `mape_40d` views continue to read accepted serving
+tables; candidate training never reads a partially updated live view. Read
+`cocoa_related_studio.release_status` for the active release/model identity.
+The legacy `models.cocoa_linreg_40` remains preserved for the verified baseline.
 
-The horizon is 40 calendar days because the joined input has one row per
-calendar date. Historical scoring uses a separate ML.PREDICT call across the
-full feature history; evaluation does not consume the recent forecast_40d table.
-
-The current historical predictions and MAPE reuse the fitted model and are
-not a rigorous chronological out-of-sample backtest. The
-[evaluation stage](05_evaluation/README.md) explains this boundary explicitly.
-
-## Runtime and source reconciliation
-
-Airflow calls the deployed
-cocoa-prices-430315.cocoa_related.run_daily_pipeline procedure by FQN.
-It does not read this source filename or the numbered directories.
-
-The initial directory migration preserved the original repository SQL with
-SHA-256:
-
-~~~text
-bf8d85aa80ff4f58fa08516fc83a35fe454d9e00841ba75f382205959502a43a
-~~~
-
-Live release validation on 2026-10-27 found that the deployed procedure already
-used a calendar from 2014-01-02 through CURRENT_DATE() and converted weather
-sentinels (-999.0) to null before forward fill. The repository source was
-reconciled with that existing deployed definition; executable SQL tokens match
-after comments, whitespace and the final delimiter are normalized.
-
-No SQL fragments, renderer, duplicate maintained definitions, model changes
-or BigQuery procedure deployment were introduced. Airflow continues to execute
-the existing deployed procedure.
+See [atomic publication and validation](../docs/operations/atomic-analytics-release.md)
+for deployment, recovery, native failure injection and remaining quality/model
+boundaries. The dated [October 27 receipt](../docs/operations/release-validation-2026-10-27.md)
+describes the earlier procedure and remains historical evidence.

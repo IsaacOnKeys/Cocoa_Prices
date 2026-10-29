@@ -1,8 +1,9 @@
 # Atomic analytics publication
 
-Checklist item 20, branch `codex/atomic-analytics-release`. This supplies the
+Checklist item 20, branch `codex/atomic-analytics-release`; implementation
+`d637268`, verified procedure pin `6eb703e`. This supplies the
 publication boundary needed before completing recurring candidate quality gates
-in item 15. Deployment acceptance is recorded below after cutover validation.
+in item 15. Native and production validation completed 2026-10-29.
 
 `analytics_delivery` holds the current release marker, run registry, immutable
 application input snapshots, candidate artifacts and recovery events. The nine
@@ -104,8 +105,43 @@ Three temporary dataset writer grants were removed afterward. The native check
 also caught omitted null values in GET-job metadata; insertion now restores an
 explicit typed NULL, covered by a regression test.
 
-The regular October 29 scheduled production run accepted cocoa/oil and rejected
-weather before SQL. This is evidence of withholding; it is not a fresh compliant
-release. Native fixtures prove publication mechanics, not supplier availability,
-chronological predictive accuracy or rendered BI behavior. Production cutover,
-cleanup, exact hashes and final check counts are still pending.
+The regular October 29 scheduled run and controlled production run
+`atomic_release__d637268__20261029` accepted cocoa/oil and rejected NASA
+precipitation age 8 > 7 before SQL. The controlled run lasted
+21:04:46.238321–21:05:14.957556 UTC. All six serving fingerprints and the accepted
+legacy model ETag remained unchanged; six independent recovery snapshots were
+verified. The baseline marker is
+`4613dfe7e426c965eed6985ab7d5a0bbb016200de71ca07fa300fa7312e09ee3`,
+business date October 28, without invented publication/acquisition times.
+The EIA freshness label/schema and three BI data views were queried successfully.
+The retired procedure was called only after verifying its refusal-only body and
+refused execution as expected.
+
+The installed DAG hash is
+`e6e5aa27cf08040f238f59e3b993a6fb893e872d8fe20a6c22d10823deb286d1`;
+its verified routine-body pin is
+`170a4862894fb68950fd5c28c2e0c9a21abe5c4cf798f39aac10c9c39f3b92a2`.
+The native-tested adapter functions are unchanged by pinning. An initial
+installation guard encountered a pause-state mismatch, with no active run;
+maintenance reasserted the pause and verified it before serialization/trigger.
+No data was published through that mismatch. The final DAG is unpaused/idle,
+legacy daily Beam units remain disabled and the maintenance VM is restored to
+its previous stopped state. PostgreSQL/Fernet and image/dependency versions are
+preserved. The former direct-MERGE diagnostic now fails before probe IO and
+points to the new atomic validation workflow.
+
+All 489 credential-free tests, Ruff, 70 Python and five Bash syntax checks, and
+Terraform format/validation checks passed. Both roots have no drift and track
+122 resources including bootstrap. Three disposable validation datasets/models
+and temporary runtime grants were removed. Protected serving snapshots remain in
+`cocoa-prices-430315.atomic_delivery_recovery_20261029_d637268`. Held source,
+previous runtime/SQL/view definitions and complete native/production receipts are
+under `gs://raw-historic-data/operations/2026-10-29/atomic-d637268/`; exact manifest
+generation and SHA256 are in the ignored parent checklist and private state.
+
+This proves withholding and publication mechanics; it is not a fresh compliant
+release, achieved overall service level, chronological predictive result or
+rendered BI acceptance. Production source eligibility prevented a current-day
+successful publication; positive atomic publication and rollback were exercised
+in actual isolated BigQuery resources. More extensive quality, imputation,
+revision, manifest/evaluation and BI work remain their numbered checklist items.

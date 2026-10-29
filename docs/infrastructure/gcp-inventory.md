@@ -1,6 +1,6 @@
 # GCP ownership and Terraform adoption
 
-Verified 2026-10-29 after dead-letter recovery deployment. Main tracks 119
+Verified 2026-10-29 after atomic release deployment. Main tracks 121
 application resource instances; bootstrap tracks one state bucket. Both roots
 returned exit 0 with live no-change plans. Three existing subscriptions use
 authenticated push; the new bounded consumer has dedicated runtime/delivery
@@ -15,7 +15,7 @@ successful collection from a NASA freshness breach: the October 29 candidate was
 withheld and verified October 28 outputs/model restored. The
 [required-feed gate](../operations/required-feed-completion.md) now rejects the
 eight-day NASA breach before SQL, preserving those outputs. The DAG is unpaused
-and the VM running in its normal scheduled window. The
+and the maintenance VM restored to stopped outside its scheduled window. The
 [nine-task DAG](../operations/ingestion-completion.md) directly requires all three
 completion gates before SQL; the obsolete interval-based sleep is removed.
 
@@ -29,7 +29,12 @@ was needed. The [dead-letter recovery receipt](../operations/dead-letter-recover
 adds a separate export bucket, two bucket IAM members, two console alert policies
 and one dashboard; the five existing DLQ subscriptions now export native Avro.
 Replay ledgers remain in the raw bucket, outside the export agent's grants and
-automatic lifecycle. The current inventory contains 120 managed resources.
+automatic lifecycle. Atomic publication adds the analytics_delivery dataset and
+one scoped Airflow writer grant. Its application-owned registry, frozen inputs,
+artifacts and rollback routines preserve the six serving interfaces. The
+[atomic release receipt](../operations/atomic-analytics-release.md) records native
+failure injection, model-preserving retries and controlled source withholding.
+The current inventory contains 122 managed resources.
 
 This evidence is stronger than a prototype configuration, but does not prove
 that the original infrastructure was created through Terraform or that routine
@@ -39,8 +44,8 @@ deployments historically used it.
 
 | Root | Terraform resource type | Instances |
 | --- | --- | ---: |
-| main | `google_bigquery_dataset` | 4 |
-| main | `google_bigquery_dataset_iam_member` | 4 |
+| main | `google_bigquery_dataset` | 5 |
+| main | `google_bigquery_dataset_iam_member` | 5 |
 | main | `google_cloud_run_v2_service_iam_member` | 5 |
 | main | `google_cloud_scheduler_job` | 2 |
 | main | `google_cloudfunctions2_function` | 4 |
@@ -63,7 +68,7 @@ deployments historically used it.
 | bootstrap | `google_storage_bucket` | 1 |
 
 
-The [refreshed inventory](gcp-resource-inventory.json) lists 120 managed addresses
+The [refreshed inventory](gcp-resource-inventory.json) lists 122 managed addresses
 and external IDs, including bootstrap, plus its exact historical baseline link.
 It is not a Terraform state file. Credentials/private state remain outside Git.
 
@@ -75,7 +80,7 @@ It is not a Terraform state file. Credentials/private state remain outside Git.
 | Pub/Sub | Three Avro schemas, eleven topics and eleven subscriptions in Terraform: three daily push, two source transports, five native Avro dead-letter exports and one retained validation subscription. Five delivery policies and ten resource-scoped forwarding grants were verified. Temporary test routes were removed. |
 | Cloud Functions Gen2 | Three producer functions and one bounded staging consumer with runtime/trigger/resource settings in Terraform. Application deployments own source archive generations. |
 | Cloud Run / Eventarc | Function-created services and event triggers stay Gen2-owned. Terraform imports source transport subscriptions for retry/dead-letter policies, preserving Eventarc push routing/labels, and owns explicit invoker grants. Reconcile transport names after any trigger replacement. |
-| BigQuery | Four datasets and additive dataset IAM in Terraform. Application consumers/backfills/SQL own tables, views, procedures, models and data. |
+| BigQuery | Five datasets and additive dataset IAM in Terraform, including analytics_delivery and its scoped writer. Application consumers/backfills/release SQL own tables, views, procedures, models, snapshots and data. |
 | Cloud Storage | Three application buckets and bucket IAM in main state, including dedicated dead-letter export storage; backend bucket in bootstrap. Historical snapshot objects, recovery ledgers and holds are application data artifacts, not Terraform-managed objects. |
 | Secret Manager | Two active secret containers and accessor IAM in Terraform; prior oil credential container retained externally for rollback. Secret payloads/versions remain outside source and state ownership. |
 | Cloud Scheduler | Two jobs in Terraform: VM start at 18:30 and stop at 20:30, Europe/Berlin, daily. Airflow schedules the DAG at 19:00 Monday-Friday. |

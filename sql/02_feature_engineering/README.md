@@ -3,10 +3,11 @@
 This stage turns the aligned daily cocoa, oil, and weather series into the
 model's inputs and its 40-day-ahead supervised target.
 
-**Implementation:** [feature expressions in the canonical procedure](../procedures/run_daily_pipeline.sql#L90-L113).
+**Implementation:** [feature expressions in the canonical procedure](../procedures/run_analytics_release.sql).
 
 **Input:** cocoa_related.joined_daily_cocoa_oil_weather.
-**Output:** cocoa_related.features_live, a BigQuery view.
+**Output:** isolated candidate features retained in analytics_delivery.features;
+the stable cocoa_related.features_live view reads the accepted serving release.
 
 ## Feature definitions
 
@@ -40,7 +41,7 @@ These are characteristics of the existing feature construction that matter
 when interpreting the model.
 
 The final 40 daily rows have no observed target_40 and are excluded from
-training. They remain available for prediction. Training selects all view
+training. They remain available for prediction. Training selects the frozen candidate feature
 columns except date, with target_40 designated as the label.
 
 ## Evaluation boundary

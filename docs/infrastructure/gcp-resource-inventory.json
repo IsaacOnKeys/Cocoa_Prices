@@ -1,8 +1,13 @@
 {
-  "verified_at": "2026-10-29T17:37:22.097613+00:00",
-  "verification": "Live no-change plans after native dead-letter export and bounded operator replay. Five existing recovery subscriptions export to a dedicated versioned bucket with supported bucket-level service-agent grants; replay ledgers remain in the separate raw bucket. Two console alert policies and a three-chart dashboard are managed. Source/consumer revisions and BigQuery serving outputs/model remain unchanged. The scheduled VM is running normally; DAG unpaused and idle at the checkpoint. Isolated poison/storage-denial/replay proof is described in docs/operations/dead-letter-recovery.md.",
-  "managed_instance_count": 120,
+  "verified_at": "2026-10-29T21:12:39.709876+00:00",
+  "verification": "Live no-change plans after atomic analytics publication deployment. The new analytics_delivery dataset has one scoped Airflow writer grant; application SQL owns its registry, frozen inputs, versioned artifacts and rollback procedures. Pinned nine-task Python 3.11 DAG installed. Native isolated SQL failure/rollback proofs and actual Airflow SDK reattachment passed. Controlled production acquisition rejected NASA age 8 > 7 before SQL, retaining all six October 28 serving fingerprints and the legacy model. BI freshness now follows the accepted release and labels EIA correctly. Temporary validation datasets and runtime grants removed; DAG unpaused/idle at checkpoint and maintenance VM restored to stopped.",
+  "managed_instance_count": 122,
   "resources": [
+    {
+      "root": "main",
+      "address": "google_bigquery_dataset.datasets[\"analytics_delivery\"]",
+      "id": "projects/cocoa-prices-430315/datasets/analytics_delivery"
+    },
     {
       "root": "main",
       "address": "google_bigquery_dataset.datasets[\"cocoa_related\"]",
@@ -22,6 +27,11 @@
       "root": "main",
       "address": "google_bigquery_dataset.datasets[\"stream_staging\"]",
       "id": "projects/cocoa-prices-430315/datasets/stream_staging"
+    },
+    {
+      "root": "main",
+      "address": "google_bigquery_dataset_iam_member.airflow_writer[\"analytics_delivery\"]",
+      "id": "projects/cocoa-prices-430315/datasets/analytics_delivery/roles/bigquery.dataEditor/serviceAccount:airflow-orchestrator@cocoa-prices-430315.iam.gserviceaccount.com"
     },
     {
       "root": "main",
@@ -604,6 +614,6 @@
       "id": "cocoa-prices-430315-terraform-state"
     }
   ],
-  "external_retained_rollback_resources": "Acquisition coverage recovery snapshots/model are in cocoa-prices-430315.acquisition_coverage_recovery_20261029_e28a43d and held source/rollback archives and manifest are described in docs/operations/acquisition-coverage.md. Retry/delivery recovery snapshots/model are in cocoa-prices-430315.retry_delivery_recovery_20261029_94fe21e and held source/rollback archives and manifest are described in docs/operations/retry-delivery.md. Producer failure-signal recovery snapshots/model are in cocoa-prices-430315.producer_failure_recovery_20261028_e654122 and held producer rollback archives/manifest are described in docs/operations/producer-failure-signals.md. Python 3.11 recovery snapshots/model are in cocoa-prices-430315.python311_recovery_20261028_81227170; exact image/configuration/package evidence and held source bundle are described in docs/operations/python311-runtime.md. Prior oil credential/source, dated archives and disabled VM Beam units remain preserved for rollback; The Cocoa repair dataset cocoa-prices-430315.cocoa_date_repair_20261028_569854f4 and held repair evidence are application recovery artifacts outside Terraform ownership; Held prior timestamp source artifacts are retained under raw-historic-data/operations/2026-10-28/timestamp-provenance-39b935d/; see docs/operations/timestamp-provenance.md, docs/operations/cocoa-date-correction.md, docs/operations/eia-cutover.md and docs/operations/ingestion-cutover.md.",
+  "external_retained_rollback_resources": "Atomic publication baseline snapshots are in cocoa-prices-430315.atomic_delivery_recovery_20261029_d637268; held source, prior DAG/procedure/view definitions and completion manifest are described in docs/operations/atomic-analytics-release.md. Acquisition coverage recovery snapshots/model are in cocoa-prices-430315.acquisition_coverage_recovery_20261029_e28a43d and held source/rollback archives and manifest are described in docs/operations/acquisition-coverage.md. Retry/delivery recovery snapshots/model are in cocoa-prices-430315.retry_delivery_recovery_20261029_94fe21e and held source/rollback archives and manifest are described in docs/operations/retry-delivery.md. Producer failure-signal recovery snapshots/model are in cocoa-prices-430315.producer_failure_recovery_20261028_e654122 and held producer rollback archives/manifest are described in docs/operations/producer-failure-signals.md. Python 3.11 recovery snapshots/model are in cocoa-prices-430315.python311_recovery_20261028_81227170; exact image/configuration/package evidence and held source bundle are described in docs/operations/python311-runtime.md. Prior oil credential/source, dated archives and disabled VM Beam units remain preserved for rollback; The Cocoa repair dataset cocoa-prices-430315.cocoa_date_repair_20261028_569854f4 and held repair evidence are application recovery artifacts outside Terraform ownership; Held prior timestamp source artifacts are retained under raw-historic-data/operations/2026-10-28/timestamp-provenance-39b935d/; see docs/operations/timestamp-provenance.md, docs/operations/cocoa-date-correction.md, docs/operations/eia-cutover.md and docs/operations/ingestion-cutover.md.",
   "baseline_record": "https://github.com/IsaacOnKeys/Cocoa_Prices/blob/0236abaad185d1f6b475aa6f4c4a105058c95aad/docs/infrastructure/gcp-resource-inventory.json"
 }

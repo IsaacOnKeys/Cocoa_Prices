@@ -3,13 +3,13 @@
 This directory makes the evaluation stage visible while distinguishing what
 the current SQL implements from a rigorous chronological backtest.
 
-**Implementation:** [historical predictions and actual-price join](../procedures/run_daily_pipeline.sql#L145-L165)
-and [MAPE view](../procedures/run_daily_pipeline.sql#L167-L172).
+**Implementation:** [candidate historical predictions and actual alignment](../procedures/run_analytics_release.sql);
+the existing mape_40d view reads the atomically accepted prediction table.
 
 ## Current implementation
 
-Inputs are full-history predictions from models.cocoa_linreg_40 and actual
-cocoa prices from cocoa_related.features_live.
+Inputs are full-history predictions from the release-specific model and actual
+cocoa prices from that release's frozen candidate features.
 
 | Output | Contents |
 | --- | --- |
