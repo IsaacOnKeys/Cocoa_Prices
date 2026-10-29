@@ -2,21 +2,21 @@ locals {
   cloud_functions = {
     publish_price = {
       entry_point       = "publish_price"
-      source_object     = "publish_price/identity-d8da9782168b43ac011fa049e3b2c596e2095541c2f3447aa5e2261317987a12.zip"
-      source_generation = 1793230509744279
+      source_object     = "publish_price/coverage-1d52214847342e92ef807be7c63967dcb1c83e8bf64609a4d25b4f6c88f2b7c1.zip"
+      source_generation = 1793265156762701
       trigger_topic     = null
     }
     # Serving EIA producer; cutover evidence: docs/operations/eia-cutover.md.
     publish_eia_data = {
       entry_point       = "publish_eia_data"
-      source_object     = "publish_eia_data/identity-0afc4119d77149cae2b8b897e216a41b15963a0fed19e6c2f230ca57bc4d84ef.zip"
-      source_generation = 1793230510765893
+      source_object     = "publish_eia_data/coverage-0bbb0536f1aa56e73df18d90d881e67f0c084d89b9ddb09cd5c69bb2f8d9970c.zip"
+      source_generation = 1793265157435229
       trigger_topic     = "eia-oil-trigger"
     }
     publish_weather_data = {
       entry_point       = "publish_weather_data"
-      source_object     = "publish_weather_data/identity-58845cfaa53286e018d8bdee6f9fc6d8610891dbe34ff4aa75b45b1392580582.zip"
-      source_generation = 1793230511451002
+      source_object     = "publish_weather_data/coverage-bd60ddf599eefee524e15ad8b48d9213aa726b449b6ac062242be7c0cf200f54.zip"
+      source_generation = 1793265158053367
       trigger_topic     = "weather-trigger"
     }
   }

@@ -1,6 +1,6 @@
 # GCP ownership and Terraform adoption
 
-Verified 2026-10-29 after the retry and delivery release. Main tracks 111
+Verified 2026-10-29 after the acquisition coverage release. Main tracks 111
 application resource instances; bootstrap tracks one state bucket. Both roots
 returned exit 0 with live no-change plans. Three existing subscriptions use
 authenticated push; the new bounded consumer has dedicated runtime/delivery
@@ -9,6 +9,11 @@ startup units are disabled. Five delivery routes have verified dead-letter polic
 durable destinations and scoped forwarding grants. See the [delivery receipt](../operations/retry-delivery.md).
 The earlier [EIA cutover](../operations/eia-cutover.md) retained the previous oil
 credential/source outside active provider configuration for rollback.
+
+The latest [coverage receipt](../operations/acquisition-coverage.md) distinguishes
+successful collection from a NASA freshness breach: the October 29 candidate was
+withheld, verified October 28 outputs/model restored, and the DAG is deliberately
+paused with the VM stopped pending required-feed/freshness enforcement.
 
 This evidence is stronger than a prototype configuration, but does not prove
 that the original infrastructure was created through Terraform or that routine

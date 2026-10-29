@@ -103,6 +103,16 @@ canonical staging subscriptions have the same bounded forwarding policy. The
 installed DAG passes a stable run/feed acquisition key, bounds enqueue waits and
 fails trigger tasks on acquisition errors; Cocoa HEAD is read-only.
 
+The [acquisition coverage release](acquisition-coverage.md) collects all exposed
+observations in a window with 30 days of correction overlap, expands after missed
+acquisitions and stores publish-acknowledged inventories/progress in GCS. The
+90-date bound fails explicitly for controlled recovery. Production supplies both
+coverage bucket settings; schemas and the consumer are unchanged. Its October 29
+cycle exposed NASA measurements eight days old, above the seven-day limit. The
+candidate was withheld and the verified October 28 serving outputs/model restored.
+The DAG is deliberately paused, with the VM stopped, until required-feed/freshness
+enforcement is installed. Successful ingestion is not current-source eligibility.
+
 The cocoa and weather entry points and their generic installed interfaces
 remain covered by the existing packager and their own release records. The
 historical [production validation](release-validation-2026-10-27.md) records the
