@@ -123,23 +123,7 @@ BEGIN
       SELECT date,precipitation,soil_moisture FROM source_input WHERE feed='weather'
       QUALIFY ROW_NUMBER() OVER (PARTITION BY date ORDER BY kind DESC)=1;
 
-    CREATE TEMP TABLE candidate_joined AS
-    WITH raw AS (
-      SELECT d AS date,c.Euro_Price AS cocoa_price_raw,o.brent_price_eu AS oil_price_raw,
-        NULLIF(w.precipitation,-999.0) AS precipitation_raw,
-        NULLIF(w.soil_moisture,-999.0) AS soil_moisture_raw
-      FROM UNNEST(GENERATE_DATE_ARRAY(DATE '2014-01-02',p_business_date)) d
-      LEFT JOIN candidate_cocoa c ON d=c.Date
-      LEFT JOIN candidate_oil o ON d=o.date
-      LEFT JOIN candidate_weather w ON d=w.date
-    )
-    SELECT date,
-      LAST_VALUE(cocoa_price_raw IGNORE NULLS) OVER dates AS cocoa_price,
-      LAST_VALUE(oil_price_raw IGNORE NULLS) OVER dates AS oil_price,
-      LAST_VALUE(precipitation_raw IGNORE NULLS) OVER dates AS precipitation,
-      LAST_VALUE(soil_moisture_raw IGNORE NULLS) OVER dates AS soil_moisture
-    FROM raw
-    WINDOW dates AS (ORDER BY date ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW);
+    ${imputation_join}
 
     CREATE TEMP TABLE candidate_features AS
     SELECT date,cocoa_price AS y,
@@ -178,6 +162,8 @@ BEGIN
       (SELECT COUNT(*) FROM candidate_joined) AS calendar_rows,
       (SELECT COUNT(*) FROM candidate_forecast) AS forecast_rows,
       TRUE AS current_acquisitions_reconciled,TRUE AS forecast_contract_passed,
+      STRUCT('bounded_calendar_v1' AS version,7 AS cocoa_days,14 AS oil_days,
+        7 AS precipitation_days,7 AS soil_moisture_days) AS imputation_policy,
       (SELECT ARRAY_AGG(STRUCT(stage,check_name,severity,violations,detail) ORDER BY stage,check_name) FROM quality_checks) AS checks,
       (SELECT COUNTIF(severity='warning' AND violations>0) FROM quality_checks) AS warning_checks,
       (SELECT ARRAY_AGG(STRUCT(name,row_count,fingerprint) ORDER BY name) FROM (

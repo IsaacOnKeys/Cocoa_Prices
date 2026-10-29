@@ -11,7 +11,8 @@ PROBE = runpy.run_path(str(ROOT / 'scripts/diagnostics/validate_atomic_delivery.
 
 
 @pytest.mark.parametrize('kind', ['migration', 'procedure', 'rollback', 'bootstrap', 'serving_views', 'retire_legacy',
-                                'input_quality_checks', 'output_quality_checks'])
+                                'input_quality_checks', 'output_quality_checks', 'imputation_join',
+                                'imputation_view'])
 def test_isolated_sql_contains_no_production_data_destinations(kind):
     context = PROBE['names']('20261029_0123abcd')
     sql = M['render'](kind, **context)

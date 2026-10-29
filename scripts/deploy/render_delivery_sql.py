@@ -11,10 +11,12 @@ FILES = {'migration': ROOT / 'sql/migrations/020_atomic_delivery.sql',
          'procedure': ROOT / 'sql/procedures/run_analytics_release.sql',
          'rollback': ROOT / 'sql/procedures/rollback_analytics_release.sql',
          'serving_views': ROOT / 'sql/serving/analytics_delivery.sql',
+         'imputation_view': ROOT / 'sql/serving/imputation.sql',
          'retire_legacy': ROOT / 'sql/procedures/run_daily_pipeline.sql',
          'bootstrap': ROOT / 'sql/migrations/020_atomic_delivery_bootstrap.sql'}
 FRAGMENTS = {'input_quality_checks': ROOT / 'sql/quality/input_checks.sql',
-             'output_quality_checks': ROOT / 'sql/quality/output_checks.sql'}
+             'output_quality_checks': ROOT / 'sql/quality/output_checks.sql',
+             'imputation_join': ROOT / 'sql/01_curated_data/bounded_join.sql'}
 FILES.update(FRAGMENTS)
 
 
@@ -30,7 +32,7 @@ def render(kind, **identifiers):
     for key, path in FRAGMENTS.items():
         if '${'+key+'}' in text:
             text = text.replace('${'+key+'}', path.read_text(encoding='utf-8'))
-    if '${project}.${delivery}.' not in text:
+    if kind not in FRAGMENTS and '${project}.${delivery}.' not in text:
         raise ValueError('Delivery SQL must explicitly declare its target namespace')
     for key, value in context.items():
         text = text.replace('${'+key+'}', value)

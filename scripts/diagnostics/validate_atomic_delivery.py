@@ -82,7 +82,7 @@ def source_manifest(bq, state, feed, table, acquisition):
              'missing_measurements':[name for name in measures if row[name+'_missing']]} for row in rows]
 
 
-def prepare(path):
+def prepare(path, historical_gaps=False):
     from google.cloud import bigquery
 
     if path.exists():
@@ -90,7 +90,8 @@ def prepare(path):
     token = datetime.now(timezone.utc).strftime('%Y%m%d')+'_'+uuid.uuid4().hex[:8]
     fixture_time=datetime.now(timezone.utc)-timedelta(seconds=1)
     state = {'token': token, 'names': names(token), 'phase': 'preparing',
-             'business_date': fixture_time.date().isoformat(),'fixture_acquired_at':fixture_time.isoformat()}
+             'business_date': fixture_time.date().isoformat(),'fixture_acquired_at':fixture_time.isoformat(),
+             'historical_gaps':historical_gaps}
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text(json.dumps(state, indent=2))
     bq = client()
@@ -120,6 +121,17 @@ def prepare(path):
         SELECT c.Date AS prediction_date,DATE_ADD(c.Date,INTERVAL 40 DAY) AS forecast_date,c.Euro_Price+8 AS yhat_40,f.Euro_Price AS actual
         FROM `{PROJECT}.{curated}.cocoa` c LEFT JOIN `{PROJECT}.{curated}.cocoa` f ON f.Date=DATE_ADD(c.Date,INTERVAL 40 DAY);
     '''
+    if historical_gaps:
+        marker = f'CREATE TABLE `{PROJECT}.{curated}.joined_daily_cocoa_oil_weather` AS'
+        faults = f'''DELETE `{PROJECT}.{curated}.cocoa` WHERE Date BETWEEN DATE '2014-01-10' AND DATE '2014-02-05';
+          DELETE `{PROJECT}.{curated}.brent_prices` WHERE date BETWEEN DATE '2014-01-10' AND DATE '2014-02-25';
+          UPDATE `{PROJECT}.{curated}.precipitation` SET precipitation=NULL
+            WHERE date BETWEEN DATE '2014-01-10' AND DATE '2014-02-05';
+          UPDATE `{PROJECT}.{curated}.precipitation` SET soil_moisture=-999.0
+            WHERE date BETWEEN DATE '2014-01-13' AND DATE '2014-02-05';
+        '''
+        assert script.count(marker)==1
+        script=script.replace(marker,faults+marker)
     query(bq, state, script, name='seed_serving')
     for feed, table, fields in [('cocoa', 'cocoa_prices', [('cocoa_price','FLOAT64')]),
                                 ('oil', 'oil_prices', [('oil_price','FLOAT64')]),
@@ -302,6 +314,7 @@ def rollback(path):
     query(bq,state,RENDER('migration',**n),name='migration_recovery_events')
     query(bq,state,RENDER('rollback',**n),name='compile_rollback')
     query(bq,state,RENDER('serving_views',**n),name='compile_serving_status')
+    query(bq,state,RENDER('imputation_view',**n),name='compile_imputation_status')
     cli = runpy.run_path(str(ROOT/'scripts/operations/rollback_release.py'))
 
     def invoke(target, current=None, key=None, *, apply=False):
@@ -315,6 +328,23 @@ def rollback(path):
 
     current = state['release_id']
     seed = state['seed_release_id']
+
+    def imputation_report(expected,policy,stage):
+        rows=query(bq,state,f'''SELECT release_id,policy_version,COUNT(*) AS row_count,
+          COUNTIF(quality_status='expired') AS expired_rows,
+          COUNTIF(quality_status='inconsistent') AS inconsistent_rows,
+          COUNTIF(quality_status='expired' AND published_value IS NOT NULL) AS expired_present
+          FROM `{PROJECT}.{n["studio"]}.ls_series_quality` GROUP BY release_id,policy_version''',name='imputation_'+stage)
+        assert len(rows)==1 and rows[0]['release_id']==expected and rows[0]['policy_version']==policy
+        assert rows[0]['inconsistent_rows']==0
+        if policy=='bounded_calendar_v1':
+            assert rows[0]['expired_present']==0
+            if state.get('historical_gaps'):
+                assert rows[0]['expired_rows']==90
+        state.setdefault('imputation_reports',{})[stage]=rows[0]
+        return rows[0]
+
+    published_imputation=imputation_report(current,'bounded_calendar_v1','published')
     preview = invoke(seed)
     assert not preview['applied'] and preview['target']['current_release']==current
     assert fingerprints(bq,state)==state['published_fingerprints']
@@ -366,6 +396,7 @@ def rollback(path):
     save(state)
     recovered = invoke(seed,current,state['token']+'-restore-seed',apply=True)
     assert recovered['applied'] and fingerprints(bq,state)==state['baseline']
+    imputation_report(seed,'legacy_unbounded_or_unknown','rollback')
     repeated = invoke(seed,current,state['token']+'-restore-seed',apply=True)
     assert repeated['job_id']==recovered['job_id'] and fingerprints(bq,state)==state['baseline']
     try:
@@ -409,6 +440,7 @@ def rollback(path):
           params=[*params,bigquery.ScalarQueryParameter('value','FLOAT64',backup['forecast_cocoa_price'])],name='restore_retained_candidate')
     final = invoke(current,seed,state['token']+'-restore-published',apply=True)
     assert final['applied'] and fingerprints(bq,state)==state['published_fingerprints']
+    assert imputation_report(current,'bounded_calendar_v1','restored')==published_imputation
     state.update(phase='recovery_verified',rollback_to_baseline=recovered,restoration_to_published=final,
                  rollback_retry_is_noop=True,stale_expected_current_rejected=True,altered_retained_artifacts_rejected=True,
                  stale_frozen_candidate_rejected=True,accepted_release_freshness_verified=True)
@@ -422,9 +454,12 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('phase', choices=('prepare', 'exercise', 'smoke', 'rollback', 'cleanup'))
     parser.add_argument('--receipt', required=True, type=Path)
+    parser.add_argument('--historical-gaps', action='store_true', help='Seed prolonged historical gaps during isolated preparation')
     args = parser.parse_args()
+    if args.historical_gaps and args.phase!='prepare':
+        parser.error('--historical-gaps is only valid for prepare')
     RECEIPT = args.receipt
-    {'prepare': prepare, 'exercise': exercise, 'smoke': lambda path: exercise(path, False),
+    {'prepare': lambda path: prepare(path,args.historical_gaps), 'exercise': exercise, 'smoke': lambda path: exercise(path, False),
      'rollback': rollback, 'cleanup': cleanup}[args.phase](args.receipt)
 
 

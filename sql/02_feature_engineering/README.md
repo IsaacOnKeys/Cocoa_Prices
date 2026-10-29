@@ -36,9 +36,13 @@ calendar. Lag/lead offsets therefore refer to calendar days rather than only
 trading days. Rolling windows include the current day; early windows use the
 available non-null rows, and early lag values may be null.
 
-Forward fill can repeat values across weekends and missing observations.
-These are characteristics of the existing feature construction that matter
-when interpreting the model.
+Forward fill repeats values only within the source-specific calendar-day
+limits. Expired values are NULL; rolling averages still use available non-null
+values within their seven-row window. Lag/label nulls caused by expired history
+remain explicit, and null labels are excluded from training. Observation ages and
+imputation flags are available through `cocoa_related_studio.ls_series_quality`.
+The model's treatment of missing predictors is separate from source carry-forward
+and does not make an expired source observation fresh.
 
 The final 40 daily rows have no observed target_40 and are excluded from
 training. They remain available for prediction. Training selects the frozen candidate feature

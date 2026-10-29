@@ -10,12 +10,22 @@ WITH source_revisions AS (
   LEFT JOIN (SELECT * FROM source_revisions WHERE feed='cocoa') c ON d=c.date
   LEFT JOIN (SELECT * FROM source_revisions WHERE feed='oil') o ON d=o.date
   LEFT JOIN (SELECT * FROM source_revisions WHERE feed='weather') w ON d=w.date
-), expected_joined AS (
+), carried_source AS (
   SELECT date,LAST_VALUE(cocoa_raw IGNORE NULLS) OVER dates AS cocoa_price,
     LAST_VALUE(oil_raw IGNORE NULLS) OVER dates AS oil_price,
     LAST_VALUE(precipitation_raw IGNORE NULLS) OVER dates AS precipitation,
-    LAST_VALUE(soil_raw IGNORE NULLS) OVER dates AS soil_moisture
+    LAST_VALUE(soil_raw IGNORE NULLS) OVER dates AS soil_moisture,
+    MAX(IF(cocoa_raw IS NOT NULL,date,NULL)) OVER dates AS cocoa_date,
+    MAX(IF(oil_raw IS NOT NULL,date,NULL)) OVER dates AS oil_date,
+    MAX(IF(precipitation_raw IS NOT NULL,date,NULL)) OVER dates AS rain_date,
+    MAX(IF(soil_raw IS NOT NULL,date,NULL)) OVER dates AS soil_date
   FROM source_calendar WINDOW dates AS (ORDER BY date ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW)
+), expected_joined AS (
+  SELECT date,IF(DATE_DIFF(date,cocoa_date,DAY)<=7,cocoa_price,NULL) AS cocoa_price,
+    IF(DATE_DIFF(date,oil_date,DAY)<=14,oil_price,NULL) AS oil_price,
+    IF(DATE_DIFF(date,rain_date,DAY)<=7,precipitation,NULL) AS precipitation,
+    IF(DATE_DIFF(date,soil_date,DAY)<=7,soil_moisture,NULL) AS soil_moisture
+  FROM carried_source
 ), expected AS (
   SELECT date,cocoa_price AS y,
     LAG(cocoa_price,1) OVER (ORDER BY date) AS lag1,

@@ -270,6 +270,16 @@ CASES.append(
     )
 )
 
+CASES.append(
+    (
+        "expired_historical_fill_rejected",
+        "DELETE source_input WHERE feed='cocoa' AND date BETWEEN DATE '2014-01-10' AND DATE '2014-01-25';",
+        False,
+        False,
+        "joined_source_alignment",
+    )
+)
+
 
 def names(token):
     if not re.fullmatch(r"20[0-9]{6}_[a-f0-9]{8}", token):
