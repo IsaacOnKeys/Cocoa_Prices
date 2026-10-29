@@ -1,7 +1,7 @@
 {
-  "verified_at": "2026-10-28T22:12:18.806949+00:00",
-  "verification": "Live no-change plans after producer failure-signal promotion, verified adapter/framework requirements and explicit source ownership for all four Python 3.11 functions, a successful ten-task cycle, output validation and restored stopped VM; bootstrap unchanged.",
-  "managed_instance_count": 93,
+  "verified_at": "2026-10-29T00:24:40.989449+00:00",
+  "verification": "Live no-change plans after retry/delivery promotion, five delivery policies and scoped forwarding grants, verified source ownership for all four Python 3.11 functions, successful isolated retry/identity/curation tests and ten-task production cycle, output validation and restored stopped VM; bootstrap unchanged.",
+  "managed_instance_count": 112,
   "resources": [
     {
       "root": "main",
@@ -320,6 +320,41 @@
     },
     {
       "root": "main",
+      "address": "google_pubsub_subscription.dead_letters[\"cocoa-prices-dead-letter\"]",
+      "id": "projects/cocoa-prices-430315/subscriptions/cocoa-prices-dead-letter-sub"
+    },
+    {
+      "root": "main",
+      "address": "google_pubsub_subscription.dead_letters[\"eia-trigger-dead-letter\"]",
+      "id": "projects/cocoa-prices-430315/subscriptions/eia-trigger-dead-letter-sub"
+    },
+    {
+      "root": "main",
+      "address": "google_pubsub_subscription.dead_letters[\"oil-prices-dead-letter\"]",
+      "id": "projects/cocoa-prices-430315/subscriptions/oil-prices-dead-letter-sub"
+    },
+    {
+      "root": "main",
+      "address": "google_pubsub_subscription.dead_letters[\"weather-dead-letter\"]",
+      "id": "projects/cocoa-prices-430315/subscriptions/weather-dead-letter-sub"
+    },
+    {
+      "root": "main",
+      "address": "google_pubsub_subscription.dead_letters[\"weather-trigger-dead-letter\"]",
+      "id": "projects/cocoa-prices-430315/subscriptions/weather-trigger-dead-letter-sub"
+    },
+    {
+      "root": "main",
+      "address": "google_pubsub_subscription.source_triggers[\"oil\"]",
+      "id": "projects/cocoa-prices-430315/subscriptions/eventarc-europe-west3-publish-eia-data-693553-sub-409"
+    },
+    {
+      "root": "main",
+      "address": "google_pubsub_subscription.source_triggers[\"weather\"]",
+      "id": "projects/cocoa-prices-430315/subscriptions/eventarc-europe-west3-publish-weather-data-060602-sub-655"
+    },
+    {
+      "root": "main",
       "address": "google_pubsub_subscription.subscriptions[\"cocoa-prices-sub\"]",
       "id": "projects/cocoa-prices-430315/subscriptions/cocoa-prices-sub"
     },
@@ -340,6 +375,31 @@
     },
     {
       "root": "main",
+      "address": "google_pubsub_subscription_iam_member.dead_letter_forwarder[\"cocoa-prices-sub\"]",
+      "id": "projects/cocoa-prices-430315/subscriptions/cocoa-prices-sub/roles/pubsub.subscriber/serviceAccount:service-494039866722@gcp-sa-pubsub.iam.gserviceaccount.com"
+    },
+    {
+      "root": "main",
+      "address": "google_pubsub_subscription_iam_member.dead_letter_forwarder[\"eventarc-europe-west3-publish-eia-data-693553-sub-409\"]",
+      "id": "projects/cocoa-prices-430315/subscriptions/eventarc-europe-west3-publish-eia-data-693553-sub-409/roles/pubsub.subscriber/serviceAccount:service-494039866722@gcp-sa-pubsub.iam.gserviceaccount.com"
+    },
+    {
+      "root": "main",
+      "address": "google_pubsub_subscription_iam_member.dead_letter_forwarder[\"eventarc-europe-west3-publish-weather-data-060602-sub-655\"]",
+      "id": "projects/cocoa-prices-430315/subscriptions/eventarc-europe-west3-publish-weather-data-060602-sub-655/roles/pubsub.subscriber/serviceAccount:service-494039866722@gcp-sa-pubsub.iam.gserviceaccount.com"
+    },
+    {
+      "root": "main",
+      "address": "google_pubsub_subscription_iam_member.dead_letter_forwarder[\"oil-prices-sub\"]",
+      "id": "projects/cocoa-prices-430315/subscriptions/oil-prices-sub/roles/pubsub.subscriber/serviceAccount:service-494039866722@gcp-sa-pubsub.iam.gserviceaccount.com"
+    },
+    {
+      "root": "main",
+      "address": "google_pubsub_subscription_iam_member.dead_letter_forwarder[\"weather-data-sub\"]",
+      "id": "projects/cocoa-prices-430315/subscriptions/weather-data-sub/roles/pubsub.subscriber/serviceAccount:service-494039866722@gcp-sa-pubsub.iam.gserviceaccount.com"
+    },
+    {
+      "root": "main",
       "address": "google_pubsub_topic.topics[\"cocoa-prices-dead-letter\"]",
       "id": "projects/cocoa-prices-430315/topics/cocoa-prices-dead-letter"
     },
@@ -357,6 +417,11 @@
       "root": "main",
       "address": "google_pubsub_topic.topics[\"eia-oil-validation\"]",
       "id": "projects/cocoa-prices-430315/topics/eia-oil-validation"
+    },
+    {
+      "root": "main",
+      "address": "google_pubsub_topic.topics[\"eia-trigger-dead-letter\"]",
+      "id": "projects/cocoa-prices-430315/topics/eia-trigger-dead-letter"
     },
     {
       "root": "main",
@@ -382,6 +447,36 @@
       "root": "main",
       "address": "google_pubsub_topic.topics[\"weather-trigger\"]",
       "id": "projects/cocoa-prices-430315/topics/weather-trigger"
+    },
+    {
+      "root": "main",
+      "address": "google_pubsub_topic.topics[\"weather-trigger-dead-letter\"]",
+      "id": "projects/cocoa-prices-430315/topics/weather-trigger-dead-letter"
+    },
+    {
+      "root": "main",
+      "address": "google_pubsub_topic_iam_member.dead_letter_publisher[\"cocoa-prices-dead-letter\"]",
+      "id": "projects/cocoa-prices-430315/topics/cocoa-prices-dead-letter/roles/pubsub.publisher/serviceAccount:service-494039866722@gcp-sa-pubsub.iam.gserviceaccount.com"
+    },
+    {
+      "root": "main",
+      "address": "google_pubsub_topic_iam_member.dead_letter_publisher[\"eia-trigger-dead-letter\"]",
+      "id": "projects/cocoa-prices-430315/topics/eia-trigger-dead-letter/roles/pubsub.publisher/serviceAccount:service-494039866722@gcp-sa-pubsub.iam.gserviceaccount.com"
+    },
+    {
+      "root": "main",
+      "address": "google_pubsub_topic_iam_member.dead_letter_publisher[\"oil-prices-dead-letter\"]",
+      "id": "projects/cocoa-prices-430315/topics/oil-prices-dead-letter/roles/pubsub.publisher/serviceAccount:service-494039866722@gcp-sa-pubsub.iam.gserviceaccount.com"
+    },
+    {
+      "root": "main",
+      "address": "google_pubsub_topic_iam_member.dead_letter_publisher[\"weather-dead-letter\"]",
+      "id": "projects/cocoa-prices-430315/topics/weather-dead-letter/roles/pubsub.publisher/serviceAccount:service-494039866722@gcp-sa-pubsub.iam.gserviceaccount.com"
+    },
+    {
+      "root": "main",
+      "address": "google_pubsub_topic_iam_member.dead_letter_publisher[\"weather-trigger-dead-letter\"]",
+      "id": "projects/cocoa-prices-430315/topics/weather-trigger-dead-letter/roles/pubsub.publisher/serviceAccount:service-494039866722@gcp-sa-pubsub.iam.gserviceaccount.com"
     },
     {
       "root": "main",
@@ -469,6 +564,6 @@
       "id": "cocoa-prices-430315-terraform-state"
     }
   ],
-  "external_retained_rollback_resources": "Producer failure-signal recovery snapshots/model are in cocoa-prices-430315.producer_failure_recovery_20261028_e654122 and held producer rollback archives/manifest are described in docs/operations/producer-failure-signals.md. Python 3.11 recovery snapshots/model are in cocoa-prices-430315.python311_recovery_20261028_81227170; exact image/configuration/package evidence and held source bundle are described in docs/operations/python311-runtime.md. Prior oil credential/source, dated archives and disabled VM Beam units remain preserved for rollback; The Cocoa repair dataset cocoa-prices-430315.cocoa_date_repair_20261028_569854f4 and held repair evidence are application recovery artifacts outside Terraform ownership; Held prior timestamp source artifacts are retained under raw-historic-data/operations/2026-10-28/timestamp-provenance-39b935d/; see docs/operations/timestamp-provenance.md, docs/operations/cocoa-date-correction.md, docs/operations/eia-cutover.md and docs/operations/ingestion-cutover.md.",
+  "external_retained_rollback_resources": "Retry/delivery recovery snapshots/model are in cocoa-prices-430315.retry_delivery_recovery_20261029_94fe21e and held source/rollback archives and manifest are described in docs/operations/retry-delivery.md. Producer failure-signal recovery snapshots/model are in cocoa-prices-430315.producer_failure_recovery_20261028_e654122 and held producer rollback archives/manifest are described in docs/operations/producer-failure-signals.md. Python 3.11 recovery snapshots/model are in cocoa-prices-430315.python311_recovery_20261028_81227170; exact image/configuration/package evidence and held source bundle are described in docs/operations/python311-runtime.md. Prior oil credential/source, dated archives and disabled VM Beam units remain preserved for rollback; The Cocoa repair dataset cocoa-prices-430315.cocoa_date_repair_20261028_569854f4 and held repair evidence are application recovery artifacts outside Terraform ownership; Held prior timestamp source artifacts are retained under raw-historic-data/operations/2026-10-28/timestamp-provenance-39b935d/; see docs/operations/timestamp-provenance.md, docs/operations/cocoa-date-correction.md, docs/operations/eia-cutover.md and docs/operations/ingestion-cutover.md.",
   "baseline_record": "https://github.com/IsaacOnKeys/Cocoa_Prices/blob/0236abaad185d1f6b475aa6f4c4a105058c95aad/docs/infrastructure/gcp-resource-inventory.json"
 }

@@ -5,13 +5,13 @@ Terraform defines the Google Cloud infrastructure for project
 
 ## Current status
 
-Verified on 2026-10-28: both roots returned no-change plans after the Cloud Run
-daily-consumer handoff. The earlier EIA migration's prior credential remains
+Verified on 2026-10-29: both roots returned no-change plans after the retry and
+delivery release. The earlier EIA migration's prior credential remains
 outside active state for rollback. Backends,
 workspace, provider versions and lockfiles are unchanged. Authentication used
 the existing gcloud session token only in the process environment. See the
-[current GCP ownership map](gcp-inventory.md) for all 93 state-tracked resources
-and the [deployment receipt](../operations/ingestion-cutover.md).
+[current GCP ownership map](gcp-inventory.md) for all 112 state-tracked resources
+and the [deployment receipt](../operations/retry-delivery.md).
 
 The `cocoa-prices-430315-terraform-state` bucket provides the GCS backend. It
 uses uniform bucket-level access, public-access prevention, versioning, 30-day
@@ -32,8 +32,10 @@ prefixes.
 | BigQuery datasets | 4 | `cocoa_related`, `cocoa_related_studio`, `models`, `stream_staging` |
 | BigQuery dataset IAM members | 4 | Additive Airflow and staging-consumer writer grants |
 | Pub/Sub schemas | 3 | Cocoa, oil, and weather Avro schemas |
-| Pub/Sub topics | 9 | Data, dead-letter, trigger and isolated validation topics |
-| Pub/Sub subscriptions | 4 | Three daily authenticated push and one validation pull subscription |
+| Pub/Sub topics | 11 | Data, dead-letter, trigger and isolated validation topics |
+| Pub/Sub subscriptions | 11 | Three daily authenticated push, two imported source transports, five dead-letter pull and one retained validation subscription |
+| Pub/Sub topic IAM members | 5 | Resource-scoped service-agent dead-letter publisher grants |
+| Pub/Sub subscription IAM members | 5 | Resource-scoped service-agent forwarding subscriber grants |
 | Gen2 Cloud Functions | 4 | Three publishers and the bounded staging consumer |
 | Cloud Run IAM members | 5 | Airflow, EIA Eventarc and Pub/Sub push invoker grants |
 | Cloud Scheduler jobs | 2 | Daily Airflow VM start and stop jobs |
@@ -50,7 +52,7 @@ prefixes.
 | Google service agents and service-agent IAM | Maintained by Google services |
 | Enabled Google APIs | Kept outside the current module to prevent accidental service disablement |
 | Container Analysis Pub/Sub topics | Maintained by the Google service |
-| Eventarc triggers and Eventarc subscriptions | Owned by Gen2 Cloud Functions |
+| Eventarc triggers and transport subscriptions | Gen2 owns triggers and authenticated push routing/labels. Terraform imports the two existing subscriptions for retry/dead-letter policies; reconcile names after trigger replacement. |
 | Underlying Cloud Run services | Owned by Gen2 Cloud Functions; only explicit IAM is managed |
 | `gcf-artifacts` repository and GCF source/upload buckets | Owned by Cloud Functions |
 | Dataflow staging buckets | Service runtime and staging infrastructure |
@@ -79,7 +81,7 @@ Terraform resource graph.
 
 ## Verification
 
-Verified on 2026-10-28 with:
+Verified on 2026-10-29 with:
 
 - Terraform 1.15.8
 - Google provider 7.44.0, recorded in both dependency lock files

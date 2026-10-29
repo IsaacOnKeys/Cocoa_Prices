@@ -1,11 +1,12 @@
 # GCP ownership and Terraform adoption
 
-Verified 2026-10-28 after the Cloud Run consumer handoff. Main tracks 92
+Verified 2026-10-29 after the retry and delivery release. Main tracks 111
 application resource instances; bootstrap tracks one state bucket. Both roots
 returned exit 0 with live no-change plans. Three existing subscriptions use
 authenticated push; the new bounded consumer has dedicated runtime/delivery
 identities, scoped token minting and staging-dataset writer access. Old Beam
-startup units are disabled. See the [consumer receipt](../operations/ingestion-cutover.md).
+startup units are disabled. Five delivery routes have verified dead-letter policies,
+durable destinations and scoped forwarding grants. See the [delivery receipt](../operations/retry-delivery.md).
 The earlier [EIA cutover](../operations/eia-cutover.md) retained the previous oil
 credential/source outside active provider configuration for rollback.
 
@@ -26,8 +27,10 @@ deployments historically used it.
 | main | `google_compute_instance` | 1 |
 | main | `google_project_iam_member` | 32 |
 | main | `google_pubsub_schema` | 3 |
-| main | `google_pubsub_subscription` | 4 |
-| main | `google_pubsub_topic` | 9 |
+| main | `google_pubsub_subscription` | 11 |
+| main | `google_pubsub_subscription_iam_member` | 5 |
+| main | `google_pubsub_topic` | 11 |
+| main | `google_pubsub_topic_iam_member` | 5 |
 | main | `google_secret_manager_secret` | 2 |
 | main | `google_secret_manager_secret_iam_member` | 2 |
 | main | `google_service_account` | 5 |
@@ -37,7 +40,7 @@ deployments historically used it.
 | bootstrap | `google_storage_bucket` | 1 |
 
 
-The [refreshed inventory](gcp-resource-inventory.json) lists 93 managed addresses
+The [refreshed inventory](gcp-resource-inventory.json) lists 112 managed addresses
 and external IDs, including bootstrap, plus its exact historical baseline link.
 It is not a Terraform state file. Credentials/private state remain outside Git.
 
@@ -46,9 +49,9 @@ It is not a Terraform state file. Credentials/private state remain outside Git.
 | GCP service / component | Current ownership |
 | --- | --- |
 | Compute Engine | VM, eight application firewall rules and selected IAM in Terraform; default network/subnet referenced. Installed files, metadata bootstrap and runtime environments remain operator-owned. |
-| Pub/Sub | Three Avro schemas, nine topics, three daily push subscriptions and one isolated-validation pull subscription in Terraform. Temporary test routes were removed. DLQ topic existence does not establish dead-letter policies. |
+| Pub/Sub | Three Avro schemas, eleven topics and eleven subscriptions in Terraform: three daily push, two source transports, five dead-letter pull and one retained validation subscription. Five delivery policies and ten resource-scoped forwarding grants were verified. Temporary test routes were removed. |
 | Cloud Functions Gen2 | Three producer functions and one bounded staging consumer with runtime/trigger/resource settings in Terraform. Application deployments own source archive generations. |
-| Cloud Run / Eventarc | Function-created services, event triggers and service subscriptions stay Gen2-owned. Terraform owns explicit Airflow, EIA Eventarc and authenticated push invoker grants. |
+| Cloud Run / Eventarc | Function-created services and event triggers stay Gen2-owned. Terraform imports source transport subscriptions for retry/dead-letter policies, preserving Eventarc push routing/labels, and owns explicit invoker grants. Reconcile transport names after any trigger replacement. |
 | BigQuery | Four datasets and additive dataset IAM in Terraform. Application consumers/backfills/SQL own tables, views, procedures, models and data. |
 | Cloud Storage | Two application buckets and bucket IAM in main state; backend bucket in bootstrap. Historical snapshot objects and holds are data provenance artifacts, not Terraform-managed bucket policy. |
 | Secret Manager | Two active secret containers and accessor IAM in Terraform; prior oil credential container retained externally for rollback. Secret payloads/versions remain outside source and state ownership. |

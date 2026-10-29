@@ -2,21 +2,21 @@ locals {
   cloud_functions = {
     publish_price = {
       entry_point       = "publish_price"
-      source_object     = "publish_price/failure-signals-3cad87814a33741a7e1d1e87412aefb872e9b8b4cf33b2036fb9009c9ea51a16.zip"
-      source_generation = 1793224804484938
+      source_object     = "publish_price/identity-d8da9782168b43ac011fa049e3b2c596e2095541c2f3447aa5e2261317987a12.zip"
+      source_generation = 1793230509744279
       trigger_topic     = null
     }
     # Serving EIA producer; cutover evidence: docs/operations/eia-cutover.md.
     publish_eia_data = {
       entry_point       = "publish_eia_data"
-      source_object     = "publish_eia_data/failure-signals-811f2f82c75e8b17d55729fc9050fcaa82fb70e4ea90231af96e4a2592d95b75.zip"
-      source_generation = 1793224806181398
+      source_object     = "publish_eia_data/identity-0afc4119d77149cae2b8b897e216a41b15963a0fed19e6c2f230ca57bc4d84ef.zip"
+      source_generation = 1793230510765893
       trigger_topic     = "eia-oil-trigger"
     }
     publish_weather_data = {
       entry_point       = "publish_weather_data"
-      source_object     = "publish_weather_data/failure-signals-0acb74adb2c37648aa41aed79ac7bdb665c63dd25db6e86bc6a60cf9915ac395.zip"
-      source_generation = 1793224807023093
+      source_object     = "publish_weather_data/identity-58845cfaa53286e018d8bdee6f9fc6d8610891dbe34ff4aa75b45b1392580582.zip"
+      source_generation = 1793230511451002
       trigger_topic     = "weather-trigger"
     }
   }
@@ -73,7 +73,7 @@ resource "google_cloudfunctions2_function" "functions" {
       trigger_region        = var.region
       event_type            = "google.cloud.pubsub.topic.v1.messagePublished"
       pubsub_topic          = google_pubsub_topic.topics[event_trigger.value].id
-      retry_policy          = "RETRY_POLICY_DO_NOT_RETRY"
+      retry_policy          = "RETRY_POLICY_RETRY"
       service_account_email = local.compute_service_account
     }
   }

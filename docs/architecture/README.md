@@ -37,8 +37,10 @@ implementing statements. One canonical procedure retains the execution order.
   predictions and MAPE are not a chronological out-of-sample backtest.
 
 The older editable diagram includes conceptual dead-letter arrows and a more
-detailed task layout. Topic existence is not evidence of active DLQ routing;
-the current DAG source and captured runtime mappings are authoritative.
+detailed task layout. The [retry/delivery receipt](../operations/retry-delivery.md)
+records the five now-verified forwarding routes; the preserved diagram export
+predates those policies. Current DAG source and captured runtime mappings are
+authoritative.
 
 See [GCP ownership](../infrastructure/gcp-inventory.md),
 [feature definitions](../feature-engineering/README.md),

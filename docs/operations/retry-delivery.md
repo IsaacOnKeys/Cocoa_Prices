@@ -1,7 +1,7 @@
 # Retry ownership and duplicate delivery
 
 Checklist item 8 preserves the daily Cloud Run topology and Python 3.11. The
-changes below are pending managed integration and deployment acceptance.
+changes below were deployed and accepted on 2026-10-29 (Europe/Berlin, UTC+1).
 
 ## Budgets and recovery destinations
 
@@ -87,28 +87,106 @@ It uses the actual shared identity helper. Namespace/label/source guards prevent
 cleanup from targeting production, and all temporary resources must be removed.
 Production receives no deliberately poisoned events.
 
-Managed validation, serving-byte checks and the complete daily cycle are pending.
+Managed acceptance passed on Python 3.11. All 294 credential-free tests, Ruff,
+42 Python and five shell syntax checks passed. The installed Airflow 2.10.2 /
+Google provider 10.22.0 / Python 3.11.10 parsed all ten tasks, injected the run
+context and serialized the new trigger budgets. Serving runtime changes are in
+5acb5dd and 94fe21e; the isolated identity/MERGE driver is in 44e2e87.
 
-The isolated managed probe 20261028_2b590e55 has now verified a policy update
-without transport replacement, transient recovery after two attempts, poison
-forwarding after five observed attempts, and a corrected replay retaining the
-same acquisition identity with a new transport event ID. Source bytes matched
-the uploaded probe archive; all temporary function, transport, topics, subscriptions
-and counter objects were removed. These observed attempt counts are sample results.
+The private managed probe `20261028_2b590e55` verified a no-retry-to-retry policy
+update without transport replacement, transient recovery on attempt two,
+permanent-failure forwarding after five observed attempts, and corrected replay
+retaining acquisition identity with a new transport event ID. Source bytes
+matched. Its function, native transport, topics, subscriptions, source archive
+and counter objects were removed. Attempt counts are observations, not guarantees.
 
-The local Python 3.11 suite passes 288 tests; Ruff, 41 Python and five shell syntax
-checks pass. Terraform validation passes, and a reviewed transport-only plan has
-22 changes: 17 new recovery/IAM resources, two existing transport imports/updates
-and three canonical subscription updates. It contains no deletions, function or
-project-IAM changes, and preserves existing push routing, retention and identity.
-Production application and final integration gates remain pending.
+Isolated consumer validation `20261028_cba277af` ran with the VM stopped and
+unauthenticated access denied. A deliberately denied sink recovered after its
+scoped dataset grant. All feeds passed valid/null and timestamp cases including
+missing, invalid, naive, future and replayed acquisition times. Three additional
+messages per feed used one acquisition and two observation revisions, with the
+newer correction delivered before older duplicates. Delivery hashes and logical
+identities reconciled. Running the actual production MERGE statements twice in
+isolated tables retained one fact per date and the corrected values: cocoa
+6501.25, oil 73.5, precipitation 4.5 and soil moisture 0.42. This proves the tested
+ordering, not general timestamp-tie precedence (item 17). No test facts entered
+production. All temporary topics, subscriptions, tables/dataset and routes were
+removed; the consumer again has exactly its three production routes.
 
-The first production wave is applied: all five delivery policies/durable DLQ
-destinations and forwarding grants were read back successfully. Staging migration
-job 8617a5e3-e1d7-4739-bbf1-b2047aad7ce0 added four nullable identity fields to all
-three tables, preserving every existing schema field without rewriting history.
-Consumer revision stage-analytics-data-00008-bul serves the verified five-file
-identity package, ZIP SHA-256
-0220647226347cefecb24367fd1ed104c250f178661c0814fd3b7049f0e6f040.
-Producer promotion, retry enablement, isolated identity/curation IO and final
-full-cycle acceptance remain pending.
+The transport plan applied 17 new resources, imported/updated two existing source
+transports and updated three canonical subscriptions. All five retry/dead-letter
+policies, ten resource-scoped forwarding grants, destination subscriptions and
+original authenticated push routes/retention were read back. Only then were the
+EIA/weather function retry policies enabled. Native transport names survived the
+function updates. Both Terraform roots now have no drift: 111 main resources plus
+one bootstrap bucket, recorded in the [inventory](../infrastructure/gcp-resource-inventory.json).
+
+Migration job `8617a5e3-e1d7-4739-bbf1-b2047aad7ce0` added four nullable STRING
+identity fields to each staging table, preserving prior fields and historical
+rows. The installed DAG SHA-256 is
+`fe1f8863e451f8fae09db5c218daebca0debe00c4833d6b1dc7b2da71633e0ba`.
+
+| Function | Accepted revision | Source ZIP SHA-256 |
+| --- | --- | --- |
+| publish_price | publish-price-00020-cav | d8da9782168b43ac011fa049e3b2c596e2095541c2f3447aa5e2261317987a12 |
+| publish_eia_data | publish-eia-data-00005-xay | 0afc4119d77149cae2b8b897e216a41b15963a0fed19e6c2f230ca57bc4d84ef |
+| publish_weather_data | publish-weather-data-00014-cas | 58845cfaa53286e018d8bdee6f9fc6d8610891dbe34ff4aa75b45b1392580582 |
+| stage_analytics_data | stage-analytics-data-00010-jiv | 0220647226347cefecb24367fd1ed104c250f178661c0814fd3b7049f0e6f040 |
+
+Every serving ZIP member matched repository source; all four runtimes are
+python311. Consumer revisions 00008 and 00009 had the same bytes; the latter
+attached isolated routes temporarily, removed again in 00010.
+
+Controlled run `retry_delivery__94fe21e__20261029` passed all ten tasks from
+00:16:27 to 00:17:31 UTC. Exactly one logical acquisition per feed reconciled
+with completion receipts and accepted rows: one cocoa observation dated
+October 27, nine EIA observations October 15-27 and eight NASA observations
+October 22-29. Observation identities were recomputed from business values;
+delivery identities matched subscription/message IDs. All timestamp and
+source-to-curated checks passed. Thirteen quality checks passed; the forecast
+contains 40 unique valid values for October 30-December 8. The joined/features
+and retrospective scores each contain 4,684 daily rows through October 29;
+three BI source queries passed. Charts were not visually checked. This remains
+one controlled cycle, not measured scheduled reliability or achieved SLOs.
+
+The VM was idle with the DAG unpaused, next schedule October 29 at 18:00 UTC;
+legacy Beam units were disabled/inactive. It was restored stopped outside its
+operating window after acceptance.
+
+## Recovery evidence
+
+Recovery dataset `cocoa-prices-430315.retry_delivery_recovery_20261029_94fe21e`
+retains six before-release snapshots and a copied model whose 40 predictions
+matched the accepted model within 1e-8. Snapshot job:
+`63ad4485-a56b-4d90-9a00-e380fdaa8e66`; model copy:
+`59b771b8-8ee9-454b-9e65-a5f30eac84dd`; prediction comparison:
+`a4f0fb7b-44fe-4a45-bd45-cfaa1df3b7d4`.
+
+The private evidence prefix
+`gs://raw-historic-data/operations/2026-10-29/retry-delivery-94fe21e/`
+contains four checksum-verified held before-source archives and a held
+`completed_manifest.json`. Four new source ZIP generations are also held in the
+GCF source bucket. The manifest records exact generations/checksums, schema and
+recovery jobs, isolated test/removal receipts, run/tasks, source receipts and
+identities, data checks, serving byte verification and final idle/stopped state.
+The previous installed DAG is root-only under
+`/opt/airflow/releases/retry-delivery-20261029/cocoa_daily.before.py`.
+
+Rollback requires pausing/confirming no active run, restoring the four recorded
+source pins and prior DAG, native validation and an operator-reviewed restoration
+of the six table snapshots/model if data rollback is needed. Do not drop the
+additive identity fields or erase accepted staging rows. Keep destination
+subscriptions/IAM until affected deliveries are drained; disable source retries
+before removing forwarding. Recheck actual transport names, push authentication,
+source bytes and a complete controlled cycle before resuming normal operation.
+The private prepared restoration SQL is retained with the local deployment
+record; recovery snapshots and source objects are not Terraform-managed data.
+
+Window recovery, durable raw evidence, operational DLQ replay/alerting,
+required-feed/quiet-period gates, deterministic revision ties and consistent
+release publication remain their separate checklist items. No hosted CI,
+exactly-once physical staging, forecasting accuracy or rendered BI acceptance
+is claimed.
+
+Completed manifest generation: `1793233520745361`; SHA-256:
+`3e9bcc00dcb1fee09948bb2adff257fb7c3f24d232e0c1b43d05b6b119624451`.

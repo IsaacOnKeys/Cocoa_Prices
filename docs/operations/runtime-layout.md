@@ -95,6 +95,14 @@ The subsequent [producer failure-signal release](producer-failure-signals.md)
 pins the tested Functions Framework adapter and adds structured completion
 receipts; it preserves these source, runtime and trigger interfaces.
 
+The [retry and delivery release](retry-delivery.md) adds transport attributes
+for acquisition/observation identity and four nullable staging identity fields;
+Avro layouts remain unchanged. EIA and weather trigger retries are enabled with
+10-60-second backoff and separate durable dead-letter destinations. All three
+canonical staging subscriptions have the same bounded forwarding policy. The
+installed DAG passes a stable run/feed acquisition key, bounds enqueue waits and
+fails trigger tasks on acquisition errors; Cocoa HEAD is read-only.
+
 The cocoa and weather entry points and their generic installed interfaces
 remain covered by the existing packager and their own release records. The
 historical [production validation](release-validation-2026-10-27.md) records the
