@@ -299,6 +299,18 @@ def test_manual_engineering_flag_does_not_relax_source_freshness(gate):
         gate.ns['_source_ages']('weather', receipt(gate, missing_days=8), scope)
 
 
+def test_old_manual_interval_end_does_not_establish_or_delay_batch_completion(gate):
+    gate.run.run_type = 'manual'
+    gate.run.conf = {'engineering_validation': True}
+    gate.run.data_interval_end = datetime(2026, 10, 1, 18, tzinfo=timezone.utc)
+    assert gate.ns['_run_scope'](gate.run)['business_date'] == '2026-10-29'
+    rows, _ = install(gate, receipt(gate))
+    last = rows.pop()
+    assert poke(gate) is False
+    rows.append(last)
+    assert poke(gate) is True
+
+
 def test_string_validation_flag_cannot_bypass_the_service_window(gate):
     gate.run.conf = {'engineering_validation': 'false'}
     with pytest.raises(gate.permanent, match='explicit boolean'):

@@ -17,7 +17,6 @@ from airflow.providers.google.cloud.hooks.pubsub import PubSubHook
 from airflow.providers.google.cloud.hooks.gcs import GCSHook
 from airflow.providers.google.cloud.operators.bigquery import BigQueryInsertJobOperator
 from airflow.sensors.python import PythonSensor
-from airflow.sensors.time_delta import TimeDeltaSensor
 from airflow.utils.trigger_rule import TriggerRule
 
 # ===== Config =====
@@ -44,7 +43,6 @@ BQ_STG = {
 # Receipt/staging completion, not an increasing timestamp or physical row count.
 PROGRESS_TIMEOUT_MIN = int(Variable.get("PROGRESS_TIMEOUT_MIN", default_var="10"))
 PROGRESS_POLL_SEC = int(Variable.get("PROGRESS_POLL_SEC", default_var="20"))
-PROGRESS_QUIET_SEC = int(Variable.get("PROGRESS_QUIET_SEC", default_var="120"))
 COVERAGE_BUCKET = Variable.get("COVERAGE_RECEIPT_BUCKET", default_var="raw-historic-data")
 if not 1 <= PROGRESS_TIMEOUT_MIN <= 10 or not 1 <= PROGRESS_POLL_SEC <= 60:
     raise ValueError("Daily completion timeout must be 1-10 minutes and polling 1-60 seconds")
@@ -399,14 +397,6 @@ with DAG(
 
         wait_tasks.append(wait_rows)
 
-    # Quiet period to let late messages flush through writers
-    sleep_after_ingest = TimeDeltaSensor(
-        task_id="sleep_after_ingest",
-        delta=timedelta(seconds=PROGRESS_QUIET_SEC),
-        mode="reschedule",
-        trigger_rule=TriggerRule.ALL_SUCCESS,
-    )
-
     run_bq_pipeline = BigQueryInsertJobOperator(
         task_id="run_bq_pipeline",
         gcp_conn_id="gcp_default",
@@ -415,6 +405,7 @@ with DAG(
         },
         location=BQ_LOC,
         retries=2,
+        trigger_rule=TriggerRule.ALL_SUCCESS,
     )
 
     def summarize(**ctx):
@@ -431,4 +422,4 @@ with DAG(
         python_callable=summarize,
     )
 
-    chain(wait_tasks, sleep_after_ingest, run_bq_pipeline, summary)
+    chain(wait_tasks, run_bq_pipeline, summary)
