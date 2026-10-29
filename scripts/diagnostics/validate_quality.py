@@ -273,7 +273,8 @@ CASES.append(
 CASES.append(
     (
         "expired_historical_fill_rejected",
-        "DELETE source_input WHERE feed='cocoa' AND date BETWEEN DATE '2014-01-10' AND DATE '2014-01-25';",
+        "DELETE source_input WHERE feed='cocoa' AND date BETWEEN DATE '2014-01-10' AND DATE '2014-01-25';"
+        "UPDATE candidate_joined SET cocoa_price=2070 WHERE date BETWEEN DATE '2014-01-10' AND DATE '2014-01-25';",
         False,
         False,
         "joined_source_alignment",
