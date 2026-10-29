@@ -201,6 +201,8 @@ def exercise(path):
                     assert receipt['window_start'] == (datetime.now(timezone.utc).date()-timedelta(days=35)).isoformat()
             else:
                 assert record['before'] == record['after'], 'Failed batch advanced coverage'
+                if case == 'partial_publish':
+                    assert record['controlled_publish_attempts'] == 2, 'Probe must fail after the first acknowledged publication'
             print(json.dumps({'feed': feed, 'case': case, 'accepted': expected}), flush=True)
         initial, corrected = results['fixture_initial']['receipt'], results['fixture_corrected']['receipt']
         assert initial['acquisition_id'] == corrected['acquisition_id']
@@ -212,10 +214,11 @@ def exercise(path):
         expected_ids = {(r['acquisition_id'], item['observation_id'])
                         for case, result in results.items() if result['accepted']
                         for r in [result['receipt']] for item in r['observations']}
-        observed = set()
+        ledger = state.setdefault('deliveries', {}).setdefault(feed, [])
+        observed = {(r['acquisition_id'], r['observation_id']) for r in ledger}
         policy = runpy.run_path(str(ROOT/'functions/shared/request_policy.py'))
-        count, deadline = 0, time.monotonic()+90
-        while not expected_ids <= observed and time.monotonic() < deadline:
+        count, deadline = len(ledger), time.monotonic()+90
+        while (not expected_ids <= observed or not observed-expected_ids) and time.monotonic() < deadline:
             try:
                 batch = subscriber.pull(request={'subscription': f'projects/{PROJECT}/subscriptions/{n["subscriptions"][feed]}',
                                                  'max_messages': 1000}, timeout=5, retry=None)
@@ -226,13 +229,19 @@ def exercise(path):
                 values = {k: v for k, v in row.items() if k not in ('date', 'ingestion_time', 'raw_payload')}
                 assert policy['observation_identity'](SOURCES[feed], row['date'], values) == received.message.attributes['observation_id']
                 observed.add((received.message.attributes['acquisition_id'], received.message.attributes['observation_id']))
+                ledger.append({'acquisition_id': received.message.attributes['acquisition_id'],
+                               'observation_id': received.message.attributes['observation_id'],
+                               'message_id': received.message.message_id, 'date': row['date']})
                 count += 1
             if batch.received_messages:
+                save(path, state)  # Persist validation evidence before ACK; reruns can resume.
                 subscriber.acknowledge(request={'subscription': f'projects/{PROJECT}/subscriptions/{n["subscriptions"][feed]}',
                     'ack_ids': [r.ack_id for r in batch.received_messages]}, timeout=10, retry=None)
         assert expected_ids <= observed, 'Published inventory has unexplained delivery gaps'
+        partial = observed - expected_ids
+        assert len(partial) == 1, 'Exactly one value revision should remain from the controlled partial batch'
         state.setdefault('reconciliation', {})[feed] = {'expected_revisions': len(expected_ids), 'received_rows': count,
-                                                       'all_inventory_revisions_received': True, 'corrected_date': target}
+            'all_inventory_revisions_received': True, 'controlled_partial_revisions': len(partial), 'corrected_date': target}
         save(path, state)
     state.update(phase='passed', live_sources_passed=True, outage_recovery_passed=True, older_corrections_passed=True,
                  failed_batches_preserved_coverage=True, serving_members_match=True)

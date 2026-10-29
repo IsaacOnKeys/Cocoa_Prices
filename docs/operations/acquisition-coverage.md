@@ -78,8 +78,8 @@ backup and restore verification remain items 10 and 28.
 
 ## Validation
 
-The Python 3.11 suite passes 333 tests, including seven validation-namespace
-guard cases; Ruff, 48 Python and five shell syntax checks pass. Tests exercise multi-day expansion, older
+The Python 3.11 suite passes 334 tests, including the publisher adapter regression and seven validation-namespace
+guard cases; Ruff, 49 Python and five shell syntax checks pass. Tests exercise multi-day expansion, older
 corrections, explicit source absence versus missing measurements, duplicate and
 out-of-order completions, generation races/exhaustion, lost projections, complete
 Cocoa parser windows, partial batches and real HTTP/Gen2 failure responses when

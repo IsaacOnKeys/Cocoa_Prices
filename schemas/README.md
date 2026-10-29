@@ -18,7 +18,7 @@ revision is a new version of the same logical observation, not a second fact.
 
 | Feed | Current acquisition source | Observation key and grain | Measurement semantics |
 | --- | --- | --- | --- |
-| cocoa | ICCO daily-price table, EUR column | ICCO series + source observation date; one quoted daily value | cocoa_price / curated Euro_Price: EUR per metric tonne. No FX conversion is implied. |
+| cocoa | ICCO public statistics daily-price table plus corroborated homepage quotes, EUR column | ICCO series + source observation date; one quoted daily value | cocoa_price / curated Euro_Price: EUR per metric tonne. No FX conversion is implied. |
 | oil | EIA RBRTE: published weekday table for history; API observations corroborated against it for daily ingestion | Europe Brent spot FOB series + observation date; one published daily value | oil_price / curated brent_price_eu: USD per barrel. The eu suffix denotes the existing Europe-series identifier; it is not evidence of conversion to EUR. |
 | weather | NASA POWER daily point API, community AG, latitude 4.745, longitude -6.635 | Dataset/product + fixed point + parameter + observation date; the wire row combines two parameters for one date | precipitation: PRECTOTCORR, daily corrected precipitation in mm/day. soil_moisture: GWETROOT, dimensionless root-zone wetness; do not label it volumetric soil moisture. Verify parameter units in the acquired response before acceptance. |
 
@@ -60,6 +60,12 @@ a permanent validation end date. Historical bootstrap coverage is recorded in
 the [historical manifest](../data/historical_manifest.yaml). Do not copy the
 backfill scripts' fixed 2025 end date into the daily contract or fabricate
 observations between published dates.
+
+The [acquisition coverage policy](../docs/operations/acquisition-coverage.md)
+defines 30 days of correction overlap, expansion after missed acquisitions and a
+90-date automatic recovery bound. Durable coverage records publication
+acknowledgements and actual source absence/missingness; it does not certify sink
+or release acceptance. See that receipt for deployment status and validation.
 
 ## Missing and incompatible record outcomes
 

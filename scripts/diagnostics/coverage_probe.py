@@ -25,6 +25,7 @@ def validate_coverage(event, context):
     today = datetime.now(timezone.utc).date()
     logical_case = 'revision' if case.startswith('fixture_') else case
     key = token + ':' + feed + ':' + logical_case
+    probe_publish = {'attempts': 0}
     if case != 'live':
         window = coverage(SOURCES[feed], today, deadline=time.monotonic()+50)
         dates = [window.start + timedelta(days=i) for i in range((window.end-window.start).days+1)]
@@ -34,7 +35,7 @@ def validate_coverage(event, context):
         correction = case == 'fixture_corrected'
 
         def value(observed):
-            return (5000 if feed == 'cocoa' else 70) + (1 if correction and observed == target else 0)
+            return float((5000 if feed == 'cocoa' else 70) + (1 if correction and observed == target else 0))
 
         if feed == 'cocoa':
             module.fetch_window = lambda *args, **kwargs: [(d, value(d)) for d in dates if d.weekday() < 5]
@@ -77,11 +78,12 @@ def validate_coverage(event, context):
             real = module.pubsub_v1.PublisherClient()
 
             class Publisher:
-                topic_path = real.topic_path
+                topic_path = staticmethod(real.topic_path)
                 count = 0
 
                 def publish(self, *args, **kwargs):
                     self.count += 1
+                    probe_publish['attempts'] = self.count
                     if self.count == 2:
                         def fail(**kwargs):
                             raise RuntimeError('Controlled publication failure')
@@ -110,7 +112,8 @@ def validate_coverage(event, context):
         error = 'controlled_or_source_failure'  # Never persist transport/credential exceptions.
     after = read_state()
     result = {'feed': feed, 'case': case, 'accepted': accepted, 'before': before, 'after': after, 'error': error,
-              'target_date': target.isoformat() if case != 'live' else None}
+              'target_date': target.isoformat() if case != 'live' else None,
+              'controlled_publish_attempts': probe_publish['attempts']}
     if accepted:
         receipt = client.bucket(os.environ['COVERAGE_RECEIPT_BUCKET']).blob(after['receipt_object'])
         result['receipt'] = json.loads(receipt.download_as_bytes(timeout=10, retry=None))
