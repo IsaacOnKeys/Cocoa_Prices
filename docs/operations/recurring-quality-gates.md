@@ -5,6 +5,10 @@ Checklist item 15, branch `codex/recurring-quality-gates`, implementation
 are installed. The accepted serving release remains the verified October 28
 baseline documented in [item 20](atomic-analytics-release.md).
 
+The subsequent [bounded-fill cutover](bounded-forward-fill.md) supersedes this
+receipt's deployed DAG/procedure hashes and declared fill rule. Native results
+below retain the original item 15 acceptance scope.
+
 The feed gates pass their exact generation/hash-verified observation manifests
 to release SQL, preserving revision keys, real source calendars and explicit
 missingness. This adds evidence to the existing count, window and age fields;

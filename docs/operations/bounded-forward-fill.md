@@ -1,7 +1,7 @@
 # Bounded forward fill and observation age
 
-Checklist item 16, branch `codex/bounded-forward-fill`. Native acceptance and
-production cutover are in progress. This extends the accepted
+Checklist item 16, branch `codex/bounded-forward-fill`, implementation `a510f79`,
+expiry regression `2b4265b`, deployed pin `4512b32`. This extends the accepted
 [recurring quality gates](recurring-quality-gates.md).
 
 ## Policy
@@ -80,5 +80,48 @@ fill to the recurring fault cases. `validate_atomic_delivery.py prepare
 its exercise/rollback phases check actual training/publication, frozen and
 completed retries, all three failure points and provenance following rollback.
 The synthetic case has exactly 90 expired measurement rows, all NULL after
-publication. Native/production receipts, final pins and held recovery evidence
-will be recorded after acceptance.
+publication.
+
+Native fixture `20261029_bb167b88` passed all 16 boundary/missingness cases,
+current-age fields, source revision/origin retention and legacy expiry. Initial
+fixture `20261029_472457e9` passed the original boundary checks and a subsequent
+current-age field check. Quality fixture `20261029_85275b3a` passed all 29 cases;
+the strengthened unlimited-fill case rejects exactly nine expired dates while
+accepting the correct constant carry within the limit. Integrated fixture
+`20261029_d9222209` passed actual BQML training/publication, three injected
+failure points, frozen/completed retries and guarded rollback/restoration.
+All 90 expired values remained NULL, and report provenance followed the active
+marker to the legacy baseline and back to the published release.
+
+## Production acceptance, October 29
+
+Controlled run `bounded_fill__a510f79__20261029` ran from
+22:38:23.516234 to 22:38:51.913196 UTC. Cocoa and oil passed; NASA precipitation
+age 8 exceeded the unchanged 7-day limit. SQL/summary were upstream-failed.
+Six serving fingerprints, the accepted marker and legacy model stayed unchanged.
+The live 17-field BI view reproduces the preview's historical expiry counts
+and correctly marks both accepted weather measurements overdue today.
+
+Installed DAG SHA256:
+`815b23d6f1d95c23327fbe9aaf1a067533510e8a082b3bb3994422bfdadc75a8`.
+Native-verified procedure-body SHA256:
+`afb59def7188cbc4e7e19c63825b5ab9b647c388cdca8b02647a54eb8ba9234b`.
+The runtime/RPC helpers, four functions, Avro contracts and image/dependency
+versions are unchanged. An initial pause attempt reached a still-starting
+scheduler container; the verified prior-DAG backup was retained and the pause
+was completed after container startup, before any SQL deployment.
+
+All 503 credential-free regression tests, Ruff, 74 Python and five Bash syntax
+checks passed; 26 focused tests and changed-file lint passed after the final pin.
+Both Terraform roots have no drift, retaining 122 managed resources. Six labelled
+test datasets/models were removed. Final DAG checkpoint is unpaused/idle,
+legacy Beam remains disabled and the maintenance VM is restored stopped.
+Held changed source, previous DAG/procedure, report definition and complete
+native/production receipts are under
+`gs://raw-historic-data/operations/2026-10-29/bounded-fill/`; the ignored parent
+checklist records the completion manifest generation and SHA256.
+
+Positive publication was isolated. This is not a current successful production
+release, attained service level, forecast-accuracy result or rendered external
+BI report acceptance. Revision precedence, product failure presentation,
+complete lineage manifests and model evaluation remain their numbered items.

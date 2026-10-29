@@ -18,6 +18,11 @@ The renderer embeds [input](quality/input_checks.sql) and
 38 named checks retain actionable error/warning results before publication;
 the fragments are not independent deployment scripts. See
 [recurring gate acceptance](../docs/operations/recurring-quality-gates.md).
+The [bounded carry fragment](01_curated_data/bounded_join.sql) limits calendar
+fill to 7/14/7/7 days. The [measurement quality view](serving/imputation.sql)
+exposes original dates, age, missingness, imputation and expiry from retained
+accepted artifacts, including after rollback. See
+[fill-policy acceptance](../docs/operations/bounded-forward-fill.md).
 
 | Stage | Implementation / behavior |
 | --- | --- |

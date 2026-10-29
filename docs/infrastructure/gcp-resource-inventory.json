@@ -1,6 +1,6 @@
 {
-  "verified_at": "2026-10-29T22:17:25.466514+00:00",
-  "verification": "Live no-change plans after recurring quality gates: 38 shared input/output checks, 28 native fault/validity cases, integrated failure/rollback proofs and a final positive 38-check build. Exact supplier observation manifests reach the pinned nine-task Python 3.11 DAG. Controlled production acquisition rejected NASA precipitation age 8 > 7 before SQL, preserving all six serving tables/model and accepted marker. Seven labelled validation datasets removed; DAG unpaused/idle at checkpoint, maintenance VM restored stopped. Protected rollback resources and held quality evidence remain.",
+  "verified_at": "2026-10-29T22:41:41.696316+00:00",
+  "verification": "Live no-change plans after bounded forward fill and BI observation-age view. Calendar limits 7/14/7/7, expired values NULL, 16 native boundary/missingness cases and preserved revision origins. Historical-gap atomic publication produced 90 expired NULL measurement rows; three failure points, frozen/completed retries, rollback and restored provenance passed. Controlled production run withheld stale NASA weather before SQL, preserving serving/model/marker. Six labelled test datasets removed; DAG unpaused/idle, VM restored stopped; four functions and grants unchanged.",
   "managed_instance_count": 122,
   "resources": [
     {
