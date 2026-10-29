@@ -13,6 +13,9 @@ FILES = {'migration': ROOT / 'sql/migrations/020_atomic_delivery.sql',
          'serving_views': ROOT / 'sql/serving/analytics_delivery.sql',
          'retire_legacy': ROOT / 'sql/procedures/run_daily_pipeline.sql',
          'bootstrap': ROOT / 'sql/migrations/020_atomic_delivery_bootstrap.sql'}
+FRAGMENTS = {'input_quality_checks': ROOT / 'sql/quality/input_checks.sql',
+             'output_quality_checks': ROOT / 'sql/quality/output_checks.sql'}
+FILES.update(FRAGMENTS)
 
 
 def render(kind, **identifiers):
@@ -24,6 +27,9 @@ def render(kind, **identifiers):
     if len({context['delivery'], context['curated'], context['staging']}) != 3:
         raise ValueError('Delivery, curated and staging datasets must be distinct')
     text = FILES[kind].read_text(encoding='utf-8')
+    for key, path in FRAGMENTS.items():
+        if '${'+key+'}' in text:
+            text = text.replace('${'+key+'}', path.read_text(encoding='utf-8'))
     if '${project}.${delivery}.' not in text:
         raise ValueError('Delivery SQL must explicitly declare its target namespace')
     for key, value in context.items():

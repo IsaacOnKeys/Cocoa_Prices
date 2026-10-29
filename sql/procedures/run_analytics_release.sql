@@ -111,21 +111,7 @@ BEGIN
     CREATE TEMP TABLE source_input AS
       SELECT * EXCEPT(release_id,business_date) FROM `${project}.${delivery}.frozen_inputs`
       WHERE release_id=p_release_id AND business_date=p_business_date;
-    ASSERT NOT EXISTS (SELECT 1 FROM source_input WHERE date IS NULL OR date>p_business_date)
-      AS 'Invalid frozen observation dates';
-    ASSERT NOT EXISTS (SELECT 1 FROM source_input GROUP BY kind,feed,date HAVING COUNT(*)!=1)
-      AS 'Conflicting frozen source keys';
-    ASSERT (SELECT COUNT(*) FROM source_input WHERE kind='stage' AND feed='cocoa')=
-      SAFE_CAST(JSON_VALUE(p_sources,'$.cocoa.observations') AS INT64)
-      AND (SELECT COUNT(*) FROM source_input WHERE kind='stage' AND feed='oil')=
-      SAFE_CAST(JSON_VALUE(p_sources,'$.oil.observations') AS INT64)
-      AND (SELECT COUNT(*) FROM source_input WHERE kind='stage' AND feed='weather')=
-      SAFE_CAST(JSON_VALUE(p_sources,'$.weather.observations') AS INT64)
-      AS 'Frozen current acquisitions differ from accepted source counts';
-    ASSERT NOT EXISTS (SELECT 1 FROM source_input WHERE kind='stage' AND (
-      timestamp_status IS DISTINCT FROM 'valid' OR producer_acquired_at<p_run_started_at
-      OR producer_acquired_at>input_cutoff OR source_published_at IS NULL OR consumer_received_at IS NULL))
-      AS 'Frozen acquisition provenance is invalid';
+    ${input_quality_checks}
 
     CREATE TEMP TABLE candidate_cocoa AS
       SELECT date AS Date,price AS Euro_Price FROM source_input WHERE feed='cocoa'
@@ -184,12 +170,7 @@ BEGIN
       FROM ML.PREDICT(MODEL `%s`,(SELECT * EXCEPT(target_40) FROM _SESSION.candidate_features)) p
       LEFT JOIN _SESSION.candidate_features f ON f.date=DATE_ADD(p.date,INTERVAL 40 DAY)''',versioned_model);
 
-    ASSERT (SELECT COUNT(*)=40 AND COUNT(DISTINCT forecast_date)=40
-      AND COUNTIF(forecast_cocoa_price IS NULL OR IS_NAN(forecast_cocoa_price)
-        OR IS_INF(forecast_cocoa_price) OR forecast_cocoa_price<=0)=0
-      AND MIN(forecast_date)=DATE_ADD(p_business_date,INTERVAL 1 DAY)
-      AND MAX(forecast_date)=DATE_ADD(p_business_date,INTERVAL 40 DAY)
-      FROM candidate_forecast) AS 'Forecast candidate failed the release contract';
+    ${output_quality_checks}
     SET quality = TO_JSON(STRUCT(
       (SELECT COUNT(*) FROM candidate_cocoa) AS cocoa_rows,
       (SELECT COUNT(*) FROM candidate_oil) AS oil_rows,
@@ -197,6 +178,8 @@ BEGIN
       (SELECT COUNT(*) FROM candidate_joined) AS calendar_rows,
       (SELECT COUNT(*) FROM candidate_forecast) AS forecast_rows,
       TRUE AS current_acquisitions_reconciled,TRUE AS forecast_contract_passed,
+      (SELECT ARRAY_AGG(STRUCT(stage,check_name,severity,violations,detail) ORDER BY stage,check_name) FROM quality_checks) AS checks,
+      (SELECT COUNTIF(severity='warning' AND violations>0) FROM quality_checks) AS warning_checks,
       (SELECT ARRAY_AGG(STRUCT(name,row_count,fingerprint) ORDER BY name) FROM (
         SELECT 'cocoa' AS name,COUNT(*) AS row_count,COALESCE(CAST(BIT_XOR(FARM_FINGERPRINT(TO_JSON_STRING(t))) AS STRING),'0') AS fingerprint FROM candidate_cocoa t
         UNION ALL SELECT 'brent_prices',COUNT(*),COALESCE(CAST(BIT_XOR(FARM_FINGERPRINT(TO_JSON_STRING(t))) AS STRING),'0') FROM candidate_oil t

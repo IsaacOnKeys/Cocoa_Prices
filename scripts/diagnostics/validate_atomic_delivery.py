@@ -69,13 +69,28 @@ def fingerprints(bq, state):
     return sorted(query(bq, state, sql, name='fingerprints_'+uuid.uuid4().hex[:8]), key=lambda r: r['name'])
 
 
+def source_manifest(bq, state, feed, table, acquisition):
+    from google.cloud import bigquery
+
+    measures={'cocoa':('cocoa_price',),'oil':('oil_price',),'weather':('precipitation','soil_moisture')}[feed]
+    nulls=','.join(f'{name} IS NULL AS {name}_missing' for name in measures)
+    rows=query(bq,state,f'SELECT date,observation_id,{nulls} FROM `{PROJECT}.{state["names"]["staging"]}.{table}` WHERE acquisition_id=@acquisition ORDER BY date',
+      params=[bigquery.ScalarQueryParameter('acquisition','STRING',acquisition)],name='source_manifest_'+feed)
+    if len(rows)>90:
+        raise ValueError('Synthetic source inventory exceeds the supported window')
+    return [{'date':str(row['date']),'observation_id':row['observation_id'],
+             'missing_measurements':[name for name in measures if row[name+'_missing']]} for row in rows]
+
+
 def prepare(path):
     from google.cloud import bigquery
 
     if path.exists():
         raise ValueError('Refusing to replace an atomic validation receipt')
     token = datetime.now(timezone.utc).strftime('%Y%m%d')+'_'+uuid.uuid4().hex[:8]
-    state = {'token': token, 'names': names(token), 'phase': 'preparing', 'business_date': date.today().isoformat()}
+    fixture_time=datetime.now(timezone.utc)-timedelta(seconds=1)
+    state = {'token': token, 'names': names(token), 'phase': 'preparing',
+             'business_date': fixture_time.date().isoformat(),'fixture_acquired_at':fixture_time.isoformat()}
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text(json.dumps(state, indent=2))
     bq = client()
@@ -90,7 +105,7 @@ def prepare(path):
     script = f'''
       CREATE TABLE `{PROJECT}.{curated}.cocoa` AS
         SELECT d AS Date,6000.0+offset*0.2+10*SIN(offset/5.0) AS Euro_Price
-        FROM UNNEST(GENERATE_DATE_ARRAY(DATE '2014-01-02',DATE_SUB(CURRENT_DATE('Europe/Berlin'),INTERVAL 1 DAY))) d WITH OFFSET;
+        FROM UNNEST(GENERATE_DATE_ARRAY(DATE '2014-01-02',DATE_SUB(DATE '{state["business_date"]}',INTERVAL 1 DAY))) d WITH OFFSET;
       CREATE TABLE `{PROJECT}.{curated}.brent_prices` AS
         SELECT Date AS date,75.0+SIN(UNIX_DATE(Date)/5.0) AS brent_price_eu FROM `{PROJECT}.{curated}.cocoa`;
       CREATE TABLE `{PROJECT}.{curated}.precipitation` AS
@@ -100,7 +115,7 @@ def prepare(path):
         FROM `{PROJECT}.{curated}.cocoa` c JOIN `{PROJECT}.{curated}.brent_prices` o ON c.Date=o.date
         JOIN `{PROJECT}.{curated}.precipitation` w ON c.Date=w.date;
       CREATE TABLE `{PROJECT}.{curated}.forecast_40d` AS
-        SELECT DATE_ADD(CURRENT_DATE('Europe/Berlin'),INTERVAL offset DAY) AS forecast_date,6900.0+offset AS forecast_cocoa_price FROM UNNEST(GENERATE_ARRAY(0,39)) offset;
+        SELECT DATE_ADD(DATE '{state["business_date"]}',INTERVAL offset DAY) AS forecast_date,6900.0+offset AS forecast_cocoa_price FROM UNNEST(GENERATE_ARRAY(0,39)) offset;
       CREATE TABLE `{PROJECT}.{curated}.pred_hist_40d` AS
         SELECT c.Date AS prediction_date,DATE_ADD(c.Date,INTERVAL 40 DAY) AS forecast_date,c.Euro_Price+8 AS yhat_40,f.Euro_Price AS actual
         FROM `{PROJECT}.{curated}.cocoa` c LEFT JOIN `{PROJECT}.{curated}.cocoa` f ON f.Date=DATE_ADD(c.Date,INTERVAL 40 DAY);
@@ -115,10 +130,11 @@ def prepare(path):
                    ('timestamp_status','STRING'), ('delivery_id','STRING'), ('pubsub_message_id','STRING'),
                    ('acquisition_id','STRING'), ('observation_id','STRING')]
         bq.create_table(bigquery.Table(f'{PROJECT}.{staging}.{table}', schema=[bigquery.SchemaField(k,t) for k,t in columns]), timeout=30)
-    preflight = json.loads((ROOT / '.build/atomic-analytics-release/preflight.json').read_text())
     for name in ['features_live', 'mape_40d']:
-        text = preflight['views']['cocoa_related.'+name]['query']
+        text = bq.get_table(f'{PROJECT}.cocoa_related.{name}',timeout=30).view_query
         text = text.replace(PROJECT+'.cocoa_related.', PROJECT+'.'+curated+'.')
+        if PROJECT+'.cocoa_related.' in text or PROJECT+'.stream_staging.' in text:
+            raise ValueError('Unmapped live reference in the synthetic view fixture')
         query(bq, state, f'CREATE VIEW `{PROJECT}.{curated}.{name}` AS '+text, name='seed_'+name)
     query(bq, state, RENDER('migration', **context), name='migration')
     path.write_text(json.dumps(state, indent=2, default=str))
@@ -158,7 +174,7 @@ def cleanup(path):
     print(json.dumps({'resources_deleted': True, 'token': state['token']}))
 
 
-def exercise(path):
+def exercise(path, inject_failures=True):
     from google.api_core.exceptions import BadRequest
     from google.cloud import bigquery
 
@@ -171,7 +187,7 @@ def exercise(path):
     routine = bq.get_routine(f'{PROJECT}.{context["delivery"]}.run_daily_pipeline', timeout=30)
     code_id = hashlib.sha256(routine.body.encode()).hexdigest()
     release = hashlib.sha256((state['token']+'/'+code_id+'/first').encode()).hexdigest()
-    acquired = datetime.now(timezone.utc)-timedelta(minutes=1)
+    acquired = datetime.fromisoformat(state['fixture_acquired_at'])
     started = acquired-timedelta(seconds=1)
     sources = {}
     for feed, table, expression, fields in [
@@ -191,9 +207,11 @@ def exercise(path):
           SELECT d,{expression},@acquired,'synthetic-publication-fixture',@acquired,CAST(@acquired AS STRING),
             TIMESTAMP_ADD(@acquired,INTERVAL 2 SECOND),TIMESTAMP_ADD(@acquired,INTERVAL 1 SECOND),'valid',
             TO_HEX(SHA256(CAST(d AS STRING))),CAST(d AS STRING),@acquisition,
-            TO_HEX(SHA256(CONCAT(@acquisition,CAST(d AS STRING))))
+            LOWER(TO_HEX(SHA256(CONCAT(@acquisition,CAST(d AS STRING)))))
           FROM UNNEST(GENERATE_DATE_ARRAY(DATE_SUB(@business,INTERVAL 30 DAY),@business)) d'''
         query(bq, state, sql, params=params, name='stage_'+feed)
+        sources[feed].update(window_start=(date.fromisoformat(state['business_date'])-timedelta(days=30)).isoformat(),
+                             window_end=state['business_date'],observation_manifest=source_manifest(bq,state,feed,table,identity))
     canonical_sources = json.dumps(sources, sort_keys=True, separators=(',', ':'))
     state.update(phase='exercising', release_id=release, code_id=code_id, source_receipts=sources,
                  run_started_at=started.isoformat())
@@ -225,7 +243,8 @@ def exercise(path):
         save(state)
         print(json.dumps({'injected_failure': stage, 'six_serving_fingerprints_unchanged': True}), flush=True)
 
-    fail('after_freeze')
+    if inject_failures:
+        fail('after_freeze')
     identity = sources['cocoa']['acquisition_id']
     sql = f'''INSERT `{PROJECT}.{context["staging"]}.cocoa_prices`
       SELECT date,cocoa_price+123,ingestion_time,raw_payload,producer_acquired_at,producer_timestamp_raw,
@@ -233,13 +252,18 @@ def exercise(path):
         TO_HEX(SHA256(CONCAT(observation_id,'late')))
       FROM `{PROJECT}.{context["staging"]}.cocoa_prices`
       WHERE acquisition_id=@acquisition AND date=@business LIMIT 1'''
-    query(bq, state, sql, params=[bigquery.ScalarQueryParameter('acquisition','STRING',identity),
-          bigquery.ScalarQueryParameter('business','DATE',date.fromisoformat(state['business_date']))], name='late_conflicting_staging')
-    fail('after_candidates')
-    fail('after_first_publish')
+    if inject_failures:
+        query(bq, state, sql, params=[bigquery.ScalarQueryParameter('acquisition','STRING',identity),
+              bigquery.ScalarQueryParameter('business','DATE',date.fromisoformat(state['business_date']))], name='late_conflicting_staging')
+        fail('after_candidates')
+        fail('after_first_publish')
     result = invoke(name='publish')
     assert len(result) == 1 and result[0]['status'] == 'published' and result[0]['is_active']
     state['published_result'] = result[0]
+    quality=query(bq,state,f'SELECT quality_results FROM `{PROJECT}.{context["delivery"]}.release_runs` WHERE release_id=@release',
+      params=[bigquery.ScalarQueryParameter('release','STRING',release)],name='published_quality_evidence')[0]['quality_results']
+    assert quality['checks'] and all(check['violations']==0 for check in quality['checks'] if check['severity']=='error')
+    state['published_quality_report']=quality
     published = fingerprints(bq, state)
     assert published != state['baseline']
     model = bq.get_model(result[0]['model_id'], timeout=30)
@@ -259,11 +283,11 @@ def exercise(path):
     else:
         raise AssertionError('Changed frozen request unexpectedly succeeded')
     assert fingerprints(bq, state) == published
-    state.update(phase='publication_verified', published_fingerprints=published, late_staging_ignored_on_retry=True,
+    state.update(phase='publication_verified', published_fingerprints=published, late_staging_ignored_on_retry=inject_failures,
                  completed_retry_is_noop=True, changed_request_rejected=True)
     save(state)
-    print(json.dumps({'phase': 'publication_verified', 'token': state['token'], 'failure_points': 3,
-                      'frozen_input_retry': True, 'completed_retry_noop': True}), flush=True)
+    print(json.dumps({'phase': 'publication_verified', 'token': state['token'], 'failure_points': 3 if inject_failures else 0,
+                      'frozen_input_retry': inject_failures, 'completed_retry_noop': True}), flush=True)
 
 
 def rollback(path):
@@ -303,7 +327,7 @@ def rollback(path):
 
     # Freeze a second valid candidate against the first accepted release.
     stale = hashlib.sha256((current+'/stale-base-proof').encode()).hexdigest()
-    acquired = datetime.now(timezone.utc)-timedelta(minutes=1)
+    acquired = datetime.fromisoformat(state['fixture_acquired_at'])
     started = acquired-timedelta(seconds=1)
     sources = json.loads(json.dumps(state['source_receipts']))
     for feed,table in [('cocoa','cocoa_prices'),('oil','oil_prices'),('weather','precipitation_moisture')]:
@@ -314,10 +338,11 @@ def rollback(path):
         sql = f'''INSERT `{PROJECT}.{n["staging"]}.{table}`
           SELECT date,{measure},@acquired,raw_payload,@acquired,CAST(@acquired AS STRING),
             TIMESTAMP_ADD(@acquired,INTERVAL 2 SECOND),TIMESTAMP_ADD(@acquired,INTERVAL 1 SECOND),'valid',
-            delivery_id,pubsub_message_id,@identity,TO_HEX(SHA256(CONCAT(observation_id,'stale-base-proof')))
+            delivery_id,pubsub_message_id,@identity,LOWER(TO_HEX(SHA256(CONCAT(observation_id,'stale-base-proof'))))
           FROM `{PROJECT}.{n["staging"]}.{table}` WHERE acquisition_id=@original AND delivery_id!='late-fixture' '''
         query(bq,state,sql,params=[bigquery.ScalarQueryParameter('acquired','TIMESTAMP',acquired),
               bigquery.ScalarQueryParameter('identity','STRING',identity),bigquery.ScalarQueryParameter('original','STRING',old)],name='stage_stale_'+feed)
+        sources[feed]['observation_manifest']=source_manifest(bq,state,feed,table,identity)
 
     def stale_call(stage):
         params = [bigquery.ScalarQueryParameter('release','STRING',stale),
@@ -395,11 +420,12 @@ def rollback(path):
 def main():
     global RECEIPT
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument('phase', choices=('prepare', 'exercise', 'rollback', 'cleanup'))
+    parser.add_argument('phase', choices=('prepare', 'exercise', 'smoke', 'rollback', 'cleanup'))
     parser.add_argument('--receipt', required=True, type=Path)
     args = parser.parse_args()
     RECEIPT = args.receipt
-    {'prepare': prepare, 'exercise': exercise, 'rollback': rollback, 'cleanup': cleanup}[args.phase](args.receipt)
+    {'prepare': prepare, 'exercise': exercise, 'smoke': lambda path: exercise(path, False),
+     'rollback': rollback, 'cleanup': cleanup}[args.phase](args.receipt)
 
 
 if __name__ == '__main__':

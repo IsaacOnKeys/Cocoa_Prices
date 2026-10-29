@@ -336,7 +336,8 @@ def make_wait_callable(feed_key: str, table_fqn: str):
         ti.xcom_push(key="accepted_source", value={"acquisition_id": identity, "acquired_at": document["acquired_at"],
             "receipt_object": object_name, "receipt_generation": generation, "receipt_sha256": digest,
             "window_start": document["window_start"], "window_end": document["window_end"],
-            "observations": len(expected), "source_ages": ages, "engineering_validation": scope["engineering_validation"]})
+            "observations": len(expected), "observation_manifest": document["observations"],
+            "source_ages": ages, "engineering_validation": scope["engineering_validation"]})
         return True
 
     def _wait_callable(**ctx):
