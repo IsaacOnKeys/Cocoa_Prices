@@ -4,3 +4,4 @@ fastavro==1.9.5
 PyYAML==6.0.3
 beautifulsoup4==4.12.3
 functions-framework==3.8.3
+pendulum==3.0.0

@@ -7,6 +7,7 @@ import ast
 import sys
 import traceback
 import uuid
+from datetime import datetime, timezone
 from pathlib import Path
 from types import ModuleType, SimpleNamespace
 from unittest.mock import Mock
@@ -39,7 +40,7 @@ def trigger(monkeypatch):
         monkeypatch.setitem(sys.modules, module.__name__, module)
     source = ast.parse((ROOT / 'airflow/dags/cocoa_daily.py').read_bytes())
     function = next(node for node in source.body if isinstance(node, ast.FunctionDef) and node.name == '_invoke_producer')
-    namespace = {'PubSubHook': hooks, 'GCP_PROJECT': 'unit-project', 'uuid': uuid,
+    namespace = {'PubSubHook': hooks, 'GCP_PROJECT': 'unit-project', 'uuid': uuid, 'datetime': datetime, 'timezone': timezone,
                  'AirflowException': AirflowException, 'AirflowFailException': AirflowFailException}
     exec(compile(ast.Module(body=[function], type_ignores=[]), 'producer_trigger', 'exec'), namespace)
     return SimpleNamespace(call=namespace['_invoke_producer'], publisher=publisher, requests=requests,
