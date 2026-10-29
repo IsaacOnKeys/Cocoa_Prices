@@ -30,7 +30,7 @@ import time
 from datetime import datetime
 
 import apache_beam as beam
-from backfill_recovery import invalid_record
+from backfill_recovery import configure_worker_package, invalid_record
 from apache_beam.options.pipeline_options import (
     GoogleCloudOptions,
     PipelineOptions,
@@ -193,6 +193,7 @@ class CheckDuplicates(beam.DoFn):
 
 
 def run():
+    configure_worker_package(PIPELINE_OPTIONS, __file__)
     logging.info("Pipeline is starting...")
     with beam.Pipeline(options=PIPELINE_OPTIONS) as p:
         records = (

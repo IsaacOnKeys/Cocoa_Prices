@@ -3,7 +3,9 @@
 import hashlib
 import importlib.util
 import json
+import sys
 from pathlib import Path
+from types import SimpleNamespace
 
 import pytest
 
@@ -84,3 +86,15 @@ def test_declared_nasa_metadata_is_separate_from_observations_and_unknown_text(c
     assert sum('YEAR' in row for row in parsed) == 5
     unknown = module.parse_csv('PRIVATE unexpected text')
     assert unknown.get('_parse_error') and not unknown.get('_metadata')
+
+
+@pytest.mark.parametrize('runner,explicit', [('DataflowRunner', None), ('DataflowRunner', 'owner-setup.py'), ('DirectRunner', None)])
+def test_remote_workers_receive_shared_helper_without_replacing_operator_package(cleaners, monkeypatch, runner, explicit):
+    helper = sys.modules['backfill_recovery']
+    flags = SimpleNamespace(runner=runner, setup_file=explicit)
+    options = SimpleNamespace(view_as=lambda kind: flags)
+    monkeypatch.setattr(sys.modules['apache_beam.options.pipeline_options'], 'SetupOptions', object, raising=False)
+    script = ROOT/'pipelines/backfill/clean_cocoa_prices.py'
+    helper.configure_worker_package(options, str(script))
+    expected = str(script.with_name('setup.py').resolve()) if runner == 'DataflowRunner' and explicit is None else explicit
+    assert flags.setup_file == expected

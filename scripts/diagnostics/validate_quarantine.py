@@ -275,9 +275,9 @@ def cleanup(path):
         bq.delete_dataset(dataset, delete_contents=True)
     if state.get('source'):
         src = state['source']
-        blob = gcs.bucket(src['bucket']).blob(src['object'], generation=int(src['generation']))
-        if blob.exists(timeout=10):
-            blob.delete(if_generation_match=int(src['generation']), timeout=10)
+        # Gen2 also materializes function-source.zip in this disposable namespace.
+        for blob in gcs.bucket(src['bucket']).list_blobs(prefix=n['function']+'/', versions=True, timeout=30):
+            blob.delete(if_generation_match=blob.generation, timeout=10)
     assert api(http, 'GET', url, allow_missing=True) is None and not bucket.exists(timeout=10)
     state['resources_deleted'] = True
     save(path, state)

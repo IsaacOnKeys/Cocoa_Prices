@@ -2,6 +2,7 @@
 
 import hashlib
 import json
+from pathlib import Path
 from datetime import datetime, timezone
 
 SOURCES = {
@@ -9,6 +10,16 @@ SOURCES = {
     'oil': ('gs://raw-historic-data/snapshots/2026-10-27/eia/brent_oil_eia.json', ('date', 'brent_price_eu'), 'eia-published-json-v1'),
     'weather': ('gs://raw-historic-data/snapshots/2025-10-02/nasa_power/POWER_Point_Daily.csv', ('date', 'precipitation', 'soil_moisture'), 'nasa-csv-v1'),
 }
+
+
+def configure_worker_package(options, script_file):
+    """Stage the shared module when Beam launches remote Dataflow workers."""
+    from apache_beam.options.pipeline_options import SetupOptions, StandardOptions
+
+    if options.view_as(StandardOptions).runner == 'DataflowRunner':
+        setup = options.view_as(SetupOptions)
+        if not setup.setup_file:
+            setup.setup_file = str(Path(script_file).with_name('setup.py').resolve())
 
 
 def invalid_record(record, feed):
