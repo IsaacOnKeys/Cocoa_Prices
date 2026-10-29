@@ -26,7 +26,7 @@ BQ_LOC = Variable.get("BQ_LOCATION", default_var="europe-west3")
 BQ_PROC = Variable.get("BQ_PROC", default_var="analytics_delivery.run_daily_pipeline")
 BQ_PROC_FQN = f"{GCP_PROJECT}.{BQ_PROC}"
 # Deployment pins the verified routine body before installing this DAG.
-RELEASE_PROCEDURE_SHA256 = "232ec5bd2fa5dae412b22dab646e480e4cb9201bfd47d30ac411d2cb8ad55fc5"
+RELEASE_PROCEDURE_SHA256 = "afb59def7188cbc4e7e19c63825b5ab9b647c388cdca8b02647a54eb8ba9234b"
 
 BQ_STG = {
     "cocoa": Variable.get(
