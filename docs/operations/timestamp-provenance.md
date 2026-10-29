@@ -21,6 +21,11 @@ source daily dates and response metadata. Cocoa and EIA already emit aware UTC.
 | timestamp_status | valid, legacy_naive_utc, missing, invalid or future. |
 | ingestion_time | Compatibility field equal to producer_acquired_at for new rows across all feeds. Never replace unknown acquisition with receipt time. |
 
+The [later SQL-gate correction](deterministic-source-revisions.md#publication-time-gate-correction)
+preserves this contract: unknown supplier publication times remain NULL, while
+valid acquisition/receipt provenance is required and supplied times beyond the
+frozen input cutoff are rejected.
+
 Offsets normalize before comparison. Accept second/microsecond ISO timestamps
 with explicit offsets; retain their original strings. The verified old weather
 writer used naive datetime.utcnow(), so only that known feed's legacy format

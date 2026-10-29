@@ -34,7 +34,8 @@ No new NULL-precedence behavior has been deployed without that decision.
   date. Beam provides no source-authority ordering for that selection. Replace
   it with deterministic identical-repeat/conflict handling, consistent across
   the three historical cleaners, and verify actual Python 3.11 Beam execution.
-  No production backfill is authorized by a diagnostic or these notes.
+  Validation will use isolated fixtures rather than the fixed production
+  `WRITE_TRUNCATE` destinations.
 
 ## Publication-time gate correction
 
@@ -50,4 +51,38 @@ producer acquisition/consumer receipt provenance and rejects a supplied
 publication time beyond the input cutoff. No observation date, acquisition time,
 source-age threshold or serving value is changed. Diagnostics now exercise
 truthful NULL publication times, plus an explicitly invalid future timestamp.
-Native acceptance and the controlled deployment receipt are being finalized.
+
+The independent correction is implemented in `f8422ec`, with deployed procedure
+pin `6d049ba`. Native quality fixture `20261029_e630f4f9` passed all 30 cases
+using NULL publication times, including a future-time rejection. Actual BQML
+fixture `20261029_12d8b9ad` passed training, publication and completed retry with
+truthful NULL publication times and historical expired gaps. It ran the positive
+smoke path; no additional failure-injection or rollback repetition is claimed.
+The preceding [bounded-fill receipt](bounded-forward-fill.md) retains those
+failure/recovery proofs. All 83 focused contract/ingestion tests, changed-file
+Ruff, two changed Python syntax checks and whitespace checks passed.
+
+Installed DAG SHA256:
+`c4c9f21773c9f561099c34a45a1f7a6bb9aace2e29b6977b824e45e833672c68`.
+Native-verified procedure-body SHA256:
+`4da1ef0d67ac92cc9e77462f2451de558ea74ad6f786b02a396128326ecfefe7`.
+Only the procedure and its DAG pin change in production. The 17-field quality
+view, all six serving schemas, functions, Avro, dependencies and IAM are unchanged.
+
+Controlled run `publication_provenance__f8422ec__20261029` ran from
+2026-10-29 23:00:13.807658 to 23:01:01.354649 UTC (October 30 in Berlin).
+Cocoa and oil passed; NASA precipitation age 9 exceeded the unchanged 7-day
+limit. SQL/summary were upstream-failed. All six serving fingerprints, the
+accepted marker and legacy model remain unchanged; no successful current
+production publication is claimed.
+
+The final DAG checkpoint is unpaused/idle with legacy Beam disabled, and the
+maintenance VM is restored to its prior stopped state. Four labelled disposable
+datasets/models were removed. Both Terraform roots have no drift and retain
+122 managed resources. The four functions and report-view definition/schema
+remain unchanged. Held changed source, prior DAG/procedure and complete
+native/production receipts are under
+`gs://raw-historic-data/operations/2026-10-29/publication-provenance-fix/`.
+The ignored parent checklist records the completion manifest generation/SHA256.
+This completes the independent gate correction; item 17 stays unchecked until
+the NULL policy, fingerprint verification and deterministic duplicate work pass.

@@ -4,6 +4,11 @@ Checklist item 16, branch `codex/bounded-forward-fill`, implementation `a510f79`
 expiry regression `2b4265b`, deployed pin `4512b32`. This extends the accepted
 [recurring quality gates](recurring-quality-gates.md).
 
+The subsequent [publication-provenance correction](deterministic-source-revisions.md#publication-time-gate-correction)
+supersedes this receipt's deployed DAG/procedure hashes while preserving its
+fill policy and quality-view definition. The results below retain item 16's
+original acceptance scope.
+
 ## Policy
 
 `bounded_calendar_v1` uses the contracted source-age limits as maximum

@@ -1,6 +1,6 @@
 {
-  "verified_at": "2026-10-29T22:41:41.696316+00:00",
-  "verification": "Live no-change plans after bounded forward fill and BI observation-age view. Calendar limits 7/14/7/7, expired values NULL, 16 native boundary/missingness cases and preserved revision origins. Historical-gap atomic publication produced 90 expired NULL measurement rows; three failure points, frozen/completed retries, rollback and restored provenance passed. Controlled production run withheld stale NASA weather before SQL, preserving serving/model/marker. Six labelled test datasets removed; DAG unpaused/idle, VM restored stopped; four functions and grants unchanged.",
+  "verified_at": "2026-10-29T23:04:56.025359+00:00",
+  "verification": "Live no-change plans after supplier-publication provenance gate correction: unknown publication instants stay NULL, acquisition/receipt validation remains mandatory, supplied future instants are rejected. Thirty native quality cases and actual isolated BQML publication/completed retry use truthful NULL publication times. Controlled source acquisition still withheld overdue NASA weather before SQL, preserving all serving/model/marker fingerprints. Four labelled test datasets removed, quality-view definition and four functions unchanged, DAG unpaused/idle, maintenance VM restored stopped. Source revision NULL policy remains owner input for checklist item 17.",
   "managed_instance_count": 122,
   "resources": [
     {
