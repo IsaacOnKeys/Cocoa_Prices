@@ -1,6 +1,8 @@
 """Finite source retries and publish waits within the caller's invocation budget."""
 
 import time
+import base64
+import io
 import hashlib
 import json
 import os
@@ -103,6 +105,112 @@ def publish_timeout(deadline):
 
 class RecoveryRequired(RuntimeError):
     """A bounded automatic acquisition cannot safely bridge the missing interval."""
+
+
+SOURCE_REQUESTS = {
+    'ICCO': {'endpoints': ['https://www.icco.org/statistics/', 'https://www.icco.org/home/',
+                          'https://www.icco.org/wp-admin/admin-ajax.php?action=get_wdtable&table_id=26'],
+             'series': 'ICCO daily cocoa price', 'units': 'EUR/tonne', 'date_basis': 'source_observation'},
+    'EIA': {'endpoints': ['https://api.eia.gov/v2/petroleum/pri/spt/data/', 'https://www.eia.gov/dnav/pet/hist/RBRTED.htm'],
+            'frequency': 'daily', 'series': 'RBRTE', 'units': '$/BBL', 'published_table_verified': True},
+    'NASA_POWER': {'endpoints': ['https://power.larc.nasa.gov/api/temporal/daily/point'],
+                   'parameters': ['PRECTOTCORR', 'GWETROOT'], 'longitude': -6.635, 'latitude': 4.745,
+                   'community': 'ag', 'format': 'JSON', 'time_standard': 'LST',
+                   'units': {'precipitation': 'mm/day', 'soil_moisture': 'fraction'}},
+}
+MEASUREMENTS = {'ICCO': ('cocoa_price',), 'EIA': ('oil_price',), 'NASA_POWER': ('precipitation', 'soil_moisture')}
+
+
+def _json_bytes(document):
+    return json.dumps(document, sort_keys=True, separators=(',', ':'), allow_nan=False).encode()
+
+
+def _archive_json(progress, prefix, document):
+    """Create only; a retry may confirm identical existing bytes, never overwrite."""
+    from google.api_core.exceptions import PreconditionFailed
+
+    data = _json_bytes(document)
+    checksum = hashlib.sha256(data).hexdigest()
+    blob = progress.receipts.blob(prefix + checksum + '.json')
+    try:
+        blob.upload_from_string(data, content_type='application/json', if_generation_match=0,
+                                timeout=progress._timeout(), retry=None)
+    except PreconditionFailed:
+        blob.reload(timeout=progress._timeout(), retry=None)
+        if blob.download_as_bytes(if_generation_match=blob.generation, timeout=progress._timeout(), retry=None) != data:
+            raise RuntimeError('Daily raw archive conflict') from None
+    blob.reload(timeout=progress._timeout(), retry=None)
+    return {'bucket': progress.receipts.name, 'object': blob.name, 'generation': str(blob.generation), 'sha256': checksum}
+
+
+def publish_batch(publisher_factory, project, topic, records, schema, *, source, acquisition_id, acquired_at, deadline, progress):
+    """Archive the entire serializable batch before its first transport side effect.
+
+    The prepared archive survives partial publication or process termination.
+    A separate immutable outcome records confirmed ACKs; an absent outcome means
+    publication unknown, never successful. Metadata is a source-specific allowlist,
+    independent of credential-bearing HTTP request objects and SDK exceptions.
+    """
+    import fastavro
+
+    if len(records) > 90:
+        raise RuntimeError('Daily batch exceeds bounded acquisition window')
+    messages = []
+    for record in records:
+        buffer = io.BytesIO()
+        fastavro.schemaless_writer(buffer, schema, record)
+        data = buffer.getvalue()
+        attributes = {'googclient_schemaencoding': 'BINARY', 'acquisition_id': acquisition_id,
+                      'observation_id': observation_identity(source, record['date'], {k: record[k] for k in MEASUREMENTS[source]})}
+        messages.append({'data': base64.b64encode(data).decode(), 'sha256': hashlib.sha256(data).hexdigest(),
+                         'attributes': attributes})
+    archived = None
+    if progress:
+        try:
+            schema_bytes = _json_bytes(schema)
+            document = {'version': 1, 'stage': 'prepared', 'source': source, 'acquisition_id': acquisition_id,
+                        'acquired_at': acquired_at, 'fetched_at': acquired_at,
+                        'window_start': progress.start.isoformat(), 'window_end': progress.end.isoformat(),
+                        'request': SOURCE_REQUESTS[source], 'schema': schema,
+                        'schema_sha256': hashlib.sha256(schema_bytes).hexdigest(), 'encoding': 'avro_binary',
+                        'evidence': 'complete_wire_records_with_source_values_and_provenance', 'messages': messages}
+            prefix = f'daily-inputs/v1/{source}/{acquired_at[:10]}/{acquisition_id}/'
+            if len(_json_bytes(document)) > 16 * 1024 * 1024:
+                raise RuntimeError('Daily batch exceeds archive size limit')
+            archived = _archive_json(progress, prefix + 'batches/', document)
+        except Exception:
+            raise RuntimeError('Daily raw input persistence failed; publication withheld') from None
+    acknowledged = 0
+    failure = 'publisher initialization failed'
+    try:
+        publisher = publisher_factory()
+        destination = publisher.topic_path(project, topic)
+        failure = 'Avro publication failed; batch incomplete'
+        for message in messages:
+            timeout = publish_timeout(deadline)
+            publisher.publish(destination, base64.b64decode(message['data']), **message['attributes']).result(
+                timeout=min(timeout, publish_timeout(deadline)))
+            acknowledged += 1
+    except Exception:
+        if archived:
+            try:
+                _archive_json(progress, prefix + 'outcomes/' + archived['sha256'] + '/',
+                              {'version': 1, 'stage': 'publication_unconfirmed', 'input': archived,
+                               'acknowledged': acknowledged, 'total': len(messages),
+                               'recorded_at': datetime.now(timezone.utc).isoformat(), 'error_category': 'publish_failed_or_timed_out'})
+            except Exception:
+                pass  # Prepared input remains durable; lack of a final outcome is explicitly unknown.
+        raise RuntimeError(failure) from None
+    if archived:
+        try:
+            outcome = _archive_json(progress, prefix + 'outcomes/' + archived['sha256'] + '/',
+                                    {'version': 1, 'stage': 'publish_acknowledged', 'input': archived,
+                                     'acknowledged': acknowledged, 'total': len(messages),
+                                     'recorded_at': datetime.now(timezone.utc).isoformat()})
+            return {'raw_input': archived, 'raw_publication_outcome': outcome}
+        except Exception:
+            raise RuntimeError('Daily raw publication outcome persistence failed') from None
+    return {}
 
 
 def coverage(source, today, *, deadline):

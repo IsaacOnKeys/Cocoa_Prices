@@ -47,6 +47,33 @@ resource "google_storage_bucket" "application" {
     retention_duration_seconds = 0
   }
 
+  dynamic "versioning" {
+    for_each = each.key == "raw-historic-data" ? [true] : []
+    content {
+      enabled = true
+    }
+  }
+
+  # Only new daily inputs expire. Historical data and held release artifacts
+  # retain their existing policy. Versioned deletes remain recoverable for 30 days.
+  dynamic "lifecycle_rule" {
+    for_each = each.key == "raw-historic-data" ? {
+      live       = { state = "LIVE", noncurrent_days = null }
+      noncurrent = { state = "ARCHIVED", noncurrent_days = 30 }
+    } : {}
+    content {
+      action {
+        type = "Delete"
+      }
+      condition {
+        age                        = 400
+        with_state                 = lifecycle_rule.value.state
+        days_since_noncurrent_time = lifecycle_rule.value.noncurrent_days
+        matches_prefix             = ["daily-inputs/v1/"]
+      }
+    }
+  }
+
   lifecycle {
     prevent_destroy = true
   }

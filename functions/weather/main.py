@@ -1,13 +1,11 @@
-import io
 import json
 import os
 import time
 from datetime import datetime, timedelta, timezone
 
-import fastavro
 import requests
 from google.cloud import pubsub_v1
-from request_policy import INVOCATION_SECONDS, acquisition_identity, coverage, get, observation_identity, publish_timeout
+from request_policy import INVOCATION_SECONDS, acquisition_identity, coverage, get, publish_batch
 
 SCHEMA_FILE = "weather_schema.avsc"
 PROJECT = os.getenv("GCP_PROJECT", "cocoa-prices-430315")
@@ -55,7 +53,7 @@ def publish_weather_data(event=None, context=None):
         "&community=ag"
         "&longitude=-6.635&latitude=4.745"
         f"&start={start_date}&end={end_date}"
-        "&format=JSON"
+        "&format=JSON&time-standard=LST"
     )
 
     print(f"Fetching weather data from {url}")
@@ -85,17 +83,11 @@ def publish_weather_data(event=None, context=None):
         raise RuntimeError("Invalid NASA POWER response") from None
 
     acquired_at = datetime.now(timezone.utc).isoformat()
-    try:
-        publisher = pubsub_v1.PublisherClient()
-        topic_path = publisher.topic_path(PROJECT, TOPIC)
-    except Exception:
-        raise RuntimeError("Weather publisher initialization failed") from None
-
     schema_path = os.path.join(os.path.dirname(__file__), SCHEMA_FILE)
     with open(schema_path, "r") as f:
-        schema = fastavro.parse_schema(json.load(f))
+        schema = json.load(f)
 
-    published = 0
+    records = []
     for date_bq, precipitation, soil_moisture in observations:
         payload = {
             "date": date_bq,
@@ -105,28 +97,13 @@ def publish_weather_data(event=None, context=None):
             "raw_payload": json.dumps(data),
         }
 
-        try:
-            buf = io.BytesIO()
-            fastavro.schemaless_writer(buf, schema, payload)
-            avro_bytes = buf.getvalue()
+        records.append(payload)
+    archive = publish_batch(pubsub_v1.PublisherClient, PROJECT, TOPIC, records, schema, source='NASA_POWER', acquisition_id=acquisition_id,
+                            acquired_at=acquired_at, deadline=deadline, progress=progress)
 
-            timeout = publish_timeout(deadline)
-            future = publisher.publish(
-                topic_path,
-                avro_bytes,
-                googclient_schemaencoding="BINARY",
-                acquisition_id=acquisition_id,
-                observation_id=observation_identity("NASA_POWER", date_bq, {"precipitation": precipitation, "soil_moisture": soil_moisture}),
-            )
-            future.result(timeout=min(timeout, publish_timeout(deadline)))
-            print(f"[OK] Published Avro message for {date_bq} to {topic_path}")
-            published += 1
-        except Exception:
-            raise RuntimeError("Weather Avro publication failed; batch incomplete") from None
-
-    receipt = {"source": "NASA_POWER", "status": "published", "published": published,
+    receipt = {"source": "NASA_POWER", "status": "published", "published": len(records),
                "observation_start": observations[0][0], "observation_end": observations[-1][0],
-               "acquired_at": acquired_at, "acquisition_id": acquisition_id}
+               "acquired_at": acquired_at, "acquisition_id": acquisition_id, **archive}
     if progress:
         receipt.update(progress.complete(receipt, [{'date': d, 'precipitation': p, 'soil_moisture': m}
                                                    for d, p, m in observations]))

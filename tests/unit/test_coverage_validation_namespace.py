@@ -21,7 +21,7 @@ def test_invalid_namespace_is_rejected(validator, token):
         validator['names'](token)
 
 
-@pytest.mark.parametrize('tamper', ['bucket', 'topic', 'function', 'source'])
+@pytest.mark.parametrize('tamper', ['bucket', 'topic', 'function', 'source', 'replay_dataset'])
 def test_cleanup_rejects_changed_resource_names(validator, tmp_path, tamper):
     token = '20261029_deadbeef'
     state = {'token': token, 'names': validator['names'](token)}
@@ -31,8 +31,10 @@ def test_cleanup_rejects_changed_resource_names(validator, tmp_path, tamper):
         state['names']['topics']['cocoa'] = 'cocoa-prices-topic'
     elif tamper == 'function':
         state['names']['function'] = 'publish-price'
-    else:
+    elif tamper == 'source':
         state['source'] = {'bucket': 'raw-historic-data', 'object': 'not-validation', 'sha256': 'a'*64, 'generation': '1'}
+    else:
+        state['replay_dataset'] = 'cocoa-prices-430315.stream_staging'
     path = tmp_path/'state.json'
     path.write_text(json.dumps(state))
     with pytest.raises(ValueError):

@@ -1,6 +1,5 @@
 """Acquire daily Europe Brent observations directly from EIA and publish Avro."""
 
-import io
 import json
 import math
 import os
@@ -9,10 +8,9 @@ import time
 from datetime import date, datetime, timedelta, timezone
 from html.parser import HTMLParser
 
-import fastavro
 import requests
 from google.cloud import pubsub_v1, secretmanager
-from request_policy import INVOCATION_SECONDS, acquisition_identity, coverage, get, observation_identity, publish_timeout
+from request_policy import INVOCATION_SECONDS, acquisition_identity, coverage, get, publish_batch
 
 SCHEMA_FILE = "oil_schema.avsc"
 PROJECT = os.getenv("GCP_PROJECT", "cocoa-prices-430315")
@@ -237,34 +235,19 @@ def publish_eia_data(event=None, context=None):
     observations = fetch_observations(load_api_key(), start, end, deadline=deadline - 10)
     verify_against_published(observations, start, end, deadline=deadline - 10)
     acquired_at = datetime.now(timezone.utc).isoformat()
-    if not observations:
-        # Source-calendar gaps are explicit; publication gates decide freshness.
-        receipt = {"source": "EIA", "status": "no_observations", "published": 0,
-                   "observation_start": None, "observation_end": None, "acquired_at": acquired_at, "acquisition_id": acquisition_id}
-        if progress:
-            receipt.update(progress.complete(receipt, []))
-        print(json.dumps({"event": "acquisition_complete", **receipt}))
-        return receipt
     with open(os.path.join(os.path.dirname(__file__), SCHEMA_FILE), encoding="utf-8") as handle:
-        schema = fastavro.parse_schema(json.load(handle))
+        schema = json.load(handle)
     try:
-        publisher = pubsub_v1.PublisherClient()
-        topic = publisher.topic_path(PROJECT, TOPIC)
-        for observation in observations:
-            record = to_wire_record(observation, acquired_at)
-            buffer = io.BytesIO()
-            fastavro.schemaless_writer(buffer, schema, record)
-            remaining = deadline - time.monotonic()
-            if remaining <= 0:
-                raise RuntimeError("EIA publication deadline exceeded")
-            publisher.publish(topic, buffer.getvalue(), googclient_schemaencoding="BINARY", acquisition_id=acquisition_id,
-                              observation_id=observation_identity("EIA", record["date"], {"oil_price": record["oil_price"]})).result(timeout=publish_timeout(deadline))
+        archive = publish_batch(pubsub_v1.PublisherClient, PROJECT, TOPIC, [to_wire_record(r, acquired_at) for r in observations], schema,
+                                source='EIA', acquisition_id=acquisition_id, acquired_at=acquired_at,
+                                deadline=deadline, progress=progress)
     except Exception:
         # Partial batches must fail; retries need downstream key deduplication.
         raise RuntimeError("EIA Avro publication failed") from None
-    receipt = {"source": "EIA", "status": "published", "published": len(observations),
-               "observation_start": observations[0]["date"], "observation_end": observations[-1]["date"],
-               "acquired_at": acquired_at, "acquisition_id": acquisition_id}
+    receipt = {"source": "EIA", "status": "published" if observations else 'no_observations', "published": len(observations),
+               "observation_start": observations[0]["date"] if observations else None,
+               "observation_end": observations[-1]["date"] if observations else None,
+               "acquired_at": acquired_at, "acquisition_id": acquisition_id, **archive}
     if progress:
         receipt.update(progress.complete(receipt, [{'date': r['date'], 'oil_price': r['oil_price']} for r in observations]))
     print(json.dumps({"event": "acquisition_complete", **receipt}))

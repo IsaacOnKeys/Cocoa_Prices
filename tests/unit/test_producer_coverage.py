@@ -7,9 +7,16 @@ from unittest.mock import Mock
 
 import pytest
 
+from test_acquisition_coverage import cloud as archive_fixture
+
 from test_oil_logging import oil_handler as oil_fixture, page, row
 from test_producer_http_failures import handler as adapter_fixture, invoke
 from test_weather_timestamps import weather as weather_fixture
+
+
+@pytest.fixture
+def archive_store(monkeypatch):
+    return archive_fixture.__wrapped__(monkeypatch)
 
 
 @pytest.fixture
@@ -27,8 +34,8 @@ def adapter(monkeypatch, tmp_path):
     return adapter_fixture.__wrapped__(monkeypatch, tmp_path)
 
 
-def test_eia_recovery_window_and_older_revision_are_published_before_commit(oil, monkeypatch):
-    progress = SimpleNamespace(start=date(2026, 9, 20), end=date(2026, 10, 27), complete=Mock(return_value={}))
+def test_eia_recovery_window_and_older_revision_are_published_before_commit(oil, monkeypatch, archive_store):
+    progress = SimpleNamespace(receipts=archive_store.store.bucket('receipts'), _timeout=lambda: 5, start=date(2026, 9, 20), end=date(2026, 10, 27), complete=Mock(return_value={}))
     monkeypatch.setattr(oil.module, 'coverage', lambda *args, **kwargs: progress)
     oil.requests.get.return_value = page([row('2026-10-01', '71.5'), row('2026-10-20', '72')])
 
@@ -44,8 +51,8 @@ def test_eia_recovery_window_and_older_revision_are_published_before_commit(oil,
 
 
 @pytest.mark.parametrize('failure', ['source_disagreement', 'partial_publish'])
-def test_eia_failed_or_partial_collection_does_not_commit(oil, monkeypatch, failure):
-    progress = SimpleNamespace(start=date(2026, 9, 20), end=date(2026, 10, 27), complete=Mock())
+def test_eia_failed_or_partial_collection_does_not_commit(oil, monkeypatch, failure, archive_store):
+    progress = SimpleNamespace(receipts=archive_store.store.bucket('receipts'), _timeout=lambda: 5, start=date(2026, 9, 20), end=date(2026, 10, 27), complete=Mock())
     monkeypatch.setattr(oil.module, 'coverage', lambda *args, **kwargs: progress)
     oil.requests.get.return_value = page([row('2026-10-01'), row('2026-10-20')])
     if failure == 'source_disagreement':
@@ -57,8 +64,8 @@ def test_eia_failed_or_partial_collection_does_not_commit(oil, monkeypatch, fail
     progress.complete.assert_not_called()
 
 
-def test_weather_missing_calendar_date_fails_before_any_publish(weather, monkeypatch):
-    progress = SimpleNamespace(start=date(2026, 10, 26), end=date(2026, 10, 28), complete=Mock())
+def test_weather_missing_calendar_date_fails_before_any_publish(weather, monkeypatch, archive_store):
+    progress = SimpleNamespace(receipts=archive_store.store.bucket('receipts'), _timeout=lambda: 5, start=date(2026, 10, 26), end=date(2026, 10, 28), complete=Mock())
     monkeypatch.setattr(weather.module, 'coverage', lambda *args, **kwargs: progress)
     with pytest.raises(RuntimeError, match='Invalid NASA'):
         weather.module.publish_weather_data()
@@ -66,8 +73,8 @@ def test_weather_missing_calendar_date_fails_before_any_publish(weather, monkeyp
     progress.complete.assert_not_called()
 
 
-def test_weather_explicit_source_missing_is_preserved_in_complete_window(weather, monkeypatch):
-    progress = SimpleNamespace(start=date(2026, 10, 26), end=date(2026, 10, 28), complete=Mock(return_value={}))
+def test_weather_explicit_source_missing_is_preserved_in_complete_window(weather, monkeypatch, archive_store):
+    progress = SimpleNamespace(receipts=archive_store.store.bucket('receipts'), _timeout=lambda: 5, start=date(2026, 10, 26), end=date(2026, 10, 28), complete=Mock(return_value={}))
     monkeypatch.setattr(weather.module, 'coverage', lambda *args, **kwargs: progress)
     for values in weather.data['properties']['parameter'].values():
         values['20261028'] = -999
@@ -78,10 +85,10 @@ def test_weather_explicit_source_missing_is_preserved_in_complete_window(weather
 
 
 @pytest.mark.parametrize('feed', ['cocoa', 'oil', 'weather'])
-def test_coverage_persistence_failure_is_http_500_without_completion_receipt(adapter, monkeypatch, capsys, feed):
+def test_coverage_persistence_failure_is_http_500_without_completion_receipt(adapter, monkeypatch, capsys, feed, archive_store):
     client = adapter.create(feed)
     module = sys.modules['main']
-    progress = SimpleNamespace(start=date(2026, 10, 26), end=date(2026, 10, 28),
+    progress = SimpleNamespace(receipts=archive_store.store.bucket('receipts'), _timeout=lambda: 5, start=date(2026, 10, 26), end=date(2026, 10, 28),
                                complete=Mock(side_effect=RuntimeError('Acquisition coverage persistence failed')))
     monkeypatch.setattr(module, 'coverage', lambda *args, **kwargs: progress)
     if feed == 'cocoa':

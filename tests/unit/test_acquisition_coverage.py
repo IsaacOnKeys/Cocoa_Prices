@@ -30,11 +30,17 @@ class Store:
         store = self
 
         class Bucket:
+            def __init__(self):
+                self.name = name
+
             def blob(self, path):
                 key = (name, path)
 
                 class Blob:
                     generation = None
+
+                    def __init__(self):
+                        self.name = path
 
                     def exists(self, **kwargs):
                         return key in store.objects

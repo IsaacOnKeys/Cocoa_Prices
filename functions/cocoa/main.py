@@ -1,16 +1,14 @@
-import io
 import json
 import os
 import re
 import time
 from datetime import UTC, date, datetime
 
-import fastavro
 import functions_framework
 import requests
 from bs4 import BeautifulSoup, FeatureNotFound
 from google.cloud import pubsub_v1
-from request_policy import INVOCATION_SECONDS, acquisition_identity, coverage, get, observation_identity, post, publish_timeout
+from request_policy import INVOCATION_SECONDS, acquisition_identity, coverage, get, post, publish_batch
 
 URL = "https://www.icco.org/home/"
 HEADERS = {"User-Agent": "Mozilla/5.0"}
@@ -167,24 +165,20 @@ def publish_price(request):
     # Load Avro schema from file in function directory
     schema_path = os.path.join(os.path.dirname(__file__), SCHEMA_FILE)
     with open(schema_path, "r") as f:
-        schema = fastavro.parse_schema(json.load(f))
+        schema = json.load(f)
 
     try:
-        publisher = pubsub_v1.PublisherClient()
-        topic_path = publisher.topic_path(PROJECT, TOPIC)
+        records = []
         for observation_date, cocoa_price in observations:
             payload = {'date': observation_date.isoformat(), 'cocoa_price': cocoa_price, 'ingestion_time': now.isoformat(),
                        'raw_payload': json.dumps({'date': observation_date.isoformat(), 'price': cocoa_price,
                                                   'date_basis': 'source_observation'}, separators=(',', ':'))}
-            buf = io.BytesIO()
-            fastavro.schemaless_writer(buf, schema, payload)
-            timeout = publish_timeout(deadline)
-            publisher.publish(topic_path, buf.getvalue(), googclient_schemaencoding='BINARY', acquisition_id=acquisition_id,
-                              observation_id=observation_identity('ICCO', payload['date'], {'cocoa_price': cocoa_price})).result(
-                                  timeout=min(timeout, publish_timeout(deadline)))
+            records.append(payload)
+        archive = publish_batch(pubsub_v1.PublisherClient, PROJECT, TOPIC, records, schema, source='ICCO', acquisition_id=acquisition_id,
+                                acquired_at=now.isoformat(), deadline=deadline, progress=progress)
         receipt = {'source': 'ICCO', 'status': 'published', 'published': len(observations),
                    'observation_start': observations[0][0].isoformat(), 'observation_end': observations[-1][0].isoformat(),
-                   'acquired_at': now.isoformat(), 'acquisition_id': acquisition_id}
+                   'acquired_at': now.isoformat(), 'acquisition_id': acquisition_id, **archive}
         if progress:
             receipt.update(progress.complete(receipt, [{'date': d.isoformat(), 'cocoa_price': v} for d, v in observations]))
     except Exception:

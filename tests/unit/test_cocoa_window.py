@@ -10,8 +10,15 @@ from unittest.mock import Mock
 import fastavro
 import pytest
 
+from test_acquisition_coverage import cloud as archive_fixture
+
 from test_cocoa_dates import ROOT, html
 from test_cocoa_dates import cocoa as cocoa_fixture
+
+
+@pytest.fixture
+def archive_store(monkeypatch):
+    return archive_fixture.__wrapped__(monkeypatch)
 
 
 @pytest.fixture
@@ -78,9 +85,9 @@ def test_all_homepage_quotes_are_included_while_statistics_lags(cocoa):
     assert (date(2026, 10, 26), 5034.38) in observations
 
 
-def test_multi_row_acknowledgements_precede_coverage_commit(cocoa, monkeypatch):
+def test_multi_row_acknowledgements_precede_coverage_commit(cocoa, monkeypatch, archive_store):
     setup(cocoa)
-    progress = SimpleNamespace(start=date(2026, 9, 29), end=date(2026, 10, 28), complete=Mock(return_value={}))
+    progress = SimpleNamespace(receipts=archive_store.store.bucket('receipts'), _timeout=lambda: 5, start=date(2026, 9, 29), end=date(2026, 10, 28), complete=Mock(return_value={}))
     monkeypatch.setattr(cocoa.module, 'coverage', lambda *args, **kwargs: progress)
 
     def complete(receipt, rows):
@@ -97,9 +104,9 @@ def test_multi_row_acknowledgements_precede_coverage_commit(cocoa, monkeypatch):
     assert len({r['ingestion_time'] for r in decoded}) == 1
 
 
-def test_partial_batch_does_not_commit_coverage(cocoa, monkeypatch, capsys):
+def test_partial_batch_does_not_commit_coverage(cocoa, monkeypatch, capsys, archive_store):
     setup(cocoa)
-    progress = SimpleNamespace(start=date(2026, 9, 29), end=date(2026, 10, 28), complete=Mock())
+    progress = SimpleNamespace(receipts=archive_store.store.bucket('receipts'), _timeout=lambda: 5, start=date(2026, 9, 29), end=date(2026, 10, 28), complete=Mock())
     monkeypatch.setattr(cocoa.module, 'coverage', lambda *args, **kwargs: progress)
     cocoa.publisher.publish.return_value.result.side_effect = [None, RuntimeError('private-sdk-canary')]
     assert cocoa.module.publish_price(None)[1] == 500
