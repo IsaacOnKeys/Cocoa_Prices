@@ -7,11 +7,11 @@ from datetime import datetime, timedelta, timezone
 import fastavro
 import requests
 from google.cloud import pubsub_v1
-from request_policy import INVOCATION_SECONDS, acquisition_identity, get, observation_identity, publish_timeout
+from request_policy import INVOCATION_SECONDS, acquisition_identity, coverage, get, observation_identity, publish_timeout
 
 SCHEMA_FILE = "weather_schema.avsc"
 PROJECT = os.getenv("GCP_PROJECT", "cocoa-prices-430315")
-TOPIC = "weather-topic"
+TOPIC = os.getenv("WEATHER_TOPIC", "weather-topic")
 
 # NASA POWER sometimes uses -999 (or <= -999) for "missing"
 SENTINEL_MISSING_MAX = -999.0
@@ -45,7 +45,8 @@ def publish_weather_data(event=None, context=None):
     deadline = time.monotonic() + INVOCATION_SECONDS
     acquisition_id = acquisition_identity("NASA_POWER", event=event, context=context)
     today = datetime.now(timezone.utc)
-    start_date = (today - timedelta(days=7)).strftime("%Y%m%d")
+    progress = coverage("NASA_POWER", today.date(), deadline=deadline)
+    start_date = (progress.start if progress else (today - timedelta(days=7)).date()).strftime("%Y%m%d")
     end_date = today.strftime("%Y%m%d")
 
     url = (
@@ -68,6 +69,11 @@ def publish_weather_data(event=None, context=None):
             raise ValueError("Invalid weather series")
         if not precips or set(precips) != set(moistures):
             raise ValueError("Empty or unmatched weather series")
+        if progress:
+            expected = {(progress.start + timedelta(days=i)).strftime('%Y%m%d')
+                        for i in range((progress.end - progress.start).days + 1)}
+            if set(precips) != expected:
+                raise ValueError("Incomplete weather acquisition window")
         observations = []
         for date_str in sorted(precips):
             observed = datetime.strptime(date_str, "%Y%m%d")
@@ -121,6 +127,9 @@ def publish_weather_data(event=None, context=None):
     receipt = {"source": "NASA_POWER", "status": "published", "published": published,
                "observation_start": observations[0][0], "observation_end": observations[-1][0],
                "acquired_at": acquired_at, "acquisition_id": acquisition_id}
+    if progress:
+        receipt.update(progress.complete(receipt, [{'date': d, 'precipitation': p, 'soil_moisture': m}
+                                                   for d, p, m in observations]))
     print(json.dumps({"event": "acquisition_complete", **receipt}))
     return receipt
 

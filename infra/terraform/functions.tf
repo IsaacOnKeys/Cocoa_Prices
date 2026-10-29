@@ -60,7 +60,9 @@ resource "google_cloudfunctions2_function" "functions" {
     service_account_email            = local.compute_service_account
 
     environment_variables = merge({
-      LOG_EXECUTION_ID = "true"
+      LOG_EXECUTION_ID        = "true"
+      COVERAGE_RECEIPT_BUCKET = "raw-historic-data"
+      COVERAGE_STATE_BUCKET   = "cocoa-prices-temp-for-bq"
       }, each.key == "publish_eia_data" ? {
       # Owner-approved cutover; legacy invocation is disabled before promotion.
       OIL_TOPIC = "oil-prices-topic"

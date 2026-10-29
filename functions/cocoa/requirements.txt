@@ -4,3 +4,4 @@ beautifulsoup4>=4.12.3
 lxml>=5.2.2
 google-cloud-pubsub>=2.21.0
 fastavro
+google-cloud-storage==2.19.0

@@ -12,7 +12,7 @@ from html.parser import HTMLParser
 import fastavro
 import requests
 from google.cloud import pubsub_v1, secretmanager
-from request_policy import INVOCATION_SECONDS, acquisition_identity, get, observation_identity, publish_timeout
+from request_policy import INVOCATION_SECONDS, acquisition_identity, coverage, get, observation_identity, publish_timeout
 
 SCHEMA_FILE = "oil_schema.avsc"
 PROJECT = os.getenv("GCP_PROJECT", "cocoa-prices-430315")
@@ -232,13 +232,17 @@ def publish_eia_data(event=None, context=None):
     acquisition_id = acquisition_identity("EIA", event=event, context=context)
     now = datetime.now(timezone.utc)
     end = now.date()
-    observations = fetch_observations(load_api_key(), end - timedelta(days=14), end, deadline=deadline - 10)
-    verify_against_published(observations, end - timedelta(days=14), end, deadline=deadline - 10)
+    progress = coverage("EIA", end, deadline=deadline)
+    start = progress.start if progress else end - timedelta(days=14)
+    observations = fetch_observations(load_api_key(), start, end, deadline=deadline - 10)
+    verify_against_published(observations, start, end, deadline=deadline - 10)
     acquired_at = datetime.now(timezone.utc).isoformat()
     if not observations:
         # Source-calendar gaps are explicit; publication gates decide freshness.
         receipt = {"source": "EIA", "status": "no_observations", "published": 0,
                    "observation_start": None, "observation_end": None, "acquired_at": acquired_at, "acquisition_id": acquisition_id}
+        if progress:
+            receipt.update(progress.complete(receipt, []))
         print(json.dumps({"event": "acquisition_complete", **receipt}))
         return receipt
     with open(os.path.join(os.path.dirname(__file__), SCHEMA_FILE), encoding="utf-8") as handle:
@@ -261,6 +265,8 @@ def publish_eia_data(event=None, context=None):
     receipt = {"source": "EIA", "status": "published", "published": len(observations),
                "observation_start": observations[0]["date"], "observation_end": observations[-1]["date"],
                "acquired_at": acquired_at, "acquisition_id": acquisition_id}
+    if progress:
+        receipt.update(progress.complete(receipt, [{'date': r['date'], 'oil_price': r['oil_price']} for r in observations]))
     print(json.dumps({"event": "acquisition_complete", **receipt}))
     return receipt
 
