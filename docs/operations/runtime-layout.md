@@ -114,7 +114,9 @@ The [required-feed gate](required-feed-completion.md) is now installed: every
 current run/attempt must have a complete matching staging inventory and valid
 measurement ages before SQL. Its controlled run rejected the eight-day NASA gap
 and left all October 28 serving tables/model unchanged. The DAG is unpaused with
-this enforcement; the VM is temporarily running for item 14 maintenance.
+this enforcement. [Receipt-based completion](ingestion-completion.md) removes the
+old interval-based sleep: all three gates directly precede SQL in the nine-task
+DAG. The maintenance VM is stopped; normal scheduled startup remains enabled.
 Successful ingestion is not current-source eligibility.
 
 The cocoa and weather entry points and their generic installed interfaces

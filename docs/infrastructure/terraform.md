@@ -5,20 +5,21 @@ Terraform defines the Google Cloud infrastructure for project
 
 ## Current status
 
-Verified on 2026-10-29: both roots returned no-change plans after the required-feed
-gate installation. The earlier EIA migration's prior credential remains
+Verified on 2026-10-29: both roots returned no-change plans after the nine-task
+receipt-based completion installation. The earlier EIA migration's prior credential remains
 outside active state for rollback. Backends,
 workspace, provider versions and lockfiles are unchanged. Authentication used
 the existing gcloud session token only in the process environment. See the
 [current GCP ownership map](gcp-inventory.md) for all 112 state-tracked resources
-and the [source-gate receipt](../operations/required-feed-completion.md).
+and the [completion receipt](../operations/ingestion-completion.md).
 
 The acquisition component passed its managed and full-cycle checks. Its source
 inventory exposed an eight-day NASA age, above the accepted seven-day limit;
 the October 29 candidate was withheld, October 28 serving outputs/model restored,
 and the DAG was held pending enforcement. The required-feed gate now rejects that
-breach before SQL; the DAG is unpaused and the VM temporarily running for
-consecutive item 14 maintenance. Serving outputs remain October 28.
+breach before SQL; all three gates directly precede SQL. The DAG is unpaused and
+the maintenance VM stopped with normal scheduled startup retained. Serving
+outputs remain October 28.
 
 The `cocoa-prices-430315-terraform-state` bucket provides the GCS backend. It
 uses uniform bucket-level access, public-access prevention, versioning, 30-day
