@@ -1,6 +1,6 @@
 # GCP ownership and Terraform adoption
 
-Verified 2026-10-29 after daily quarantine deployment. Main tracks 113
+Verified 2026-10-29 after dead-letter recovery deployment. Main tracks 119
 application resource instances; bootstrap tracks one state bucket. Both roots
 returned exit 0 with live no-change plans. Three existing subscriptions use
 authenticated push; the new bounded consumer has dedicated runtime/delivery
@@ -15,7 +15,7 @@ successful collection from a NASA freshness breach: the October 29 candidate was
 withheld and verified October 28 outputs/model restored. The
 [required-feed gate](../operations/required-feed-completion.md) now rejects the
 eight-day NASA breach before SQL, preserving those outputs. The DAG is unpaused
-and the maintenance VM stopped with normal scheduled startup retained. The
+and the VM running in its normal scheduled window. The
 [nine-task DAG](../operations/ingestion-completion.md) directly requires all three
 completion gates before SQL; the obsolete interval-based sleep is removed.
 
@@ -25,7 +25,11 @@ noncurrent deletion also requires 30 days. The [archive receipt](../operations/d
 records isolated replay and production reconciliation. The
 [quarantine receipt](../operations/invalid-record-quarantine.md) adds two scoped
 storage IAM members for the existing consumer. No new service or delivery route
-was needed; the current inventory contains 114 managed resources.
+was needed. The [dead-letter recovery receipt](../operations/dead-letter-recovery.md)
+adds a separate export bucket, two bucket IAM members, two console alert policies
+and one dashboard; the five existing DLQ subscriptions now export native Avro.
+Replay ledgers remain in the raw bucket, outside the export agent's grants and
+automatic lifecycle. The current inventory contains 120 managed resources.
 
 This evidence is stronger than a prototype configuration, but does not prove
 that the original infrastructure was created through Terraform or that routine
@@ -42,6 +46,8 @@ deployments historically used it.
 | main | `google_cloudfunctions2_function` | 4 |
 | main | `google_compute_firewall` | 8 |
 | main | `google_compute_instance` | 1 |
+| main | `google_monitoring_alert_policy` | 2 |
+| main | `google_monitoring_dashboard` | 1 |
 | main | `google_project_iam_member` | 32 |
 | main | `google_pubsub_schema` | 3 |
 | main | `google_pubsub_subscription` | 11 |
@@ -52,12 +58,12 @@ deployments historically used it.
 | main | `google_secret_manager_secret_iam_member` | 2 |
 | main | `google_service_account` | 5 |
 | main | `google_service_account_iam_member` | 1 |
-| main | `google_storage_bucket` | 2 |
-| main | `google_storage_bucket_iam_member` | 6 |
+| main | `google_storage_bucket` | 3 |
+| main | `google_storage_bucket_iam_member` | 8 |
 | bootstrap | `google_storage_bucket` | 1 |
 
 
-The [refreshed inventory](gcp-resource-inventory.json) lists 114 managed addresses
+The [refreshed inventory](gcp-resource-inventory.json) lists 120 managed addresses
 and external IDs, including bootstrap, plus its exact historical baseline link.
 It is not a Terraform state file. Credentials/private state remain outside Git.
 
@@ -66,17 +72,17 @@ It is not a Terraform state file. Credentials/private state remain outside Git.
 | GCP service / component | Current ownership |
 | --- | --- |
 | Compute Engine | VM, eight application firewall rules and selected IAM in Terraform; default network/subnet referenced. Installed files, metadata bootstrap and runtime environments remain operator-owned. |
-| Pub/Sub | Three Avro schemas, eleven topics and eleven subscriptions in Terraform: three daily push, two source transports, five dead-letter pull and one retained validation subscription. Five delivery policies and ten resource-scoped forwarding grants were verified. Temporary test routes were removed. |
+| Pub/Sub | Three Avro schemas, eleven topics and eleven subscriptions in Terraform: three daily push, two source transports, five native Avro dead-letter exports and one retained validation subscription. Five delivery policies and ten resource-scoped forwarding grants were verified. Temporary test routes were removed. |
 | Cloud Functions Gen2 | Three producer functions and one bounded staging consumer with runtime/trigger/resource settings in Terraform. Application deployments own source archive generations. |
 | Cloud Run / Eventarc | Function-created services and event triggers stay Gen2-owned. Terraform imports source transport subscriptions for retry/dead-letter policies, preserving Eventarc push routing/labels, and owns explicit invoker grants. Reconcile transport names after any trigger replacement. |
 | BigQuery | Four datasets and additive dataset IAM in Terraform. Application consumers/backfills/SQL own tables, views, procedures, models and data. |
-| Cloud Storage | Two application buckets and bucket IAM in main state; backend bucket in bootstrap. Historical snapshot objects and holds are data provenance artifacts, not Terraform-managed bucket policy. |
+| Cloud Storage | Three application buckets and bucket IAM in main state, including dedicated dead-letter export storage; backend bucket in bootstrap. Historical snapshot objects, recovery ledgers and holds are application data artifacts, not Terraform-managed objects. |
 | Secret Manager | Two active secret containers and accessor IAM in Terraform; prior oil credential container retained externally for rollback. Secret payloads/versions remain outside source and state ownership. |
 | Cloud Scheduler | Two jobs in Terraform: VM start at 18:30 and stop at 20:30, Europe/Berlin, daily. Airflow schedules the DAG at 19:00 Monday-Friday. |
 | IAM / service accounts | Five custom service accounts and additive application grants tracked, including a token-minting grant scoped to the push identity. Human access and Google service agents remain external. |
 | Artifact Registry / Cloud Build | Current gcf-artifacts repository and function builds are Gen2-managed. No cocoa-code-project repository is currently deployed. Backfill Docker builds are a separate supported local workflow. |
 | Dataflow | Historical runner support remains in the backfill sources. No new Dataflow job or infrastructure was deployed during review. |
-| Logging / Monitoring | Available APIs and IAM are not proof of a configured alerting/observability stack; that remains engineering backlog work. |
+| Logging / Monitoring | Terraform manages two dead-letter console alert policies and one recovery dashboard. Central delivery telemetry and tested notification routing remain checklist items 25-26. |
 | Looker Studio | Downstream visualization; report configuration is outside Terraform and this repository. |
 | API enablement | Enabled-service inventory was inspected. Terraform deliberately does not manage project API enable/disable lifecycle. Enabled APIs alone do not prove application usage. |
 

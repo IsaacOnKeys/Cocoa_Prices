@@ -1,7 +1,7 @@
 {
-  "verified_at": "2026-10-29T16:53:05.110410+00:00",
-  "verification": "Live no-change plans after native-validated daily quarantine and historical reject recovery. Consumer Python 3.11 source and two prefix-only storage grants verified; all three producers, canonical routes, schemas and nine-task DAG unchanged. Managed twelve-case probe and rebuilt Python 3.11.18/Beam 2.65.0 graphs passed; isolated resources and temporary grant removed. DAG unpaused/idle and maintenance VM stopped.",
-  "managed_instance_count": 114,
+  "verified_at": "2026-10-29T17:37:22.097613+00:00",
+  "verification": "Live no-change plans after native dead-letter export and bounded operator replay. Five existing recovery subscriptions export to a dedicated versioned bucket with supported bucket-level service-agent grants; replay ledgers remain in the separate raw bucket. Two console alert policies and a three-chart dashboard are managed. Source/consumer revisions and BigQuery serving outputs/model remain unchanged. The scheduled VM is running normally; DAG unpaused and idle at the checkpoint. Isolated poison/storage-denial/replay proof is described in docs/operations/dead-letter-recovery.md.",
+  "managed_instance_count": 120,
   "resources": [
     {
       "root": "main",
@@ -142,6 +142,21 @@
       "root": "main",
       "address": "google_compute_instance.airflow",
       "id": "projects/cocoa-prices-430315/zones/europe-west3-c/instances/airflow-vm"
+    },
+    {
+      "root": "main",
+      "address": "google_monitoring_alert_policy.dead_letter_export_stalled",
+      "id": "projects/cocoa-prices-430315/alertPolicies/8584816820311051257"
+    },
+    {
+      "root": "main",
+      "address": "google_monitoring_alert_policy.dead_letter_forwarded",
+      "id": "projects/cocoa-prices-430315/alertPolicies/11065216874160160008"
+    },
+    {
+      "root": "main",
+      "address": "google_monitoring_dashboard.dead_letter_recovery",
+      "id": "projects/494039866722/dashboards/b5f39305-22ae-44ea-983e-ffb23c40de73"
     },
     {
       "root": "main",
@@ -540,6 +555,11 @@
     },
     {
       "root": "main",
+      "address": "google_storage_bucket.dead_letter_recovery",
+      "id": "cocoa-prices-430315-dead-letters"
+    },
+    {
+      "root": "main",
       "address": "google_storage_bucket_iam_member.application[\"raw_compute_object_creator\"]",
       "id": "b/raw-historic-data/roles/storage.objectCreator/serviceAccount:494039866722-compute@developer.gserviceaccount.com"
     },
@@ -557,6 +577,16 @@
       "root": "main",
       "address": "google_storage_bucket_iam_member.application[\"temp_compute_object_admin\"]",
       "id": "b/cocoa-prices-temp-for-bq/roles/storage.objectAdmin/serviceAccount:494039866722-compute@developer.gserviceaccount.com"
+    },
+    {
+      "root": "main",
+      "address": "google_storage_bucket_iam_member.dead_letter_exports[\"creator\"]",
+      "id": "b/cocoa-prices-430315-dead-letters/roles/storage.objectCreator/serviceAccount:service-494039866722@gcp-sa-pubsub.iam.gserviceaccount.com"
+    },
+    {
+      "root": "main",
+      "address": "google_storage_bucket_iam_member.dead_letter_exports[\"metadata\"]",
+      "id": "b/cocoa-prices-430315-dead-letters/roles/storage.legacyBucketReader/serviceAccount:service-494039866722@gcp-sa-pubsub.iam.gserviceaccount.com"
     },
     {
       "root": "main",

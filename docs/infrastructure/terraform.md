@@ -6,11 +6,11 @@ Terraform defines the Google Cloud infrastructure for project
 ## Current status
 
 Verified on 2026-10-29: both roots returned no-change plans after deployment of
-[daily quarantine](../operations/invalid-record-quarantine.md). The earlier EIA migration's prior credential remains
+[dead-letter recovery](../operations/dead-letter-recovery.md). The earlier EIA migration's prior credential remains
 outside active state for rollback. Backends,
 workspace, provider versions and lockfiles are unchanged. Authentication used
 the existing gcloud session token only in the process environment. See the
-[current GCP ownership map](gcp-inventory.md) for all 114 state-tracked resources
+[current GCP ownership map](gcp-inventory.md) for all 120 state-tracked resources
 and the [completion receipt](../operations/ingestion-completion.md).
 
 The acquisition component passed its managed and full-cycle checks. Its source
@@ -18,7 +18,7 @@ inventory exposed an eight-day NASA age, above the accepted seven-day limit;
 the October 29 candidate was withheld, October 28 serving outputs/model restored,
 and the DAG was held pending enforcement. The required-feed gate now rejects that
 breach before SQL; all three gates directly precede SQL. The DAG is unpaused and
-the maintenance VM stopped with normal scheduled startup retained. Serving
+the VM running in its normal scheduled window. Serving
 outputs remain October 28.
 
 The raw bucket now has versioning and lifecycle rules limited to
@@ -42,13 +42,13 @@ prefixes.
 | Service-account IAM members | 1 | Pub/Sub token minting scoped to the push identity |
 | Compute Engine instances | 1 | `airflow-vm` in `europe-west3-c` |
 | Custom firewall rules | 8 | Airflow UI, SSH, and IAP rules |
-| Application Cloud Storage buckets | 2 | `cocoa-prices-temp-for-bq`, `raw-historic-data` |
-| Bucket IAM members | 4 | Additive application grants |
+| Application Cloud Storage buckets | 3 | `cocoa-prices-temp-for-bq`, `raw-historic-data`, `cocoa-prices-430315-dead-letters` |
+| Bucket IAM members | 8 | Additive application grants, including native dead-letter export roles |
 | BigQuery datasets | 4 | `cocoa_related`, `cocoa_related_studio`, `models`, `stream_staging` |
 | BigQuery dataset IAM members | 4 | Additive Airflow and staging-consumer writer grants |
 | Pub/Sub schemas | 3 | Cocoa, oil, and weather Avro schemas |
 | Pub/Sub topics | 11 | Data, dead-letter, trigger and isolated validation topics |
-| Pub/Sub subscriptions | 11 | Three daily authenticated push, two imported source transports, five dead-letter pull and one retained validation subscription |
+| Pub/Sub subscriptions | 11 | Three daily authenticated push, two imported source transports, five native Avro dead-letter exports and one retained validation subscription |
 | Pub/Sub topic IAM members | 5 | Resource-scoped service-agent dead-letter publisher grants |
 | Pub/Sub subscription IAM members | 5 | Resource-scoped service-agent forwarding subscriber grants |
 | Gen2 Cloud Functions | 4 | Three publishers and the bounded staging consumer |
@@ -57,6 +57,8 @@ prefixes.
 | Secret Manager containers | 2 | Secret metadata only; no versions or payloads |
 | Secret-level IAM members | 2 | Additive Airflow Fernet and EIA producer accessor grants |
 | Project-level IAM members | 32 | Application service accounts only |
+| Monitoring alert policies | 2 | Dead-letter forwarding and stalled recovery export; console incidents |
+| Monitoring dashboards | 1 | Forwarding and regional recovery backlog/age |
 
 ## Ownership boundaries
 

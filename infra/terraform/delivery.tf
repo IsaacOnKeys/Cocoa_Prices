@@ -65,9 +65,9 @@ resource "google_pubsub_subscription" "source_triggers" {
 resource "google_pubsub_subscription" "dead_letters" {
   for_each = local.dead_letter_topics
 
-  project                    = var.project_id
-  name                       = "${each.key}-sub"
-  topic                      = google_pubsub_topic.topics[each.key].id
+  project = var.project_id
+  name    = "${each.key}-sub"
+  topic   = google_pubsub_topic.topics[each.key].id
   # Cloud Storage export normalizes the transport ACK deadline to max_duration.
   ack_deadline_seconds       = 60
   message_retention_duration = "604800s"
