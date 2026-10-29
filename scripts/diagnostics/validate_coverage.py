@@ -336,6 +336,23 @@ def reconstruct(path):
     replay = runpy.run_path(str(ROOT/'scripts/operations/replay_daily_inputs.py'))
     n = state['names']
     bucket = gcs.bucket(n['buckets']['receipts'])
+    bucket.reload(timeout=30)
+    assert bucket.versioning_enabled
+    rules = list(bucket.lifecycle_rules)
+    assert len(rules) == 2
+    assert all(r['action'] == {'type': 'Delete'} and r['condition']['age'] == 400
+               and r['condition']['matchesPrefix'] == ['daily-inputs/v1/'] for r in rules)
+    assert sorted(r['condition'].get('daysSinceNoncurrentTime', 0) for r in rules) == [0, 30]
+    proof = bucket.blob('daily-inputs/v1/retention-proof.json')
+    proof.upload_from_string(b'original', if_generation_match=0, timeout=10)
+    original_generation = proof.generation
+    proof.upload_from_string(b'replacement', if_generation_match=original_generation, timeout=10)
+    proof.delete(if_generation_match=proof.generation, timeout=10)
+    assert bucket.blob(proof.name, generation=original_generation).download_as_bytes(timeout=10) == b'original'
+    state['retention_proof'] = {'versioning': True, 'live_age_days': 400, 'noncurrent_min_days': 30,
+                                'prefix_scoped': True, 'original_recoverable_after_overwrite_and_delete': True,
+                                'aging_itself_not_time_elapsed_tested': True}
+    save(path, state)
     archives = {}
     for blob in bucket.list_blobs(prefix='daily-inputs/v1/', timeout=30):
         if '/batches/' not in blob.name:
