@@ -1,6 +1,6 @@
 # GCP ownership and Terraform adoption
 
-Verified 2026-10-29 after receipt-based completion installation. Main tracks 111
+Verified 2026-10-29 after daily raw-input archive deployment. Main tracks 111
 application resource instances; bootstrap tracks one state bucket. Both roots
 returned exit 0 with live no-change plans. Three existing subscriptions use
 authenticated push; the new bounded consumer has dedicated runtime/delivery
@@ -18,6 +18,12 @@ eight-day NASA breach before SQL, preserving those outputs. The DAG is unpaused
 and the maintenance VM stopped with normal scheduled startup retained. The
 [nine-task DAG](../operations/ingestion-completion.md) directly requires all three
 completion gates before SQL; the obsolete interval-based sleep is removed.
+
+All three producers now archive full Avro inputs before publication. Raw-bucket
+versioning and 400-day lifecycle rules are limited to the new daily-input prefix;
+noncurrent deletion also requires 30 days. The [archive receipt](../operations/daily-raw-inputs.md)
+records isolated replay and production reconciliation. No new resource, IAM or
+delivery route was needed.
 
 This evidence is stronger than a prototype configuration, but does not prove
 that the original infrastructure was created through Terraform or that routine

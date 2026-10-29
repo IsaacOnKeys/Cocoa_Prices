@@ -5,8 +5,8 @@ Terraform defines the Google Cloud infrastructure for project
 
 ## Current status
 
-Verified on 2026-10-29: both roots returned no-change plans after the nine-task
-receipt-based completion installation. The earlier EIA migration's prior credential remains
+Verified on 2026-10-29: both roots returned no-change plans after deployment of
+[replayable daily inputs](../operations/daily-raw-inputs.md). The earlier EIA migration's prior credential remains
 outside active state for rollback. Backends,
 workspace, provider versions and lockfiles are unchanged. Authentication used
 the existing gcloud session token only in the process environment. See the
@@ -20,6 +20,11 @@ and the DAG was held pending enforcement. The required-feed gate now rejects tha
 breach before SQL; all three gates directly precede SQL. The DAG is unpaused and
 the maintenance VM stopped with normal scheduled startup retained. Serving
 outputs remain October 28.
+
+The raw bucket now has versioning and lifecycle rules limited to
+`daily-inputs/v1/`: live inputs become eligible after 400 days, and noncurrent
+versions also require 30 days since becoming noncurrent. Historical and operation
+prefixes keep their prior lifecycle behavior. The temporary bucket is unchanged.
 
 The `cocoa-prices-430315-terraform-state` bucket provides the GCS backend. It
 uses uniform bucket-level access, public-access prevention, versioning, 30-day

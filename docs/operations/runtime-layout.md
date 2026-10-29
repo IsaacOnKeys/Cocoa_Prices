@@ -119,6 +119,13 @@ old interval-based sleep: all three gates directly precede SQL in the nine-task
 DAG. The maintenance VM is stopped; normal scheduled startup remains enabled.
 Successful ingestion is not current-source eligibility.
 
+[Daily inputs](daily-raw-inputs.md) now retain the complete Avro batch, embedded
+schema, source/request metadata and checksums before a publisher is initialized.
+Coverage receipts link exact GCS generations for prepared inputs and ACK outcomes.
+Raw-bucket versioning and prefix-scoped 400-day lifecycle rules support controlled
+replay with original acquisition/revision IDs and timestamps. These archives do
+not bypass required-feed freshness gates.
+
 The cocoa and weather entry points and their generic installed interfaces
 remain covered by the existing packager and their own release records. The
 historical [production validation](release-validation-2026-10-27.md) records the
