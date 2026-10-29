@@ -49,6 +49,7 @@ def save(path, state):
 
 def storage_access(bucket, creator):
     policy = bucket.get_iam_policy(requested_policy_version=3, timeout=30)
+    policy.version = 3  # Empty/default policies can still be returned as v1.
     member = 'serviceAccount:'+RUNTIME
     for binding in list(policy.bindings):
         if member in binding['members']:

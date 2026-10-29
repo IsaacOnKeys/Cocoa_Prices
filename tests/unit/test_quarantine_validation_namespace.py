@@ -2,6 +2,7 @@
 
 import json
 import runpy
+from types import SimpleNamespace
 from pathlib import Path
 
 import pytest
@@ -35,3 +36,14 @@ def test_changed_destinations_rejected_before_network(validator, tmp_path, tampe
     path.write_text(json.dumps(state))
     with pytest.raises(ValueError):
         validator['checked'](path)
+
+
+def test_new_conditional_binding_explicitly_uses_policy_version_three(validator):
+    policy = SimpleNamespace(version=1, bindings=[])
+    written = []
+    bucket = SimpleNamespace(name='isolated-bucket', get_iam_policy=lambda **kwargs: policy,
+                             set_iam_policy=lambda value, **kwargs: written.append(value))
+    validator['storage_access'](bucket, True)
+    assert written == [policy] and policy.version == 3
+    assert {b['role'] for b in policy.bindings} == {'roles/storage.objectCreator', 'roles/storage.objectViewer'}
+    assert all(b['condition']['expression'] == "resource.name.startsWith('projects/_/buckets/isolated-bucket/objects/quarantine/v1/')" for b in policy.bindings)

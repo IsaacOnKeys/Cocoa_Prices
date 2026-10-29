@@ -74,3 +74,13 @@ def test_invalid_eia_source_value_is_retained_before_numeric_conversion(cleaners
     output = list(module.ValidateAndTransform().process(extracted))
     saved = module.invalid_record(output[0][1], 'oil')
     assert json.loads(json.loads(saved['Errors'])['raw_payload']) == observation
+
+
+def test_declared_nasa_metadata_is_separate_from_observations_and_unknown_text(cleaners):
+    module = cleaners['weather']
+    lines = (ROOT/'data/samples/power_daily.csv').read_text().splitlines()
+    parsed = [module.parse_csv(line) for line in lines]
+    assert sum(bool(row.get('_metadata')) for row in parsed) == 11
+    assert sum('YEAR' in row for row in parsed) == 5
+    unknown = module.parse_csv('PRIVATE unexpected text')
+    assert unknown.get('_parse_error') and not unknown.get('_metadata')

@@ -86,6 +86,13 @@ def parse_csv(line):
         ValueError: If the line does not have enough fields or contains invalid data.
     """
 
+    # NASA's declared metadata is protocol text, not a rejected observation.
+    # Unknown text still goes to quarantine; do not filter all nonnumeric lines.
+    metadata = ('NASA/POWER Source Native Resolution Daily Data', 'Dates (month/day/year):',
+                'Location: latitude ', 'elevation from MERRA-2:', 'The value for missing source data ',
+                'parameter(s):', 'PRECTOTCORR ', 'GWETROOT ')
+    if line.strip() in {'-BEGIN HEADER-', '-END HEADER-', 'YEAR,DOY,PRECTOTCORR,GWETROOT'} or line.startswith(metadata):
+        return {'_metadata': True}
     row = line.split(",")
     try:
 
@@ -367,9 +374,10 @@ def run():
             | "Read CSV"
             >> beam.io.ReadFromText(
                 "gs://raw-historic-data/snapshots/2025-10-02/nasa_power/POWER_Point_Daily.csv",
-                skip_header_lines=1,
+                skip_header_lines=0,
             )
             | "Parse CSV" >> beam.Map(parse_csv)
+            | "Exclude Declared Metadata" >> beam.Filter(lambda record: not record.get('_metadata'))
             | "Clean & Transform" >> beam.Map(clean_and_transform)
             | "Filter Missing Data" >> beam.Filter(filter_missing_data)
         )
