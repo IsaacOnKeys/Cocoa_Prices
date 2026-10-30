@@ -116,8 +116,8 @@ no source drift; the deployed archive matched the tested package SHA256
 The authorized setup test evaluated a missing run/stopped VM and submitted one
 clearly labeled `setup_test` event at 21:00:25 UTC. Monitoring opened incident
 `0.oefshcrhjokg` under `Cocoa: operational critical` at 21:03:07 UTC, about
-2 minutes 41 seconds later. No production outage was injected. **Human email
-receipt remains unconfirmed; item 26 remains open until confirmed.** The live
+2 minutes 41 seconds later. No production outage was injected. **The owner
+confirmed email receipt on 2026-10-30, completing item 26's setup acceptance.** The live
 budget API separately verified EUR 10, the single-project filter, all four
 thresholds and the selected notification channel. This did not measure actual
 spend or trigger a billing-threshold notification.
