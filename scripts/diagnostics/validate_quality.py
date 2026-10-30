@@ -80,6 +80,16 @@ SET p_sources = (SELECT TO_JSON(STRUCT(
 CASES = [
     ("complete", "", False, False, None),
     (
+        "conflicting_acquisition_timestamp_tie",
+        "INSERT source_input SELECT * REPLACE(price+1 AS price) FROM source_input WHERE kind='stage' AND feed='cocoa' AND date=p_business_date;",
+        False,False,"frozen_source_keys",
+    ),
+    (
+        "conflicting_baseline_fact",
+        "INSERT source_input SELECT * REPLACE(price+1 AS price) FROM source_input WHERE kind='baseline' AND feed='oil' AND date=DATE_SUB(p_business_date,INTERVAL 1 DAY);",
+        False,False,"frozen_source_keys",
+    ),
+    (
         "known_price_survives_missing_revision",
         "UPDATE source_input SET price=NULL WHERE kind='stage' AND feed='cocoa' AND date=DATE_SUB(p_business_date,INTERVAL 1 DAY);",
         True,False,None,
