@@ -1,0 +1,13 @@
+[Unit]
+Description=Encrypted Airflow state backup outside the VM
+After=airflow-compose.service
+Requires=airflow-compose.service
+
+[Service]
+Type=oneshot
+WorkingDirectory=/opt/airflow
+ExecStart=/usr/bin/flock -n /run/cocoa-airflow-backup.lock /usr/bin/python3 /usr/local/lib/cocoa/airflow_backup.py backup
+TimeoutStartSec=900
+TimeoutStopSec=30
+Nice=10
+UMask=0077

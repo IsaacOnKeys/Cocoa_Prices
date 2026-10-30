@@ -63,7 +63,10 @@ def emit(code, severity, **details):
 
 
 def start():
-    key = command(["gcloud", "secrets", "versions", "access", "latest",
+    version = os.environ.get("COCOA_FERNET_VERSION", "latest")
+    if version != "latest" and not version.isdigit():
+        raise RuntimeError("Invalid Fernet version reference")
+    key = command(["gcloud", "secrets", "versions", "access", version,
                    "--secret=airflow-fernet-key", "--project=" + PROJECT], 30)
     if not key:
         raise RuntimeError("Fernet key unavailable")

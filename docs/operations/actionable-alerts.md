@@ -30,6 +30,7 @@ logs and queue age. Each warehouse query is capped at 64 MiB and uses a
 | `monitor_failed` | ERROR | Monitoring itself could not verify delivery; inspect its permissions/API failures. |
 | `start_failed` / `stop_failed` | ERROR | Inspect the bounded systemd runtime action and dependency/credential readiness. |
 | `shutdown_interrupted` / `shutdown_state_unknown` | ERROR | The hard VM cutoff retained uncertain work; reconcile the named runs and warehouse jobs before recovery. |
+| `backup_failed` | ERROR | Inspect the backup service's last stage, storage/image ceilings and key-version access; retain the last verified backup. |
 
 The watchdog does not mistake a missing start log for a missing run when a
 current-day completion manifest exists. Engineering-validation runs do not

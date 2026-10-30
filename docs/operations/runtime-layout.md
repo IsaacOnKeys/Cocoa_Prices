@@ -38,6 +38,10 @@ cocoa-airflow:2.10.2-python3.11-81c665f; the prior image/configuration are retai
 configuration, secrets and metadata must be checked at cutover; a Git branch
 does not isolate deployed resources or change Airflow Variables.
 
+The [runtime backup and isolated restore](runtime-backup-restore.md) preserves
+PostgreSQL metadata, installed configuration/code and image archives outside
+the VM, with a weekday backup timer and version-pinned key references.
+
 The nine-task DAG calls `analytics_delivery.run_daily_pipeline` after all three
 required-feed gates. Its installed source pins the routine-body SHA256 and
 reattaches deterministic BigQuery jobs after uncertain responses. The explicit
