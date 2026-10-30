@@ -100,7 +100,7 @@ def main():
                          else b'2014,1,-999,0.5\nPRIVATE malformed CSV\n2014,367,1.0,0.5\n')
             if args.revision_cases:
                 extra += (data.splitlines()[1]+b'\n"20/10/2026","0","0","0","9000"\n"20/10/2026","0","0","0","9001"\n'
-                          if feed=='cocoa' else b'2014,1,2.44,0.76\n2026,20,1.0,0.4\n2026,20,2.0,0.4\n')
+                          if feed=='cocoa' else b'2014,1,2.44,0.76\n2024,20,1.0,0.4\n2024,20,2.0,0.4\n')
             fixture.write_bytes(data.rstrip(b"\r\n") + b"\n" + bad + b"\n" + extra)
         observed = set()
 
