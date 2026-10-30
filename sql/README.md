@@ -15,7 +15,7 @@ history and the cutover recovery archive.
 
 The renderer embeds [input](quality/input_checks.sql) and
 [output](quality/output_checks.sql) quality fragments in that procedure. Their
-38 named checks retain actionable error/warning results before publication;
+39 named checks retain actionable error/warning results before publication;
 the fragments are not independent deployment scripts. See
 [recurring gate acceptance](../docs/operations/recurring-quality-gates.md).
 The [bounded carry fragment](01_curated_data/bounded_join.sql) limits calendar
@@ -23,6 +23,12 @@ fill to 7/14/7/7 days. The [measurement quality view](serving/imputation.sql)
 exposes original dates, age, missingness, imputation and expiry from retained
 accepted artifacts, including after rollback. See
 [fill-policy acceptance](../docs/operations/bounded-forward-fill.md).
+The [revision selector](01_curated_data/select_revisions.sql) preserves known
+facts when a current measurement is missing, retains the incoming revision and
+exposes preservation flags/identities in the quality view. See
+[revision-policy acceptance](../docs/operations/deterministic-source-revisions.md).
+Publication returns a cached receipt after commit; the Airflow/full diagnostic
+query budget is bounded at 2 GiB, including first-call model creation.
 
 | Stage | Implementation / behavior |
 | --- | --- |

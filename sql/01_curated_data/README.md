@@ -16,14 +16,18 @@ records into one daily series.
 
 For each feed, the procedure freezes the curated baseline and exact accepted
 current acquisition. Equivalent deliveries collapse; conflicting keys fail.
-Current source rows overlay matching baseline dates in isolated candidates.
+Valid non-null source measurements revise matching baseline facts in isolated
+candidates. A missing revision preserves a known value at the same date, per
+measurement; without one, NULL remains explicit. The frozen input retains the
+missing revision and its identity. See [selection SQL](select_revisions.sql).
 The calendar runs from 2014-01-02 through the explicit release business date,
 converts weather -999.0 to null and carries valid observations for at most
 7 calendar days for cocoa, 14 for oil and 7 for each weather measurement.
 The inclusive limit applies across weekends/holidays; age then expires to NULL.
 Missing rows, explicit nulls and sentinels do not reset the original value date.
-Source age/coverage still must pass the mandatory feed gates; further revision
-precedence remains checklist item 17. All three source
+Source age/coverage still must pass the mandatory feed gates using actual
+acquired measurements. The accepted `accepted_non_null_v1` revision policy is
+recorded with quality results. All three source
 tables and derived outputs publish together in the release transaction.
 
 The output is cocoa_related.joined_daily_cocoa_oil_weather, with date,

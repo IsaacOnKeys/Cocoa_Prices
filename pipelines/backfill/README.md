@@ -40,6 +40,13 @@ make a production backfill safe to run as a check. The
 executes actual graphs against isolated fixtures/tables and records the boundary
 between DirectRunner cloud IO, worker packaging and remote Dataflow execution.
 
+All three cleaners collapse identical facts to one valid row and retain repeats
+as duplicate evidence. Conflicting facts for a date all enter the invalid sink;
+group iteration order cannot select a price or weather revision. The shared
+worker distribution is `cocoa-backfill-recovery` 1.1.0. Actual local/cloud graphs
+and offline worker installation are recorded in
+[revision-policy acceptance](../../docs/operations/deterministic-source-revisions.md).
+
 Their REQUIREMENTS_FILE references resolve to pipelines/requirements.txt
 from the script location. That existing variable remains unused by the actual
 PipelineOptions; this migration did not activate previously unused options.

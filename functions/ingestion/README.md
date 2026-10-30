@@ -6,6 +6,11 @@ producer topics, units and original staging columns are preserved. Nullable
 provenance columns retain acquisition and receipt separately.
 Beam remains available for backfills and local compatibility checks.
 
+A supplied observation revision hash must match the decoded source/date/business
+values. A mismatch is durably quarantined before staging. Missing legacy
+identities remain NULL and cannot satisfy a current exact-receipt gate. See
+[revision-policy acceptance](../../docs/operations/deterministic-source-revisions.md).
+
 Package with `python scripts/deploy/package_functions.py ingestion`. The prepared
 root contains main.py, requirements.txt and all three byte-identical canonical
 schemas. Deploy that root/archive, not this source directory alone. Runtime is
@@ -39,8 +44,8 @@ withholds publication. DLQ operations/replay remain item 12. The cocoa producer
 preserves the publisher observation date. All feeds retain
 UTC producer acquisition, raw timestamp text and consumer receipt separately;
 unknown/invalid acquisition stays NULL with a status flag. See the
-[timestamp contract](../../docs/operations/timestamp-provenance.md). Recurring
-publication gates remain later work.
+[timestamp contract](../../docs/operations/timestamp-provenance.md). Required-feed
+and recurring quality gates use the accepted receipt's exact revision inventory.
 
 The guarded integration tool is
 [validate_ingestion.py](../../scripts/diagnostics/validate_ingestion.py). Its
