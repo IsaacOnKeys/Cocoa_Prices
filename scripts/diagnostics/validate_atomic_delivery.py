@@ -74,7 +74,7 @@ def source_manifest(bq, state, feed, table, acquisition):
 
     measures={'cocoa':('cocoa_price',),'oil':('oil_price',),'weather':('precipitation','soil_moisture')}[feed]
     nulls=','.join(f'{name} IS NULL AS {name}_missing' for name in measures)
-    rows=query(bq,state,f'SELECT date,observation_id,{nulls} FROM `{PROJECT}.{state["names"]["staging"]}.{table}` WHERE acquisition_id=@acquisition ORDER BY date',
+    rows=query(bq,state,f'SELECT DISTINCT date,observation_id,{nulls} FROM `{PROJECT}.{state["names"]["staging"]}.{table}` WHERE acquisition_id=@acquisition ORDER BY date',
       params=[bigquery.ScalarQueryParameter('acquisition','STRING',acquisition)],name='source_manifest_'+feed)
     if len(rows)>90:
         raise ValueError('Synthetic source inventory exceeds the supported window')
@@ -82,7 +82,7 @@ def source_manifest(bq, state, feed, table, acquisition):
              'missing_measurements':[name for name in measures if row[name+'_missing']]} for row in rows]
 
 
-def prepare(path, historical_gaps=False):
+def prepare(path, historical_gaps=False, revision_cases=False):
     from google.cloud import bigquery
 
     if path.exists():
@@ -91,7 +91,7 @@ def prepare(path, historical_gaps=False):
     fixture_time=datetime.now(timezone.utc)-timedelta(seconds=1)
     state = {'token': token, 'names': names(token), 'phase': 'preparing',
              'business_date': fixture_time.date().isoformat(),'fixture_acquired_at':fixture_time.isoformat(),
-             'historical_gaps':historical_gaps}
+             'historical_gaps':historical_gaps,'revision_cases':revision_cases}
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text(json.dumps(state, indent=2))
     bq = client()
@@ -132,6 +132,12 @@ def prepare(path, historical_gaps=False):
         '''
         assert script.count(marker)==1
         script=script.replace(marker,faults+marker)
+    if revision_cases:
+        marker = f'CREATE TABLE `{PROJECT}.{curated}.joined_daily_cocoa_oil_weather` AS'
+        duplicates = ''.join(f"INSERT `{PROJECT}.{curated}.{table}` SELECT * FROM `{PROJECT}.{curated}.{table}` WHERE {date_column}=DATE_SUB(DATE '{state['business_date']}',INTERVAL 2 DAY);"
+                             for table,date_column in [('cocoa','Date'),('brent_prices','date'),('precipitation','date')])
+        assert script.count(marker)==1
+        script=script.replace(marker,duplicates+marker)
     query(bq, state, script, name='seed_serving')
     for feed, table, fields in [('cocoa', 'cocoa_prices', [('cocoa_price','FLOAT64')]),
                                 ('oil', 'oil_prices', [('oil_price','FLOAT64')]),
@@ -222,6 +228,11 @@ def exercise(path, inject_failures=True):
             LOWER(TO_HEX(SHA256(CONCAT(@acquisition,CAST(d AS STRING)))))
           FROM UNNEST(GENERATE_DATE_ARRAY(DATE_SUB(@business,INTERVAL 30 DAY),@business)) d'''
         query(bq, state, sql, params=params, name='stage_'+feed)
+        if state.get('revision_cases'):
+            missing = 'precipitation=NULL' if feed=='weather' else fields+'=NULL'
+            query(bq,state,f'UPDATE `{PROJECT}.{context["staging"]}.{table}` SET {missing} WHERE date=DATE_SUB(@business,INTERVAL 1 DAY);'
+                f'INSERT `{PROJECT}.{context["staging"]}.{table}` SELECT * REPLACE(TIMESTAMP_ADD(consumer_received_at,INTERVAL 1 SECOND) AS consumer_received_at) '
+                f'FROM `{PROJECT}.{context["staging"]}.{table}` WHERE date=DATE_SUB(@business,INTERVAL 2 DAY);',params=params,name='revision_cases_'+feed)
         sources[feed].update(window_start=(date.fromisoformat(state['business_date'])-timedelta(days=30)).isoformat(),
                              window_end=state['business_date'],observation_manifest=source_manifest(bq,state,feed,table,identity))
     canonical_sources = json.dumps(sources, sort_keys=True, separators=(',', ':'))
@@ -275,6 +286,9 @@ def exercise(path, inject_failures=True):
     quality=query(bq,state,f'SELECT quality_results FROM `{PROJECT}.{context["delivery"]}.release_runs` WHERE release_id=@release',
       params=[bigquery.ScalarQueryParameter('release','STRING',release)],name='published_quality_evidence')[0]['quality_results']
     assert quality['checks'] and all(check['violations']==0 for check in quality['checks'] if check['severity']=='error')
+    assert quality['revision_policy']['null_policy']=='preserve_known_value'
+    if state.get('revision_cases'):
+        assert quality['preserved_missing_measurements']==3
     state['published_quality_report']=quality
     published = fingerprints(bq, state)
     assert published != state['baseline']
@@ -345,6 +359,13 @@ def rollback(path):
         return rows[0]
 
     published_imputation=imputation_report(current,'bounded_calendar_v1','published')
+    if state.get('revision_cases'):
+        preserved=query(bq,state,f'''SELECT measurement,preserved_prior_value,latest_revision_missing,source_missing
+          FROM `{PROJECT}.{n["studio"]}.ls_series_quality`
+          WHERE date=DATE_SUB(DATE '{state["business_date"]}',INTERVAL 1 DAY) ORDER BY measurement''',name='missing_revision_report')
+        assert len(preserved)==4 and sum(row['preserved_prior_value'] for row in preserved)==3
+        assert all(row['latest_revision_missing'] and row['source_missing'] for row in preserved if row['preserved_prior_value'])
+        state['preserved_missing_revision_report']=preserved
     preview = invoke(seed)
     assert not preview['applied'] and preview['target']['current_release']==current
     assert fingerprints(bq,state)==state['published_fingerprints']
@@ -455,11 +476,14 @@ def main():
     parser.add_argument('phase', choices=('prepare', 'exercise', 'smoke', 'rollback', 'cleanup'))
     parser.add_argument('--receipt', required=True, type=Path)
     parser.add_argument('--historical-gaps', action='store_true', help='Seed prolonged historical gaps during isolated preparation')
+    parser.add_argument('--revision-cases', action='store_true', help='Seed equivalent baseline/staging repeats and missing revisions')
     args = parser.parse_args()
     if args.historical_gaps and args.phase!='prepare':
         parser.error('--historical-gaps is only valid for prepare')
+    if args.revision_cases and args.phase!='prepare':
+        parser.error('--revision-cases is only valid for prepare')
     RECEIPT = args.receipt
-    {'prepare': lambda path: prepare(path,args.historical_gaps), 'exercise': exercise, 'smoke': lambda path: exercise(path, False),
+    {'prepare': lambda path: prepare(path,args.historical_gaps,args.revision_cases), 'exercise': exercise, 'smoke': lambda path: exercise(path, False),
      'rollback': rollback, 'cleanup': cleanup}[args.phase](args.receipt)
 
 

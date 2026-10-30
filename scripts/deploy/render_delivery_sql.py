@@ -16,7 +16,8 @@ FILES = {'migration': ROOT / 'sql/migrations/020_atomic_delivery.sql',
          'bootstrap': ROOT / 'sql/migrations/020_atomic_delivery_bootstrap.sql'}
 FRAGMENTS = {'input_quality_checks': ROOT / 'sql/quality/input_checks.sql',
              'output_quality_checks': ROOT / 'sql/quality/output_checks.sql',
-             'imputation_join': ROOT / 'sql/01_curated_data/bounded_join.sql'}
+             'imputation_join': ROOT / 'sql/01_curated_data/bounded_join.sql',
+             'revision_selection': ROOT / 'sql/01_curated_data/select_revisions.sql'}
 FILES.update(FRAGMENTS)
 
 

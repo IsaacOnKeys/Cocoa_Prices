@@ -4,6 +4,7 @@ import base64
 import importlib.util
 import io
 import json
+import hashlib
 from pathlib import Path
 from types import SimpleNamespace
 from unittest.mock import Mock
@@ -141,13 +142,15 @@ def test_logical_identities_survive_republication_with_a_new_transport_id(consum
     sink = Mock()
     monkeypatch.setattr(consumer, "insert_row", sink)
     body = envelope()
-    body['message']['attributes'].update(acquisition_id='a' * 64, observation_id='b' * 64)
+    revision = hashlib.sha256(json.dumps(['EIA','2026-10-20',MEASUREMENTS['oil']],
+        sort_keys=True,separators=(',',':')).encode()).hexdigest()
+    body['message']['attributes'].update(acquisition_id='a' * 64, observation_id=revision)
     assert consumer.stage_analytics_data(request(body))[1] == 204
     body['message']['messageId'] = '123456790'
     assert consumer.stage_analytics_data(request(body))[1] == 204
     first, second = [call.args[1] for call in sink.call_args_list]
     assert first['acquisition_id'] == second['acquisition_id'] == 'a' * 64
-    assert first['observation_id'] == second['observation_id'] == 'b' * 64
+    assert first['observation_id'] == second['observation_id'] == revision
     assert first['delivery_id'] != second['delivery_id']
 
 

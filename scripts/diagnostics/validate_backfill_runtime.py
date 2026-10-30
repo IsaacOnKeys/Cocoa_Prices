@@ -50,6 +50,7 @@ def main():
     parser.add_argument("--output-dir", type=Path, required=True)
     parser.add_argument("--cloud-dataset", help="Optional newly created, labeled isolated dataset; never production")
     parser.add_argument('--recovery-cases', action='store_true', help='Include malformed, missing and nonfinite inputs; prove append-only cloud invalid output')
+    parser.add_argument('--revision-cases', action='store_true', help='Collapse identical facts and reject conflicting unordered revisions')
     args = parser.parse_args()
     token = checked_namespace(args.cloud_dataset) if args.cloud_dataset else None
     output = args.output_dir.resolve()
@@ -86,6 +87,10 @@ def main():
             payload["response"]["data"].append({"period": "not-a-date", "value": "NA", "series": "RBRTE", "units": "$/BBL"})
             if args.recovery_cases:
                 payload['response']['data'].append({'period': '2026-10-20', 'value': 'PRIVATE malformed number', 'series': 'RBRTE', 'units': '$/BBL'})
+            if args.revision_cases:
+                payload['response']['data'].extend([dict(payload['response']['data'][0]),
+                    {'period':'2026-10-20','value':'70.0','series':'RBRTE','units':'$/BBL'},
+                    {'period':'2026-10-20','value':'71.0','series':'RBRTE','units':'$/BBL'}])
             fixture.write_text(json.dumps(payload, indent=2), encoding="utf-8")
         else:
             bad = b'"not-a-date","0","0","0","bad-price"' if feed == "cocoa" else b"2013,365,1.0,0.5"
@@ -93,6 +98,9 @@ def main():
             if args.recovery_cases:
                 extra = (b'PRIVATE malformed CSV\n"20/10/2026","0","0","0","nan"\n' if feed == 'cocoa'
                          else b'2014,1,-999,0.5\nPRIVATE malformed CSV\n2014,367,1.0,0.5\n')
+            if args.revision_cases:
+                extra += (data.splitlines()[1]+b'\n"20/10/2026","0","0","0","9000"\n"20/10/2026","0","0","0","9001"\n'
+                          if feed=='cocoa' else b'2014,1,2.44,0.76\n2026,20,1.0,0.4\n2026,20,2.0,0.4\n')
             fixture.write_bytes(data.rstrip(b"\r\n") + b"\n" + bad + b"\n" + extra)
         observed = set()
 
@@ -144,7 +152,8 @@ def main():
         valid, invalid = results[valid_table], results[invalid_table]
         def canonical(rows):
             return sorted(rows, key=lambda r: r.get("date", r.get("Date")))
-        expected_invalid = ({'cocoa': 3, 'oil': 2, 'weather': 4}[feed] if args.recovery_cases else 1) * iterations
+        expected_invalid = (({'cocoa': 3, 'oil': 2, 'weather': 4}[feed] if args.recovery_cases else 1)
+                            +(3 if args.revision_cases else 0)) * iterations
         if canonical(valid) != canonical(EXPECTED[feed]) or len(invalid) != expected_invalid or not invalid[0].get("Errors"):
             raise RuntimeError(f"Unexpected {feed} fixture output; inspect isolated evidence")
         for row in invalid:
@@ -152,8 +161,13 @@ def main():
             if (evidence['version'] != 1 or evidence['source_uri'] != str(fixture)
                     or hashlib.sha256(evidence['raw_payload'].encode()).hexdigest() != evidence['input_sha256']):
                 raise RuntimeError('Historical failure evidence is incomplete')
+        if args.revision_cases:
+            reasons=[json.loads(row['Errors'])['errors'] for row in invalid]
+            assert reasons.count('Conflicting source revisions for date')==2*iterations
+            assert reasons.count('Duplicate identical source fact')==iterations
         summary[feed] = {"valid": len(valid), "invalid": len(invalid), "graph_executions": iterations,
-                         "source_sha256": hashlib.sha256(source.read_bytes()).hexdigest(), 'failure_evidence_verified': True}
+                         "source_sha256": hashlib.sha256(source.read_bytes()).hexdigest(), 'failure_evidence_verified': True,
+                         'duplicate_policy_verified':args.revision_cases}
     result = {"python": sys.version.split()[0], "beam": beam.__version__, "cloud_dataset": args.cloud_dataset,
               "production_writes": 0, "feeds": summary}
     (output / "receipt.json").write_text(json.dumps(result, indent=2), encoding="utf-8")

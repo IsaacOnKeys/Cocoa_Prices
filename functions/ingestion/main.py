@@ -129,6 +129,18 @@ def validate_business(feed, row):
             raise BusinessInvalid('measurement_range')
 
 
+def validate_observation_identity(feed, row, identity):
+    """Verify supplied value revisions; unidentified legacy messages stay explicit."""
+    if identity is None:
+        return
+    source = {'cocoa': 'ICCO', 'oil': 'EIA', 'weather': 'NASA_POWER'}[feed]
+    values = {key: row[key] for key in MEASUREMENTS[feed]}
+    encoded = json.dumps([source, row['date'], values], sort_keys=True,
+                         separators=(',', ':'), allow_nan=False).encode()
+    if hashlib.sha256(encoded).hexdigest() != identity:
+        raise BusinessInvalid('observation_identity_mismatch')
+
+
 class SinkRejected(RuntimeError):
     def __init__(self, reasons):
         super().__init__('Staging write rejected')
@@ -246,6 +258,7 @@ def stage_analytics_data(request):
         row = decode_row(feed, payload, received)
         category = 'business'
         validate_business(feed, row)
+        validate_observation_identity(feed, row, identity['observation_id'])
         row.update(delivery_id=delivery_id, pubsub_message_id=message_id,
                    **{key: identity[key] for key in ('acquisition_id', 'observation_id')})
         category = 'sink'

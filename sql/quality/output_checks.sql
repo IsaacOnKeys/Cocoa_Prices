@@ -1,8 +1,16 @@
 -- Reconcile independently calculated features and the complete output contracts.
 INSERT quality_checks
 WITH source_revisions AS (
-  SELECT * FROM source_input
-  QUALIFY ROW_NUMBER() OVER (PARTITION BY feed,date ORDER BY kind DESC)=1
+  SELECT feed,date,
+    COALESCE(MAX(IF(kind='stage',price,NULL)),MAX(IF(kind='baseline',price,NULL))) AS price,
+    COALESCE(MAX(IF(kind='stage',precipitation,NULL)),MAX(IF(kind='baseline',precipitation,NULL))) AS precipitation,
+    COALESCE(MAX(IF(kind='stage',soil_moisture,NULL)),MAX(IF(kind='baseline',soil_moisture,NULL))) AS soil_moisture
+  FROM source_input GROUP BY feed,date
+), curated_candidates AS (
+  SELECT 'cocoa' AS feed,Date AS date,Euro_Price AS price,
+    CAST(NULL AS FLOAT64) AS precipitation,CAST(NULL AS FLOAT64) AS soil_moisture FROM candidate_cocoa
+  UNION ALL SELECT 'oil',date,brent_price_eu,NULL,NULL FROM candidate_oil
+  UNION ALL SELECT 'weather',date,NULL,precipitation,soil_moisture FROM candidate_weather
 ), source_calendar AS (
   SELECT d AS date,c.price AS cocoa_raw,o.price AS oil_raw,
     NULLIF(w.precipitation,-999.0) AS precipitation_raw,NULLIF(w.soil_moisture,-999.0) AS soil_raw
@@ -49,6 +57,11 @@ WITH source_revisions AS (
   FROM candidate_features f FULL JOIN expected e USING(date)
 )
 SELECT 'output','feature_calendar_keys','error',key_errors,'Feature dates exactly match the analytical calendar' FROM feature_comparison
+UNION ALL SELECT 'output','curated_source_alignment','error',COUNTIF(c.feed IS NULL OR s.feed IS NULL
+  OR c.price IS DISTINCT FROM s.price OR c.precipitation IS DISTINCT FROM s.precipitation
+  OR c.soil_moisture IS DISTINCT FROM s.soil_moisture),
+  'Curated facts use accepted non-null revisions; a missing revision cannot erase a known fact'
+  FROM curated_candidates c FULL JOIN source_revisions s USING(feed,date)
 UNION ALL SELECT 'output','joined_source_alignment','error',COUNTIF(j.date IS NULL OR e.date IS NULL
   OR j.cocoa_price IS DISTINCT FROM e.cocoa_price OR j.oil_price IS DISTINCT FROM e.oil_price
   OR j.precipitation IS DISTINCT FROM e.precipitation OR j.soil_moisture IS DISTINCT FROM e.soil_moisture),

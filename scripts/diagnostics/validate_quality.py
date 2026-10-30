@@ -35,6 +35,9 @@ CREATE TEMP TABLE source_input AS
    IF(kind='stage','valid',NULL) AS timestamp_status
  FROM base_data b CROSS JOIN UNNEST(['cocoa','oil','weather']) feed CROSS JOIN UNNEST(['baseline','stage']) kind
  WHERE (kind='baseline' AND b.date<p_business_date) OR (kind='stage' AND b.date>=DATE_SUB(p_business_date,INTERVAL 30 DAY));
+CREATE TEMP TABLE candidate_cocoa AS SELECT date AS Date,cocoa_price AS Euro_Price FROM base_data;
+CREATE TEMP TABLE candidate_oil AS SELECT date,oil_price AS brent_price_eu FROM base_data;
+CREATE TEMP TABLE candidate_weather AS SELECT date,precipitation,soil_moisture FROM base_data;
 CREATE TEMP TABLE candidate_joined AS SELECT * EXCEPT(i) FROM base_data;
 CREATE TEMP TABLE candidate_features AS
  SELECT date,cocoa_price AS y,
@@ -76,6 +79,22 @@ SET p_sources = (SELECT TO_JSON(STRUCT(
 # Each case mutates data independently of the checker expressions.
 CASES = [
     ("complete", "", False, False, None),
+    (
+        "known_price_survives_missing_revision",
+        "UPDATE source_input SET price=NULL WHERE kind='stage' AND feed='cocoa' AND date=DATE_SUB(p_business_date,INTERVAL 1 DAY);",
+        True,False,None,
+    ),
+    (
+        "known_weather_survives_missing_revision",
+        "UPDATE source_input SET precipitation=NULL,soil_moisture=NULL WHERE kind='stage' AND feed='weather' AND date=DATE_SUB(p_business_date,INTERVAL 1 DAY);",
+        True,False,None,
+    ),
+    (
+        "missing_revision_cannot_erase_curated_fact",
+        "UPDATE source_input SET price=NULL WHERE kind='stage' AND feed='oil' AND date=DATE_SUB(p_business_date,INTERVAL 1 DAY);"
+        "UPDATE candidate_oil SET brent_price_eu=NULL WHERE date=DATE_SUB(p_business_date,INTERVAL 1 DAY);",
+        True,False,"curated_source_alignment",
+    ),
     (
         "future_source_publication_rejected",
         "UPDATE source_input SET source_published_at=TIMESTAMP_ADD(input_cutoff,INTERVAL 1 SECOND) WHERE kind='stage' AND feed='cocoa';",

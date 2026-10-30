@@ -30,7 +30,7 @@ import time
 from datetime import datetime
 
 import apache_beam as beam
-from backfill_recovery import configure_worker_package, invalid_record
+from backfill_recovery import configure_worker_package, invalid_record, resolve_duplicates
 from apache_beam.options.pipeline_options import (
     GoogleCloudOptions,
     PipelineOptions,
@@ -153,38 +153,15 @@ class ValidateAndTransform(beam.DoFn):
 
 
 class CheckDuplicates(beam.DoFn):
-    """
-    A DoFn class for identifying and handling duplicate records.
-
-    Process:
-        - For a given key (e.g., "Date"), yields the first record as unique.
-        - Tags subsequent records with "invalid" and annotates them with an error message.
-
-    Args:
-        element (tuple): A tuple containing:
-            - date (str): The key (e.g., "Date").
-            - records (list): A list of records with the same key.
-
-    Yields:
-        - Unique records as-is.
-        - Duplicate records tagged with "invalid" and annotated with an error message.
-
-    Example:
-        Input: ("2023-12-31", [{"Date": "2023-12-31", "Euro_Price": 1234.56}, {"Date": "2023-12-31", "Euro_Price": 1234.56}])
-        Output:
-            - Unique: {"Date": "2023-12-31", "Euro_Price": 1234.56}
-            - Invalid: {"Date": "2023-12-31", "Euro_Price": 1234.56, "Errors": "Duplicate record for date 2023-12-31"}
-    """
+    """Emit one identical fact; reject all conflicting facts without an order winner."""
 
     def process(self, element):
-        date, records = element
-        # Yield the first record as unique
-        yield records[0]
-        # Yield all subsequent records as invalid
-        for record in records[1:]:
-            logging.warning(f"Duplicate record found for date {date}: {record}")
-            record["Errors"] = f"Duplicate record for date {date}"
-            yield beam.pvalue.TaggedOutput("invalid", record)
+        _, records = element
+        unique, invalid = resolve_duplicates(records, 'cocoa')
+        yield from unique
+        for row in invalid:
+            yield beam.pvalue.TaggedOutput('invalid', row)
+
 
 
 #############

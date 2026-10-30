@@ -28,6 +28,21 @@ CREATE TEMP TABLE candidate_weather AS
  SELECT DATE '2014-02-10',NULL,0.5;
 """
 
+REVISIONS = """
+CREATE TEMP TABLE source_input AS
+ SELECT 'baseline' AS kind,'cocoa' AS feed,Date AS date,Euro_Price AS price,
+   CAST(NULL AS FLOAT64) AS precipitation,CAST(NULL AS FLOAT64) AS soil_moisture FROM candidate_cocoa
+ UNION ALL SELECT 'baseline','oil',date,brent_price_eu,NULL,NULL FROM candidate_oil
+ UNION ALL SELECT 'baseline','weather',date,NULL,precipitation,soil_moisture FROM candidate_weather
+ UNION ALL SELECT 'stage','cocoa',DATE '2014-01-09',NULL,NULL,NULL
+ UNION ALL SELECT 'stage','oil',DATE '2014-01-09',NULL,NULL,NULL
+ UNION ALL SELECT 'stage','weather',DATE '2014-01-09',NULL,NULL,0.25
+ UNION ALL SELECT 'stage','weather',DATE '2014-01-14',NULL,NULL,NULL;
+DROP TABLE candidate_cocoa;
+DROP TABLE candidate_oil;
+DROP TABLE candidate_weather;
+"""
+
 
 def names(token):
     if not re.fullmatch(r'[0-9]{8}_[a-f0-9]{8}', token):
@@ -83,12 +98,16 @@ def exercise(path):
     INSERT `{prefix}.brent_prices` SELECT '{release}',p_business_date,* FROM candidate_oil;
     INSERT `{prefix}.precipitation` SELECT '{release}',p_business_date,* FROM candidate_weather;
     INSERT `{prefix}.joined_daily_cocoa_oil_weather` SELECT '{release}',p_business_date,* FROM candidate_joined;
+    INSERT `{prefix}.frozen_inputs`
+      (release_id,business_date,kind,feed,date,price,precipitation,soil_moisture,acquisition_id,observation_id)
+      SELECT '{release}',p_business_date,kind,feed,date,price,precipitation,soil_moisture,
+        IF(kind='stage',REPEAT('a',64),NULL),IF(kind='stage',REPEAT('b',64),NULL) FROM source_input;
     INSERT `{prefix}.release_runs`
       (release_id,business_date,dag_run_id,code_id,status,quality_results,created_at)
       VALUES('{release}',p_business_date,'synthetic_fill','{'0'*64}','published',
         JSON '{{"imputation_policy":{{"version":"bounded_calendar_v1"}}}}',CURRENT_TIMESTAMP());
     """
-    sql = FIXTURE+RENDER('imputation_join', **context)+artifacts+f"""
+    sql = FIXTURE+REVISIONS+RENDER('revision_selection',**context)+RENDER('imputation_join', **context)+artifacts+f"""
     INSERT `{prefix}.active_release` VALUES(1,'{release}',p_business_date,CURRENT_TIMESTAMP());
     """
     query(sql, 'sparse_fill')
@@ -112,6 +131,8 @@ def exercise(path):
         ('2014-01-24','oil_price',None,'2014-01-09',15,'expired',False,False),
         ('2014-01-12','precipitation',1.0,'2014-01-09',3,'carried',True,True),
         ('2014-01-13','soil_moisture',0.3,'2014-01-12',1,'carried',True,True),
+        ('2014-01-09','soil_moisture',0.25,'2014-01-09',0,'observed',False,False),
+        ('2014-01-14','precipitation',1.0,'2014-01-09',5,'carried',True,True),
         ('2014-01-17','precipitation',None,'2014-01-09',8,'expired',False,False),
         ('2014-01-19','soil_moisture',0.3,'2014-01-12',7,'carried',True,False),
         ('2014-01-20','soil_moisture',None,'2014-01-12',8,'expired',False,False),
@@ -125,10 +146,15 @@ def exercise(path):
         assert (str(row['original_value_date']) if row['original_value_date'] else None)==origin
         assert (row['age_days'],row['quality_status'],row['is_imputed'],row['source_missing'])==(age,status,imputed,missing)
         assert row['policy_version']=='bounded_calendar_v1'
+    preserved = [r for r in rows if str(r['date'])=='2014-01-09']
+    assert len(preserved)==4 and sum(r['preserved_prior_value'] for r in preserved)==3
+    assert all(r['latest_revision_missing'] and r['source_missing'] and r['latest_observation_id']=='b'*64
+               for r in preserved if r['preserved_prior_value'])
+    assert lookup['2014-01-14','precipitation']['preserved_prior_value'] is False
     # A corrected source fact keeps its observation date, not the correction time.
     revised = hashlib.sha256((token+'/revision').encode()).hexdigest()
-    query(FIXTURE+"UPDATE candidate_cocoa SET Euro_Price=111 WHERE Date=DATE '2014-01-09';"
-          +RENDER('imputation_join',**context)+artifacts.replace(release,revised)
+    query(FIXTURE+REVISIONS.replace("SELECT 'stage','cocoa',DATE '2014-01-09',NULL", "SELECT 'stage','cocoa',DATE '2014-01-09',111.0")
+          +RENDER('revision_selection',**context)+RENDER('imputation_join',**context)+artifacts.replace(release,revised)
           +f"UPDATE `{prefix}.active_release` SET release_id='{revised}' WHERE singleton=1;",'revised_source')
     revision = query(f"SELECT * FROM `{prefix}.ls_series_quality` WHERE measurement='cocoa_price' "
         "AND date IN (DATE '2014-01-09',DATE '2014-01-16',DATE '2014-01-17') ORDER BY date",'revision_report')

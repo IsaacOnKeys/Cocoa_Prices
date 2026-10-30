@@ -62,9 +62,9 @@ BEGIN
     SELECT p_release_id,p_business_date,'baseline','cocoa',Date,Euro_Price,
       CAST(NULL AS FLOAT64),CAST(NULL AS FLOAT64),CAST(NULL AS STRING),CAST(NULL AS STRING),
       CAST(NULL AS TIMESTAMP),CAST(NULL AS TIMESTAMP),CAST(NULL AS TIMESTAMP),CAST(NULL AS STRING)
-      FROM `${project}.${curated}.cocoa`
-    UNION ALL SELECT p_release_id,p_business_date,'baseline','oil',date,brent_price_eu,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL FROM `${project}.${curated}.brent_prices`
-    UNION ALL SELECT p_release_id,p_business_date,'baseline','weather',date,NULL,precipitation,soil_moisture,NULL,NULL,NULL,NULL,NULL,NULL FROM `${project}.${curated}.precipitation`
+      FROM `${project}.${curated}.cocoa` GROUP BY Date,Euro_Price
+    UNION ALL SELECT p_release_id,p_business_date,'baseline','oil',date,brent_price_eu,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL FROM `${project}.${curated}.brent_prices` GROUP BY date,brent_price_eu
+    UNION ALL SELECT p_release_id,p_business_date,'baseline','weather',date,NULL,precipitation,soil_moisture,NULL,NULL,NULL,NULL,NULL,NULL FROM `${project}.${curated}.precipitation` GROUP BY date,precipitation,soil_moisture
     UNION ALL
     SELECT p_release_id,p_business_date,'stage','cocoa',date,cocoa_price,NULL,NULL,
       acquisition_id,observation_id,producer_acquired_at,MIN(consumer_received_at),
@@ -113,15 +113,7 @@ BEGIN
       WHERE release_id=p_release_id AND business_date=p_business_date;
     ${input_quality_checks}
 
-    CREATE TEMP TABLE candidate_cocoa AS
-      SELECT date AS Date,price AS Euro_Price FROM source_input WHERE feed='cocoa'
-      QUALIFY ROW_NUMBER() OVER (PARTITION BY date ORDER BY kind DESC)=1;
-    CREATE TEMP TABLE candidate_oil AS
-      SELECT date,price AS brent_price_eu FROM source_input WHERE feed='oil'
-      QUALIFY ROW_NUMBER() OVER (PARTITION BY date ORDER BY kind DESC)=1;
-    CREATE TEMP TABLE candidate_weather AS
-      SELECT date,precipitation,soil_moisture FROM source_input WHERE feed='weather'
-      QUALIFY ROW_NUMBER() OVER (PARTITION BY date ORDER BY kind DESC)=1;
+    ${revision_selection}
 
     ${imputation_join}
 
@@ -162,6 +154,13 @@ BEGIN
       (SELECT COUNT(*) FROM candidate_joined) AS calendar_rows,
       (SELECT COUNT(*) FROM candidate_forecast) AS forecast_rows,
       TRUE AS current_acquisitions_reconciled,TRUE AS forecast_contract_passed,
+      STRUCT('accepted_non_null_v1' AS version,'preserve_known_value' AS null_policy,
+        'reject_conflicting_ties' AS conflict_policy) AS revision_policy,
+      (SELECT COUNTIF(s.price IS NULL AND b.price IS NOT NULL)
+        +COUNTIF(s.precipitation IS NULL AND b.precipitation IS NOT NULL AND b.precipitation!=-999.0)
+        +COUNTIF(s.soil_moisture IS NULL AND b.soil_moisture IS NOT NULL AND b.soil_moisture!=-999.0)
+        FROM source_input s JOIN source_input b USING(feed,date)
+        WHERE s.kind='stage' AND b.kind='baseline') AS preserved_missing_measurements,
       STRUCT('bounded_calendar_v1' AS version,7 AS cocoa_days,14 AS oil_days,
         7 AS precipitation_days,7 AS soil_moisture_days) AS imputation_policy,
       (SELECT ARRAY_AGG(STRUCT(stage,check_name,severity,violations,detail) ORDER BY stage,check_name) FROM quality_checks) AS checks,

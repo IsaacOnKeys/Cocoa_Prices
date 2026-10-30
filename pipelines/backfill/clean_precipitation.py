@@ -24,7 +24,7 @@ import time
 from datetime import datetime, timedelta
 
 import apache_beam as beam
-from backfill_recovery import configure_worker_package, invalid_record
+from backfill_recovery import configure_worker_package, invalid_record, resolve_duplicates
 from apache_beam.options.pipeline_options import (
     GoogleCloudOptions,
     PipelineOptions,
@@ -317,24 +317,13 @@ def key_by_date(record):
 
 
 def filter_unique_dates(element):
-    """
-    Filters out duplicate records based on the 'date' key.
+    """Collapse identical source facts and quarantine every conflicting date revision."""
+    _, records = element
+    unique, invalid = resolve_duplicates(records, 'weather')
+    yield from unique
+    for row in invalid:
+        yield beam.pvalue.TaggedOutput('invalid', row)
 
-    Args:
-        element (tuple): A tuple where the first item is the 'date' key and the second is a list of records.
-
-    Yields:
-        dict: A unique record if only one exists for the date.
-        beam.pvalue.TaggedOutput: Tagged invalid records for duplicate dates.
-    """
-    date, records = element
-    records = list(records)
-    if len(records) == 1:
-        yield records[0]
-    else:
-        for record in records:
-            record["Errors"] = "Duplicate date"
-            yield beam.pvalue.TaggedOutput("invalid", record)
 
 
 # Check valid records before writing to BigQuery

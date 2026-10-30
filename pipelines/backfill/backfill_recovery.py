@@ -32,3 +32,18 @@ def invalid_record(record, feed):
                 'raw_payload': original, 'input_sha256': hashlib.sha256(original.encode()).hexdigest()}
     return {**{key: None if record.get(key) is None else str(record[key]) for key in fields},
             'Errors': json.dumps(evidence, sort_keys=True, separators=(',', ':'), allow_nan=False)}
+
+
+def resolve_duplicates(records, feed):
+    """Collapse identical facts; no order can make a conflicting fact authoritative."""
+    fields = SOURCES[feed][1]
+    ordered = sorted((dict(row) for row in records),
+                     key=lambda row: json.dumps(row, sort_keys=True, allow_nan=False))
+    facts = {json.dumps({key: row[key] for key in fields}, sort_keys=True, allow_nan=False)
+             for row in ordered}
+    if not ordered:
+        return [], []
+    conflict = len(facts) != 1
+    rejected = ordered if conflict else ordered[1:]
+    reason = 'Conflicting source revisions for date' if conflict else 'Duplicate identical source fact'
+    return ([] if conflict else [ordered[0]], [{**row, 'Errors': reason} for row in rejected])

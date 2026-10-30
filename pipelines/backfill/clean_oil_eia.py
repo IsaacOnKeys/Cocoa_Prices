@@ -27,7 +27,7 @@ import time
 from datetime import datetime, timezone
 
 import apache_beam as beam
-from backfill_recovery import configure_worker_package, invalid_record
+from backfill_recovery import configure_worker_package, invalid_record, resolve_duplicates
 from apache_beam.options.pipeline_options import (
     GoogleCloudOptions,
     PipelineOptions,
@@ -153,17 +153,12 @@ class CheckUniqueness(beam.DoFn):
     """
 
     def process(self, element):
-        """
-        If multiple records share the same date, tags them as invalid.
-        Otherwise yields the single valid record.
-        """
-        date, records = element
-        if len(records) > 1:
-            for record in records:
-                record["Errors"] = f"Duplicate record for date {date}"
-                yield beam.pvalue.TaggedOutput("invalid", record)
-        else:
-            yield records[0]
+        _, records = element
+        unique, invalid = resolve_duplicates(records, 'oil')
+        yield from unique
+        for row in invalid:
+            yield beam.pvalue.TaggedOutput('invalid', row)
+
 
 
 #############

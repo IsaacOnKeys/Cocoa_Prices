@@ -1,41 +1,52 @@
 # Deterministic source revisions
 
-Checklist item 17, branch `codex/deterministic-source-revisions`. The item remains
-open pending the owner's valid-NULL correction policy. Items 15-16 are accepted;
-their held validation and rollback evidence remain in the linked receipts.
+Checklist item 17, branch `codex/deterministic-source-revisions`. The owner
+approved preservation of known valid measurements on October 30, 2026.
+Implementation is complete; native acceptance and production cutover are in progress.
 
-## Decision required
+## Accepted revision policy
 
-An accepted acquisition can report a missing measurement for a source date that
-already has a valid curated fact. The current stage-over-baseline selection
-replaces that fact with NULL. Decide whether to preserve the prior valid fact
-and record the new missing revision, replace it with NULL as an authoritative
-correction, or withhold the release pending resolution. The recommended default
-is preservation unless the supplier explicitly retracts the fact. The current
-wire contracts contain missingness, not an explicit retraction operation.
-No new NULL-precedence behavior has been deployed without that decision.
+Only the exact generation/SHA-verified current acquisition may revise a curated
+fact. Its producer-acquisition time and immutable input cutoff select the rows;
+consumer arrival time and transport IDs have no source authority. A valid
+non-null correction replaces the previous measurement at that observation date.
+A missing measurement preserves the prior valid value at the same date. Weather
+applies this independently to precipitation and soil moisture. Without a prior
+value at that date, NULL remains explicit; the separate bounded calendar fill
+can use an earlier dated fact only within its existing limit.
 
-## Confirmed selection boundaries and remaining work
+The frozen input snapshot retains both baseline and incoming missing revision,
+including acquisition/observation IDs. Accepted quality metadata records
+`accepted_non_null_v1`, the preservation policy, conflicting-tie refusal and the
+number of preserved measurements. No retraction operation is inferred from NULL.
+Current source-age checks still inspect the acquired measurements themselves;
+preserving a fact cannot make a stale or entirely missing acquisition fresh.
 
-- Exact receipt generation/SHA, acquisition identity and producer-acquisition
-  instant select the current source window. Consumer arrival order cannot make
-  an older or unrelated acquisition authoritative. The input cutoff freezes
-  that selection for retries.
-- Publishers fingerprint source, observation date and business values separately
-  from acquisition/transport identity. The consumer currently validates the
-  identity's syntax; it should also verify that a supplied fingerprint matches
-  the decoded business values, with explicit legacy compatibility.
-- Staging freeze collapses equivalent transport deliveries. The SQL gate rejects
-  conflicting same-feed/date/kind rows before its stage-over-baseline selector;
-  no arbitrary ingestion-time winner is accepted. The canonical procedure uses
-  no `ANY_VALUE`. Explicit revision/null precedence and baseline-repeat handling
-  still need implementation and permutation/timestamp-tie tests.
-- Historical cocoa's duplicate cleaner selects the first record in a grouped
-  date. Beam provides no source-authority ordering for that selection. Replace
-  it with deterministic identical-repeat/conflict handling, consistent across
-  the three historical cleaners, and verify actual Python 3.11 Beam execution.
-  Validation will use isolated fixtures rather than the fixed production
-  `WRITE_TRUNCATE` destinations.
+Equivalent baseline facts and repeated transport deliveries collapse before
+selection. Conflicting same-date revisions are rejected, including timestamp
+ties; there is no arbitrary first record, `ANY_VALUE`, or arrival-time winner.
+The selector uses explicit per-measurement precedence; independent aggregate
+expressions check both curated facts and the derived calendar before publication.
+
+The consumer verifies supplied observation hashes against the actual decoded
+source/date/business values, using the producers' existing hash format. A mismatch
+is durably quarantined before staging. Unidentified legacy messages retain their
+NULL identities and cannot satisfy a current exact-receipt gate. No Avro layout,
+producer identity algorithm or acquisition timestamp is changed.
+
+All historical Beam cleaners emit one identical fact and retain repeated inputs
+as duplicate evidence. Conflicting date facts all go to the invalid sink.
+Resolution and audit output are independent of grouped iteration order. The
+worker helper package is version 1.1.0 so remote installation cannot reuse the
+previous helper API under its old version.
+
+The BI quality view retains its existing fields and adds
+`latest_revision_missing`, `preserved_prior_value`, `latest_observation_id` and
+`latest_acquisition_id`. `source_missing` reports the incoming revision's
+missingness when one exists, even when a known fact was preserved. Original value
+date/age describe the retained fact. These fields follow the active release and
+retained snapshots through rollback; older releases have explicit unknown
+revision metadata.
 
 ## Publication-time gate correction
 

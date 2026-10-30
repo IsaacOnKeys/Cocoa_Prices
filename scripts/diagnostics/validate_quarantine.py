@@ -147,7 +147,7 @@ def exercise(path):
     bucket = gcs.bucket(n['bucket'])
     bq = bigquery.Client(project=PROJECT, credentials=credentials(), location=REGION)
 
-    def publish(case, feed, changes=None, malformed=False, destination=None):
+    def publish(case, feed, changes=None, malformed=False, destination=None, bad_identity=False):
         if case in state['cases']:
             return state['cases'][case]
         observed = (datetime.now(timezone.utc).date()-timedelta(days=1)).isoformat()
@@ -157,9 +157,14 @@ def exercise(path):
         fastavro.schemaless_writer(buffer, json.loads((ROOT/'schemas'/f'{feed}_schema.avsc').read_bytes()), record)
         data = b'\xff' if malformed else buffer.getvalue()
         identity = hashlib.sha256((state['token']+':'+case).encode()).hexdigest()
+        source={'cocoa':'ICCO','oil':'EIA','weather':'NASA_POWER'}[feed]
+        revision=hashlib.sha256(json.dumps([source,record['date'],{k:record[k] for k in MEASUREMENTS[feed]}],
+            sort_keys=True,separators=(',',':'),allow_nan=True).encode()).hexdigest()
+        if bad_identity:
+            revision='0'*64
         key = destination or feed
         message = publisher.publish(f'projects/{PROJECT}/topics/{n["topics"][key]}', data,
-            googclient_schemaencoding='BINARY', acquisition_id=identity, observation_id=hashlib.sha256(data).hexdigest()).result(timeout=30)
+            googclient_schemaencoding='BINARY', acquisition_id=identity, observation_id=revision).result(timeout=30)
         sub = f'projects/{PROJECT}/subscriptions/{n["subscriptions"][key]}'
         result = {'feed': feed, 'message_id': message, 'acquisition_id': identity,
                   'delivery_id': hashlib.sha256((sub+'\0'+message).encode()).hexdigest(),
@@ -193,6 +198,7 @@ def exercise(path):
         bq.update_dataset(dataset, ['access_entries'])
     for feed in TABLES:
         publish('healthy_'+feed, feed)
+        publish('identity_'+feed, feed,bad_identity=True)
         publish('malformed_'+feed, feed, malformed=True)
         changes = {'soil_moisture': 1.5} if feed == 'weather' else {'date': None}
         publish('business_'+feed, feed, changes=changes)
