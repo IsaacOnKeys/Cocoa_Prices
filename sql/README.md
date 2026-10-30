@@ -6,8 +6,8 @@ identifiers with [render_delivery_sql.py](../scripts/deploy/render_delivery_sql.
 Airflow calls `analytics_delivery.run_daily_pipeline` with a logical release,
 business date, exact accepted acquisitions and a verified procedure-body hash.
 
-The procedure freezes its input snapshot, builds candidates and a versioned
-model, retains artifacts, then commits all six serving tables and the active
+The procedure freezes its input snapshot and reviewed model choice, builds
+candidate outputs, retains artifacts, then commits all six serving tables and the active
 release marker in one DML transaction. Permanent model/table creation stays
 outside that transaction. The old [zero-argument entrypoint](procedures/run_daily_pipeline.sql)
 explicitly refuses direct publication. Its previous definition remains in Git
@@ -27,14 +27,14 @@ The [revision selector](01_curated_data/select_revisions.sql) preserves known
 facts when a current measurement is missing, retains the incoming revision and
 exposes preservation flags/identities in the quality view. See
 [revision-policy acceptance](../docs/operations/deterministic-source-revisions.md).
-Publication returns a cached receipt after commit; the Airflow/full diagnostic
-query budget is bounded at 2 GiB, including first-call model creation.
+Publication returns a cached receipt after commit; the Airflow query budget
+is bounded at 2 GiB. Daily execution performs no model training.
 
 | Stage | Implementation / behavior |
 | --- | --- |
 | [1. Curated data](01_curated_data/README.md) | Frozen curated baseline plus the accepted current acquisition; candidate source series and daily join |
 | [2. Features](02_feature_engineering/README.md) | Current price, 1/7/28-day lags, seven-row means, calendar and 40-day label |
-| [3. Model](03_model_training/README.md) | A retained `models.cocoa_release_<release_id>` trained from frozen candidate features |
+| [3. Model](03_model_training/README.md) | A frozen reviewed model; manual candidates require separate training and review |
 | [4. Prediction](04_prediction/README.md) | One business-date +40-day forecast and separately labeled historical scores |
 | [5. Evaluation](05_evaluation/README.md) | Labeled local chronological simulation and genuinely issued-forecast metrics; fitted historical scores stay separate |
 

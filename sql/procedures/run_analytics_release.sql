@@ -1,4 +1,4 @@
--- Permanent model DDL and candidate computation precede atomic serving DML.
+-- Reuse the reviewed model; manual training is outside the daily release path.
 CREATE OR REPLACE PROCEDURE `${project}.${delivery}.run_daily_pipeline`(
   p_release_id STRING, p_business_date DATE, p_dag_run_id STRING,
   p_run_started_at TIMESTAMP, p_sources_json STRING, p_code_id STRING,
@@ -9,6 +9,7 @@ BEGIN
   DECLARE input_cutoff TIMESTAMP;
   DECLARE base_id STRING;
   DECLARE versioned_model STRING;
+  DECLARE selected_model_card JSON;
   DECLARE in_transaction BOOL DEFAULT FALSE;
   DECLARE is_published BOOL DEFAULT FALSE;
   DECLARE baseline JSON;
@@ -28,7 +29,6 @@ BEGIN
   ) AS 'Failure injection is restricted to isolated validation datasets';
   ASSERT (SELECT COUNT(*) FROM `${project}.${delivery}.release_runs`
     WHERE release_id=p_release_id) <= 1 AS 'Duplicate release registry identity';
-  SET versioned_model = '${project}.${models}.cocoa_release_' || p_release_id;
 
   IF NOT EXISTS (SELECT 1 FROM `${project}.${delivery}.release_runs` WHERE release_id=p_release_id) THEN
     BEGIN TRANSACTION;
@@ -40,6 +40,14 @@ BEGIN
       AS 'A verified baseline release must be installed first';
     SET base_id = (SELECT release_id FROM `${project}.${delivery}.active_release` WHERE singleton=1);
     SET input_cutoff = CURRENT_TIMESTAMP();
+    ASSERT (SELECT COUNT(*) FROM `${project}.${delivery}.model_policy` WHERE singleton=1)=1
+      AS 'One reviewed model selection must be installed first';
+    SET (versioned_model,selected_model_card) = (SELECT AS STRUCT model_id,model_card
+      FROM `${project}.${delivery}.model_policy` WHERE singleton=1);
+    ASSERT REGEXP_CONTAINS(versioned_model,r'^${project}\.${models}\.[A-Za-z_][A-Za-z0-9_]*$')
+      AND JSON_VALUE(selected_model_card,'$.model_id')=versioned_model
+      AND JSON_VALUE(selected_model_card,'$.retraining_policy')='manual_only'
+      AS 'Invalid reviewed model identity or policy';
 
     CREATE TEMP TABLE freeze_fingerprints AS
     SELECT 'cocoa' AS name, COUNT(*) AS row_count,
@@ -54,9 +62,9 @@ BEGIN
 
     INSERT `${project}.${delivery}.release_runs`
       (release_id,business_date,dag_run_id,run_started_at,input_cutoff,base_release_id,
-       code_id,source_receipts,source_receipts_sha256,baseline_fingerprints,status,model_id,created_at)
+       code_id,source_receipts,source_receipts_sha256,baseline_fingerprints,status,model_id,model_card,created_at)
     VALUES (p_release_id,p_business_date,p_dag_run_id,p_run_started_at,input_cutoff,base_id,
-      p_code_id,p_sources,LOWER(TO_HEX(SHA256(p_sources_json))),baseline,'frozen',versioned_model,CURRENT_TIMESTAMP());
+      p_code_id,p_sources,LOWER(TO_HEX(SHA256(p_sources_json))),baseline,'frozen',versioned_model,selected_model_card,CURRENT_TIMESTAMP());
 
     INSERT `${project}.${delivery}.frozen_inputs`
       (release_id,business_date,kind,feed,date,price,precipitation,soil_moisture,
@@ -105,6 +113,8 @@ BEGIN
     SET input_cutoff = (SELECT r.input_cutoff FROM `${project}.${delivery}.release_runs` r WHERE release_id=p_release_id);
     SET base_id = (SELECT base_release_id FROM `${project}.${delivery}.release_runs` WHERE release_id=p_release_id);
     SET baseline = (SELECT baseline_fingerprints FROM `${project}.${delivery}.release_runs` WHERE release_id=p_release_id);
+    SET (versioned_model,selected_model_card) = (SELECT AS STRUCT model_id,model_card
+      FROM `${project}.${delivery}.release_runs` WHERE release_id=p_release_id);
     SET is_published = (SELECT status='published' FROM `${project}.${delivery}.release_runs` WHERE release_id=p_release_id);
     IF is_published THEN
       SET published_time = (SELECT published_at FROM `${project}.${delivery}.release_runs` WHERE release_id=p_release_id);
@@ -135,12 +145,6 @@ BEGIN
       CAST(EXTRACT(MONTH FROM date) AS STRING) AS mon,
       LEAD(cocoa_price,40) OVER (ORDER BY date) AS target_40
     FROM candidate_joined;
-    ASSERT (SELECT COUNTIF(target_40 IS NOT NULL) FROM candidate_features)>0
-      AS 'No eligible training labels; withhold the entire release';
-
-    EXECUTE IMMEDIATE FORMAT('''CREATE MODEL IF NOT EXISTS `%s`
-      OPTIONS(model_type='linear_reg',input_label_cols=['target_40'],l2_reg=1.0,data_split_method='AUTO_SPLIT')
-      AS SELECT * EXCEPT(date) FROM _SESSION.candidate_features WHERE target_40 IS NOT NULL''',versioned_model);
     EXECUTE IMMEDIATE FORMAT('''CREATE TEMP TABLE candidate_forecast AS
       SELECT DATE_ADD(date,INTERVAL 40 DAY) AS forecast_date,predicted_target_40 AS forecast_cocoa_price
       FROM ML.PREDICT(MODEL `%s`,(SELECT * EXCEPT(target_40) FROM _SESSION.candidate_features
@@ -160,6 +164,8 @@ BEGIN
       (SELECT COUNT(*) FROM candidate_joined) AS calendar_rows,
       (SELECT COUNT(*) FROM candidate_forecast) AS forecast_rows,
       TRUE AS current_acquisitions_reconciled,TRUE AS forecast_contract_passed,
+      STRUCT('manual_only' AS retraining_policy,selected_model_card AS reviewed_model,
+        JSON_VALUE(selected_model_card,'$.performance_status') AS performance_status) AS model_health,
       STRUCT('single_40_day_ahead_v1' AS version,40 AS horizon_days,
         p_business_date AS feature_origin_date,
         DATE_ADD(p_business_date,INTERVAL 40 DAY) AS target_date) AS forecast_product,
