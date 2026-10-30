@@ -8,6 +8,7 @@ ROOT = Path(__file__).resolve().parents[2]
 DEFAULTS = {'project': 'cocoa-prices-430315', 'delivery': 'analytics_delivery',
             'curated': 'cocoa_related', 'staging': 'stream_staging', 'models': 'models', 'studio': 'cocoa_related_studio'}
 FILES = {'migration': ROOT / 'sql/migrations/020_atomic_delivery.sql',
+         'run_manifest_migration': ROOT / 'sql/migrations/019_run_manifests.sql',
          'procedure': ROOT / 'sql/procedures/run_analytics_release.sql',
          'rollback': ROOT / 'sql/procedures/rollback_analytics_release.sql',
          'serving_views': ROOT / 'sql/serving/analytics_delivery.sql',

@@ -5,6 +5,7 @@ import json
 import re
 import time
 import uuid
+from pathlib import Path
 
 import pendulum
 from airflow import DAG
@@ -454,6 +455,83 @@ def run_release_fn(ti, dag_run):
     return result
 
 
+def _run_manifest_document(ti, dag_run, client):
+    from google.api_core.exceptions import NotFound
+
+    release = hashlib.sha256(json.dumps([dag_run.dag_id, dag_run.run_id], separators=(",", ":")).encode()).hexdigest()
+    scope = ti.xcom_pull(task_ids="capture_baseline", key="baseline")
+    kind = getattr(dag_run.run_type, "value", dag_run.run_type)
+    business = (scope["business_date"] if scope else
+                _utc(dag_run.data_interval_end if kind == "scheduled" else dag_run.start_date).astimezone(TZ).date().isoformat())
+    states = {task.task_id: task.state for task in dag_run.get_task_instances() if task.task_id != ti.task_id}
+    outcome = "success" if states and all(state == "success" for state in states.values()) else "failed"
+    config = {"project": GCP_PROJECT, "location": BQ_LOC, "procedure": BQ_PROC_FQN,
+              "staging": BQ_STG, "coverage_bucket": COVERAGE_BUCKET, "source_contract": SOURCE_CONTRACT,
+              "progress_timeout_minutes": PROGRESS_TIMEOUT_MIN, "progress_poll_seconds": PROGRESS_POLL_SEC}
+    configuration = json.dumps(config, sort_keys=True, separators=(",", ":"))
+    document = {"manifest_version": 1, "wire_contract_version": 1,
+                "release_id": release, "dag_id": dag_run.dag_id, "dag_run_id": dag_run.run_id,
+                "business_date": business, "run_started_at": _utc(dag_run.start_date).isoformat(),
+                "outcome": outcome, "task_states": states, "run_scope": scope,
+                "dag_sha256": hashlib.sha256(Path(__file__).read_bytes()).hexdigest(),
+                "procedure_sha256": RELEASE_PROCEDURE_SHA256,
+                "configuration": config, "configuration_sha256": hashlib.sha256(configuration.encode()).hexdigest(),
+                "accepted_sources": {feed: ti.xcom_pull(task_ids=f"wait_{feed}_rows", key="accepted_source")
+                                     for feed in SOURCE_CONTRACT}, "bigquery_jobs": []}
+    if ti.xcom_pull(task_ids="run_bq_pipeline", key="release_request"):
+        for attempt in range(2):
+            job_id = "cocoa_release_" + release + "_" + str(attempt)
+            try:
+                job = client.get_job(job_id, location=BQ_LOC, retry=None, timeout=10)
+            except NotFound:
+                continue
+            document["bigquery_jobs"].append({"job_id": job_id, "state": job.state,
+                "error_reason": (job.error_result or {}).get("reason"),
+                "bytes_processed": job.total_bytes_processed, "bytes_billed": job.total_bytes_billed,
+                "slot_milliseconds": job.slot_millis})
+    return document
+
+
+def record_run_manifest_fn(ti, dag_run, **_):
+    from google.api_core.exceptions import NotFound
+    from google.cloud import bigquery
+
+    client = BigQueryHook(gcp_conn_id="gcp_default", location=BQ_LOC).get_client(project_id=GCP_PROJECT, location=BQ_LOC)
+    document = _run_manifest_document(ti, dag_run, client)
+    namespace = BQ_PROC_FQN.rsplit(".", 1)[0]
+    if not re.fullmatch(r"[a-z][a-z0-9-]+\.[A-Za-z_][A-Za-z0-9_]*", namespace):
+        raise AirflowFailException("Invalid run manifest dataset")
+    manifest_id = document["release_id"] + "_" + str(ti.try_number)
+    query = f'''INSERT `{namespace}.run_manifests`
+      (manifest_id,release_id,business_date,dag_run_id,outcome,recorded_at,manifest)
+      SELECT @manifest_id,@release,@business,@run,@outcome,CURRENT_TIMESTAMP(),
+        JSON_SET(PARSE_JSON(@document),'$.release',
+          (SELECT TO_JSON(r) FROM `{namespace}.release_runs` r
+           WHERE release_id=@release AND business_date=@business))'''
+    values = [("manifest_id", "STRING", manifest_id), ("release", "STRING", document["release_id"]),
+              ("business", "DATE", document["business_date"]), ("run", "STRING", dag_run.run_id),
+              ("outcome", "STRING", document["outcome"]),
+              ("document", "STRING", json.dumps(document, sort_keys=True, separators=(",", ":")))]
+    # BigQuery applies a 10 MiB minimum to both the registry read and target write.
+    config = bigquery.QueryJobConfig(maximum_bytes_billed=20971520,
+        query_parameters=[bigquery.ScalarQueryParameter(*value) for value in values],
+        labels={"app": "cocoa-prices", "component": "run-manifest"})
+    job_id = "cocoa_manifest_" + manifest_id
+    request = {"query": query, "parameters": config.to_api_repr()["query"]["queryParameters"]}
+    try:
+        job = client.get_job(job_id, location=BQ_LOC, retry=None, timeout=10)
+    except NotFound:
+        job = client.query(query, job_config=config, job_id=job_id, retry=None, job_retry=None, timeout=20)
+    if not _same_release_job(job.to_api_repr()["configuration"]["query"], request):
+        raise AirflowFailException("Manifest job is bound to a different run snapshot")
+    job.result(timeout=40, job_retry=None)
+    ti.log.info("Run manifest %s: release=%s outcome=%s job=%s", manifest_id,
+                document["release_id"], document["outcome"], job_id)
+    if document["outcome"] != "success":
+        raise AirflowFailException("Run manifest saved; an upstream task failed or did not complete")
+    return {"manifest_id": manifest_id, "release_id": document["release_id"], "job_id": job_id}
+
+
 # ===== DAG =====
 with DAG(
     dag_id="cocoa_daily",
@@ -510,18 +588,14 @@ with DAG(
         trigger_rule=TriggerRule.ALL_SUCCESS,
     )
 
-    def summarize(**ctx):
-        dr = ctx["ti"].get_dagrun()
-        states = {}
-        for f in FEEDS:
-            ti = dr.get_task_instance(f"wait_{f['key']}_rows")
-            states[f["key"]] = ti.state if ti else "unknown"
-        print("Feed states:", states)
-        return states
-
     summary = PythonOperator(
         task_id="summary",
-        python_callable=summarize,
+        python_callable=record_run_manifest_fn,
+        trigger_rule=TriggerRule.ALL_DONE,
+        execution_timeout=timedelta(minutes=2),
+        retries=1,
+        retry_delay=timedelta(seconds=20),
     )
 
     chain(wait_tasks, run_bq_pipeline, summary)
+    wait_tasks >> summary  # Wait for every feed, even when publication is upstream_failed.

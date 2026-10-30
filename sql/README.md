@@ -53,6 +53,9 @@ The additive [product delivery status](serving/product_delivery_status.sql) view
 exposes `current`, `missed_update` or `unavailable` for all three products using
 the weekday 20:00 Berlin deadline. Render it with `product_status_view`; see
 [consumer failure behavior](../docs/operations/product-failure-policy.md).
+The additive [run manifest migration](migrations/019_run_manifests.sql), rendered
+as `run_manifest_migration`, captures orchestration/configuration/job metadata
+alongside the existing release registry. See [run manifests](../docs/operations/run-manifests.md).
 The legacy `models.cocoa_linreg_40` remains preserved for the verified baseline.
 
 See [atomic publication and validation](../docs/operations/atomic-analytics-release.md)
