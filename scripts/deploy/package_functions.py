@@ -10,6 +10,7 @@ FUNCTIONS = {
     "oil": ("functions/oil", "publish_eia_data"),
     "weather": ("functions/weather", "publish_weather_data"),
     "ingestion": ("functions/ingestion", "stage_analytics_data"),
+    "monitor": ("functions/monitor", "check_analytics_delivery"),
 }
 
 
@@ -20,9 +21,9 @@ def package_function(feed, *, repo_root=REPO_ROOT, output_dir=None):
         "main.py": repo_root / source_dir / "main.py",
         "requirements.txt": repo_root / source_dir / "requirements.txt",
     }
-    if feed != "ingestion":
+    if feed not in {"ingestion", "monitor"}:
         sources["request_policy.py"] = repo_root / "functions/shared/request_policy.py"
-    schema_feeds = ("cocoa", "oil", "weather") if feed == "ingestion" else (feed,)
+    schema_feeds = ("cocoa", "oil", "weather") if feed == "ingestion" else () if feed == "monitor" else (feed,)
     sources.update({f"{name}_schema.avsc": repo_root / "schemas" / f"{name}_schema.avsc" for name in schema_feeds})
     payloads = {name: path.read_bytes() for name, path in sources.items()}
     output_dir = Path(output_dir) if output_dir is not None else repo_root / ".build/functions"

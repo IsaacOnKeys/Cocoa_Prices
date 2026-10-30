@@ -1,7 +1,7 @@
 locals {
   delivery_source_filter = "resource.type = \"pubsub_subscription\" AND (${join(" OR ", [for name in keys(local.dead_letter_routes) : "resource.labels.subscription_id = \"${name}\""])})"
   delivery_export_filter = "resource.type = \"pubsub_subscription\" AND (${join(" OR ", [for name in local.dead_letter_topics : "resource.labels.subscription_id = \"${name}-sub\""])})"
-  operations_run_filter  = "resource.type = \"cloud_run_revision\" AND resource.labels.service_name = monitoring.regex.full_match(\"publish-.*|stage-analytics-data\")"
+  operations_run_filter  = "resource.type = \"cloud_run_revision\" AND resource.labels.service_name = monitoring.regex.full_match(\"publish-.*|stage-analytics-data|check-analytics-delivery\")"
   operations_vm_filter   = "resource.type = \"gce_instance\" AND resource.labels.instance_id = \"${google_compute_instance.airflow.instance_id}\""
   operations_charts = [
     { title = "Staging/trigger backlog", filter = local.delivery_source_filter, metric = "pubsub.googleapis.com/subscription/num_unacked_messages_by_region", aligner = "ALIGN_MAX" },
@@ -18,9 +18,10 @@ locals {
 }
 
 resource "google_monitoring_alert_policy" "dead_letter_forwarded" {
-  project      = var.project_id
-  display_name = "Cocoa: message forwarded to dead-letter recovery"
-  combiner     = "OR"
+  notification_channels = local.operator_channels
+  project               = var.project_id
+  display_name          = "Cocoa: message forwarded to dead-letter recovery"
+  combiner              = "OR"
   conditions {
     display_name = "Any successful dead-letter forwarding in five minutes"
     condition_threshold {
@@ -39,7 +40,7 @@ resource "google_monitoring_alert_policy" "dead_letter_forwarded" {
   }
   documentation {
     mime_type = "text/markdown"
-    content   = "Inspect the native Avro recovery export, diagnose the original failure and use the pinned-generation replay procedure in docs/operations/dead-letter-recovery.md. No automatic replay. Notification routing is tracked in checklist item 26; this policy creates console incidents."
+    content   = "Inspect the native Avro recovery export, diagnose the original failure and use the pinned-generation replay procedure in docs/operations/dead-letter-recovery.md. No automatic replay. Notify the configured operator; acknowledge or snooze the incident in Monitoring during recovery."
   }
   alert_strategy {
     auto_close = "1800s"
@@ -47,9 +48,10 @@ resource "google_monitoring_alert_policy" "dead_letter_forwarded" {
 }
 
 resource "google_monitoring_alert_policy" "dead_letter_export_stalled" {
-  project      = var.project_id
-  display_name = "Cocoa: dead-letter storage export stalled"
-  combiner     = "OR"
+  notification_channels = local.operator_channels
+  project               = var.project_id
+  display_name          = "Cocoa: dead-letter storage export stalled"
+  combiner              = "OR"
   conditions {
     display_name = "Recovery backlog older than five minutes for five minutes"
     condition_threshold {
@@ -68,7 +70,7 @@ resource "google_monitoring_alert_policy" "dead_letter_export_stalled" {
   }
   documentation {
     mime_type = "text/markdown"
-    content   = "Check cloudStorageConfig.state, bucket permissions and availability. Do not replace or delete the subscription: seven days of unacknowledged retention protect export failures. Follow docs/operations/dead-letter-recovery.md. Notification routing remains checklist item 26."
+    content   = "Check cloudStorageConfig.state, bucket permissions and availability. Do not replace or delete the subscription: seven days of unacknowledged retention protect export failures. Follow docs/operations/dead-letter-recovery.md and acknowledge the routed operator incident in Monitoring."
   }
   alert_strategy {
     auto_close = "1800s"
@@ -91,7 +93,7 @@ resource "google_monitoring_dashboard" "dead_letter_recovery" {
         title = "Run outcomes and source coverage"
         logsPanel = {
           resourceNames = ["projects/${var.project_id}"]
-          filter        = "logName=\"projects/${var.project_id}/logs/cocoa-operations\" NOT jsonPayload.engineering_validation=true"
+          filter        = "(logName=\"projects/${var.project_id}/logs/cocoa-operations\" OR (resource.type=\"cloud_run_revision\" AND resource.labels.service_name=\"check-analytics-delivery\" AND jsonPayload.event=\"operational_alert\")) NOT jsonPayload.engineering_validation=true"
         }
         }], [for chart in local.operations_charts : {
         title = chart.title
@@ -113,7 +115,7 @@ resource "google_monitoring_dashboard" "dead_letter_recovery" {
         title = "Application failures, quarantine and retry evidence"
         logsPanel = {
           resourceNames = ["projects/${var.project_id}"]
-          filter        = "resource.type=\"cloud_run_revision\" resource.labels.service_name=~\"^(publish-.*|stage-analytics-data)$\" (severity>=WARNING OR jsonPayload.event=\"ingestion_quarantined\" OR jsonPayload.event=\"ingestion_retry\")"
+          filter        = "resource.type=\"cloud_run_revision\" resource.labels.service_name=~\"^(publish-.*|stage-analytics-data|check-analytics-delivery)$\" (severity>=WARNING OR jsonPayload.event=\"ingestion_quarantined\" OR jsonPayload.event=\"ingestion_retry\")"
         }
       }])
     }
