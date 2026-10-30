@@ -56,17 +56,17 @@ Branch: `codex/product-delivery-status`. Python 3.11 local validation passed
 17 focused tests and changed-file Ruff; Git whitespace validation passed.
 Existing pipeline tests and cloud workloads were not rerun.
 
-Deployment is pending: the metadata-only BigQuery create-view request could not
-refresh local Application Default Credentials (`invalid_grant: Bad Request`).
-No successful view creation was recorded. Refresh ADC with
-`gcloud auth application-default login`, then retry the additive view deployment.
-Item 18 remains open until BigQuery accepts the view definition. Dashboard
-integration remains item 35.
+After the owner refreshed Application Default Credentials, BigQuery accepted
+the view definition on 2026-10-30 at 14:55:15 UTC. The returned schema contains
+all 11 expected fields. Evidence: `.build/product-delivery-status/deployed.json`.
+Creation used the metadata API; no query or pipeline execution was needed.
+Item 18 is complete; dashboard integration remains item 35.
 
 The owner's updated scope is a CV demonstration: prefer small additions on
 existing services, validate each feature at the end, and avoid revisiting
 completed features without a direct dependency or demonstrated defect. The
-total operating budget is at most EUR 5/month, including development cloud
-work. No current billing total has been verified; this view adds no scheduled
+total operating budget targets under EUR 5/month, with a EUR 10/month maximum,
+including development cloud work (owner update 2026-10-30). No current billing
+total has been verified; this view adds no scheduled
 workload or stored data, and this change did not start a VM, query job, build
 or model training run.
