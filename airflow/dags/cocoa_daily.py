@@ -423,7 +423,7 @@ def _same_release_job(actual, request):
     return actual["query"] == request["query"] and parameters(actual.get("queryParameters", [])) == parameters(request["parameters"])
 
 
-def _run_release_job(client, request):
+def _run_release_job(client, request, before_submit=None):
     from google.api_core.exceptions import Conflict, NotFound
     from google.cloud import bigquery
 
@@ -441,6 +441,8 @@ def _run_release_job(client, request):
         try:
             job = client.get_job(job_id, location=BQ_LOC, retry=None, timeout=30)
         except NotFound:
+            if before_submit is not None:
+                before_submit()
             try:
                 job = client.query(request["query"], job_config=config, job_id=job_id,
                                    location=BQ_LOC, retry=None, job_retry=None, timeout=30)
@@ -468,7 +470,7 @@ def _run_release_job(client, request):
     raise AirflowFailException("Release exhausted its two confirmed execution attempts")
 
 
-def run_release_fn(ti, dag_run):
+def run_release_fn(ti, dag_run, before_submit=None):
     client = BigQueryHook(gcp_conn_id="gcp_default", location=BQ_LOC).get_client(project_id=GCP_PROJECT, location=BQ_LOC)
     try:
         body = client.get_routine(BQ_PROC_FQN, retry=None, timeout=30).body
@@ -476,7 +478,7 @@ def run_release_fn(ti, dag_run):
         raise AirflowException("Verified release procedure is unavailable") from None
     request = _release_request(ti, dag_run, body)
     ti.xcom_push(key="release_request", value={"release_id": request["release_id"], "code_id": request["code_id"]})
-    result = _run_release_job(client, request)
+    result = _run_release_job(client, request, before_submit=before_submit)
     ti.log.info("Published release %s with model %s in job %s", result["release_id"], result["model_id"], result["job_id"])
     return result
 
@@ -568,6 +570,32 @@ def record_run_manifest_fn(ti, dag_run, **_):
     return {"manifest_id": manifest_id, "release_id": document["release_id"], "job_id": job_id}
 
 
+def _check_service_window(dag_run, latest):
+    scope = _run_scope(dag_run)
+    if scope["engineering_validation"]:
+        return
+    now = datetime.now(timezone.utc).astimezone(TZ)
+    if (now.date().isoformat() != scope["business_date"]
+            or not (18, 30) <= (now.hour, now.minute) < latest):
+        raise AirflowFailException("Service execution window closed; reconcile this run and use a new recovery run")
+
+
+def capture_with_window(ti, dag_run):
+    _check_service_window(dag_run, (19, 30))
+    return capture_baseline_fn(ti, dag_run)
+
+
+def trigger_with_window(feed_key, url=None, trigger_topic=None, dag_run=None):
+    _check_service_window(dag_run, (19, 45))
+    return _invoke_producer(feed_key, url, trigger_topic, dag_run)
+
+
+def release_with_window(ti, dag_run):
+    # Leave room for the existing warehouse timeout before the VM's 20:30 stop.
+    _check_service_window(dag_run, (20, 5))
+    return run_release_fn(ti, dag_run, before_submit=lambda: _check_service_window(dag_run, (20, 5)))
+
+
 # ===== DAG =====
 with DAG(
     dag_id="cocoa_daily",
@@ -575,12 +603,14 @@ with DAG(
     start_date=pendulum.datetime(2025, 9, 9, tz=TZ),
     catchup=False,
     max_active_runs=1,
+    dagrun_timeout=timedelta(minutes=60),
+    default_args={"execution_timeout": timedelta(minutes=2)},
     tags=["cocoa"],
 ) as dag:
 
     capture_baseline = PythonOperator(
         task_id="capture_baseline",
-        python_callable=capture_baseline_fn,
+        python_callable=capture_with_window,
     )
 
     wait_tasks = []
@@ -589,7 +619,7 @@ with DAG(
         # 1) Trigger the producer via HTTP or its Eventarc Pub/Sub topic.
         trigger = PythonOperator(
             task_id=f"trigger_{f['key']}",
-            python_callable=_invoke_producer,
+            python_callable=trigger_with_window,
             op_kwargs={"feed_key": f["key"], "url": f["url"], "trigger_topic": f["trigger_topic"]},
             execution_timeout=timedelta(minutes=3),
             retries=2,
@@ -617,7 +647,7 @@ with DAG(
 
     run_bq_pipeline = PythonOperator(
         task_id="run_bq_pipeline",
-        python_callable=run_release_fn,
+        python_callable=release_with_window,
         execution_timeout=timedelta(minutes=22),
         retries=1,
         retry_delay=timedelta(seconds=30),

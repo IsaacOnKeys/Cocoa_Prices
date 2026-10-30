@@ -1,10 +1,11 @@
 locals {
   airflow_scheduler_jobs = {
     start-airflow-vm = {
-      schedule = "30 18 * * *"
+      schedule = "30 18 * * 1-5"
       action   = "start"
     }
     stop-airflow-vm = {
+      # Keep the hard cost cutoff, including weekends after manual maintenance.
       schedule = "30 20 * * *"
       action   = "stop"
     }
@@ -19,7 +20,7 @@ resource "google_cloud_scheduler_job" "airflow" {
   region           = var.region
   schedule         = each.value.schedule
   time_zone        = "Europe/Berlin"
-  attempt_deadline = "180s"
+  attempt_deadline = "30s"
   paused           = false
 
   http_target {
@@ -33,11 +34,12 @@ resource "google_cloud_scheduler_job" "airflow" {
   }
 
   retry_config {
-    retry_count          = 0
+    retry_count = 2
+    # Count-only: setting a duration too makes Scheduler wait for BOTH limits.
     max_retry_duration   = "0s"
-    min_backoff_duration = "5s"
-    max_backoff_duration = "3600s"
-    max_doublings        = 5
+    min_backoff_duration = "30s"
+    max_backoff_duration = "60s"
+    max_doublings        = 1
   }
 
   lifecycle {

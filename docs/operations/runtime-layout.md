@@ -29,8 +29,9 @@ rename inside these preserved rollback paths:
 | schemas/<feed>_schema.avsc | /opt/beam/<feed>/schemas/<feed>_schema.avsc |
 | airflow/dags/cocoa_daily.py | /opt/airflow/dags/cocoa_daily_dag.py |
 
-Cloud Scheduler owns VM startup/shutdown at 18:30/20:30 Europe/Berlin daily;
-the Airflow DAG schedules 19:00 Monday-Friday. The existing captured Compose
+Cloud Scheduler owns VM startup at 18:30 Monday-Friday and shutdown at 20:30
+daily, Europe/Berlin; the Airflow DAG schedules 19:00 Monday-Friday. See
+[bounded startup, shutdown and recovery](safe-vm-scheduling.md). The existing captured Compose
 runtime uses the verified Python 3.11 Airflow 2.10.2 build, LocalExecutor and
 postgres:13. The live AIRFLOW_IMAGE_NAME override and Compose default select
 cocoa-airflow:2.10.2-python3.11-81c665f; the prior image/configuration are retained. Actual installed

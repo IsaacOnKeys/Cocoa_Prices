@@ -1,15 +1,21 @@
-# Captured 2026-10-26; environment values omitted if present.
+# Install scripts/operations/airflow_runtime.py at the ExecStart path first.
 [Unit]
 Description=Airflow via Docker Compose with Fernet key from Secret Manager
 After=network-online.target docker.service
 Wants=network-online.target
 Requires=docker.service
+StartLimitIntervalSec=1800
+StartLimitBurst=2
 
 [Service]
 Type=oneshot
 WorkingDirectory=/opt/airflow
-ExecStart=/usr/bin/bash -c 'AIRFLOW__CORE__FERNET_KEY=$(gcloud secrets versions access latest --secret=airflow-fernet-key --project=cocoa-prices-430315) docker compose up -d'
-ExecStop=/usr/bin/docker compose down
+ExecStart=/usr/bin/python3 /usr/local/lib/cocoa/airflow_runtime.py start
+ExecStop=/usr/bin/python3 /usr/local/lib/cocoa/airflow_runtime.py stop
+TimeoutStartSec=330
+TimeoutStopSec=75
+Restart=on-failure
+RestartSec=30
 RemainAfterExit=yes
 
 [Install]

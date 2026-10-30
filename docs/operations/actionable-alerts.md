@@ -14,7 +14,7 @@ stop or mutate that VM, publish data, train models or read secrets.
 
 One OIDC-authenticated Scheduler job invokes it every 15 minutes, weekdays
 18:00-20:45 Europe/Berlin. Checks are active from 18:45 until 20:30; earlier
-and later ticks are inexpensive no-ops. There is one bounded Scheduler retry.
+and later ticks are inexpensive no-ops. Scheduler retries use a short bounded window.
 The active checks read the authoritative delivery view, VM state, run-start
 logs and queue age. Each warehouse query is capped at 64 MiB and uses a
 15-minute request identity to avoid duplicate submission on uncertain retries.
@@ -28,6 +28,8 @@ logs and queue age. Each warehouse query is capped at 64 MiB and uses a
 | `release_late` | ERROR | A release recovered after 20:00; record the miss rather than erasing it. |
 | `backlog_aging` | WARNING | Source/consumer messages are over five minutes old; inspect consumer errors and retry/DLQ evidence. |
 | `monitor_failed` | ERROR | Monitoring itself could not verify delivery; inspect its permissions/API failures. |
+| `start_failed` / `stop_failed` | ERROR | Inspect the bounded systemd runtime action and dependency/credential readiness. |
+| `shutdown_interrupted` / `shutdown_state_unknown` | ERROR | The hard VM cutoff retained uncertain work; reconcile the named runs and warehouse jobs before recovery. |
 
 The watchdog does not mistake a missing start log for a missing run when a
 current-day completion manifest exists. Engineering-validation runs do not
