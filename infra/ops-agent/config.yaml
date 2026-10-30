@@ -1,0 +1,3 @@
+# Captured semantic override on airflow-vm, 2026-10-30.
+# Keep the installed Ops Agent's default host metrics/syslog collection.
+{}

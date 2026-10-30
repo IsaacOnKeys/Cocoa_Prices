@@ -54,6 +54,7 @@ def writer(monkeypatch):
                  SOURCE_CONTRACT={'cocoa': {'maximum_age': 7}}, PROGRESS_TIMEOUT_MIN=10,
                  PROGRESS_POLL_SEC=20, RELEASE_PROCEDURE_SHA256='a'*64,
                  AirflowFailException=Fail, BigQueryHook=Mock())
+    scope['_emit_operational_event'] = Mock(return_value=True)
     scope['BigQueryHook'].return_value.get_client.return_value = client
     names = {'_utc', '_same_release_job', '_run_manifest_document', 'record_run_manifest_fn'}
     nodes = [node for node in ast.parse(DAG.read_bytes()).body

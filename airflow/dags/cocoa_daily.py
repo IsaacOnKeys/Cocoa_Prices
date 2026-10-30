@@ -112,7 +112,33 @@ def _run_scope(dag_run):
 
 def capture_baseline_fn(ti, dag_run):
     # Preserve the installed task name; its baseline is now an intended run scope.
-    ti.xcom_push(key="baseline", value=_run_scope(dag_run))
+    scope = _run_scope(dag_run)
+    ti.xcom_push(key="baseline", value=scope)
+    _emit_operational_event(ti, {"event": "run_started", "dag_id": dag_run.dag_id,
+        "dag_run_id": dag_run.run_id, "business_date": scope["business_date"],
+        "run_started_at": scope["run_started_at"], "engineering_validation": scope["engineering_validation"]})
+
+
+def _emit_operational_event(ti, payload):
+    """A small structured log; telemetry failure must not undo an accepted release."""
+    try:
+        from airflow.providers.google.common.hooks.base_google import GoogleBaseHook
+        from google.auth.transport.requests import AuthorizedSession
+
+        credentials = GoogleBaseHook(gcp_conn_id="gcp_default").get_credentials()
+        response = AuthorizedSession(credentials).post("https://logging.googleapis.com/v2/entries:write", json={
+            "logName": f"projects/{GCP_PROJECT}/logs/cocoa-operations",
+            "resource": {"type": "global", "labels": {"project_id": GCP_PROJECT}},
+            "entries": [{"timestamp": datetime.now(timezone.utc).isoformat(),
+                "severity": "ERROR" if payload.get("outcome") == "failed" else "INFO",
+                "insertId": hashlib.sha256(json.dumps(payload, sort_keys=True).encode()).hexdigest(),
+                "jsonPayload": payload}],
+        }, timeout=10)
+        response.raise_for_status()
+        return True
+    except Exception:
+        ti.log.warning("Central operational log unavailable; use the durable run manifest and local task logs")
+        return False
 
 
 def _expected_acquisition(feed_key, dag_run):
@@ -529,6 +555,14 @@ def record_run_manifest_fn(ti, dag_run, **_):
     job.result(timeout=40, job_retry=None)
     ti.log.info("Run manifest %s: release=%s outcome=%s job=%s", manifest_id,
                 document["release_id"], document["outcome"], job_id)
+    _emit_operational_event(ti, {"event": "run_completed", "dag_id": dag_run.dag_id,
+        "dag_run_id": dag_run.run_id, "release_id": document["release_id"],
+        "business_date": document["business_date"], "outcome": document["outcome"],
+        "engineering_validation": (document["run_scope"] or {}).get("engineering_validation"),
+        "manifest_id": manifest_id, "manifest_job_id": job_id, "task_states": document["task_states"],
+        "duration_seconds": (datetime.now(timezone.utc)-_utc(document["run_started_at"])).total_seconds(),
+        "sources": {feed: {key: accepted.get(key) for key in ("acquisition_id", "observations", "source_ages")}
+                    if accepted else None for feed, accepted in document["accepted_sources"].items()}})
     if document["outcome"] != "success":
         raise AirflowFailException("Run manifest saved; an upstream task failed or did not complete")
     return {"manifest_id": manifest_id, "release_id": document["release_id"], "job_id": job_id}
