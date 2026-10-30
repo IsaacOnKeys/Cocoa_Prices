@@ -155,6 +155,21 @@ def prepare(path, historical_gaps=False, revision_cases=False):
             raise ValueError('Unmapped live reference in the synthetic view fixture')
         query(bq, state, f'CREATE VIEW `{PROJECT}.{curated}.{name}` AS '+text, name='seed_'+name)
     query(bq, state, RENDER('migration', **context), name='migration')
+    query(bq, state, RENDER('model_policy_migration', **context), name='model_policy_migration')
+    fixture_model = f'{PROJECT}.{context["models"]}.fixture_reviewed_model'
+    # This manually invoked isolated probe trains one fixture model; daily SQL never trains.
+    query(bq, state, f'''CREATE MODEL `{fixture_model}`
+      OPTIONS(model_type='linear_reg',input_label_cols=['target_40'],l2_reg=1.0,data_split_method='NO_SPLIT')
+      AS SELECT * EXCEPT(date) FROM `{PROJECT}.{curated}.features_live` WHERE target_40 IS NOT NULL''',
+      name='train_reviewed_fixture_model')
+    fixture_card = {'model_id':fixture_model,'retraining_policy':'manual_only',
+                    'performance_status':'synthetic_validation_fixture'}
+    query(bq, state, f'''INSERT `{PROJECT}.{context["delivery"]}.model_policy`
+      VALUES(1,@model,@review,PARSE_JSON(@card),CURRENT_TIMESTAMP())''', params=[
+        bigquery.ScalarQueryParameter('model','STRING',fixture_model),
+        bigquery.ScalarQueryParameter('review','STRING','0'*64),
+        bigquery.ScalarQueryParameter('card','STRING',json.dumps(fixture_card,sort_keys=True))],
+      name='select_reviewed_fixture_model')
     path.write_text(json.dumps(state, indent=2, default=str))
     query(bq, state, RENDER('procedure', **context), name='compile_procedure')
     baseline = fingerprints(bq, state)
@@ -165,7 +180,7 @@ def prepare(path, historical_gaps=False, revision_cases=False):
               bigquery.ScalarQueryParameter('business_date','DATE',date.fromisoformat(state['business_date'])-timedelta(days=1)),
               bigquery.ScalarQueryParameter('code_id','STRING','0'*64),
               bigquery.ScalarQueryParameter('fingerprints','JSON',baseline),
-              bigquery.ScalarQueryParameter('model_id','STRING','fixture_legacy_model'),
+              bigquery.ScalarQueryParameter('model_id','STRING',fixture_model),
               bigquery.ScalarQueryParameter('evidence','JSON',{'classification':'synthetic_validation_fixture'})]
     query(bq, state, RENDER('bootstrap', **context), params=params, name='bootstrap')
     assert fingerprints(bq, state) == baseline
