@@ -27,7 +27,7 @@ BQ_LOC = Variable.get("BQ_LOCATION", default_var="europe-west3")
 BQ_PROC = Variable.get("BQ_PROC", default_var="analytics_delivery.run_daily_pipeline")
 BQ_PROC_FQN = f"{GCP_PROJECT}.{BQ_PROC}"
 # Deployment pins the verified routine body before installing this DAG.
-RELEASE_PROCEDURE_SHA256 = "226ee204c9c5fad275ee9295c3c97c96360895b232bdbcbca79ad3eb524672e1"
+RELEASE_PROCEDURE_SHA256 = "d7f269491ec732f1e6ce7e918417dfbf1c2ec8f3afaab2a9d7a2c8062697ef8c"
 
 BQ_STG = {
     "cocoa": Variable.get(
@@ -467,6 +467,7 @@ def _run_manifest_document(ti, dag_run, client):
     outcome = "success" if states and all(state == "success" for state in states.values()) else "failed"
     config = {"project": GCP_PROJECT, "location": BQ_LOC, "procedure": BQ_PROC_FQN,
               "staging": BQ_STG, "coverage_bucket": COVERAGE_BUCKET, "source_contract": SOURCE_CONTRACT,
+              "forecast_product_version": "single_40_day_ahead_v1", "model_horizon_days": 40,
               "progress_timeout_minutes": PROGRESS_TIMEOUT_MIN, "progress_poll_seconds": PROGRESS_POLL_SEC}
     configuration = json.dumps(config, sort_keys=True, separators=(",", ":"))
     document = {"manifest_version": 1, "wire_contract_version": 1,
@@ -535,7 +536,7 @@ def record_run_manifest_fn(ti, dag_run, **_):
 # ===== DAG =====
 with DAG(
     dag_id="cocoa_daily",
-    schedule="0 19 * * 1-5",  # 19:00 Mon–Fri (Europe/Berlin)
+    schedule="0 19 * * 1-5",  # 19:00 Monâ€“Fri (Europe/Berlin)
     start_date=pendulum.datetime(2025, 9, 9, tz=TZ),
     catchup=False,
     max_active_runs=1,

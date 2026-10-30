@@ -14,6 +14,7 @@ FILES = {'migration': ROOT / 'sql/migrations/020_atomic_delivery.sql',
          'serving_views': ROOT / 'sql/serving/analytics_delivery.sql',
          'product_status_view': ROOT / 'sql/serving/product_delivery_status.sql',
          'forecast_history_views': ROOT / 'sql/serving/forecast_history.sql',
+         'forecast_product_view': ROOT / 'sql/serving/forecast_product.sql',
          'imputation_view': ROOT / 'sql/serving/imputation.sql',
          'retire_legacy': ROOT / 'sql/procedures/run_daily_pipeline.sql',
          'bootstrap': ROOT / 'sql/migrations/020_atomic_delivery_bootstrap.sql'}

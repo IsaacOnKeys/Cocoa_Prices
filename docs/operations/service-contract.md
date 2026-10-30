@@ -1,6 +1,6 @@
 # Production service and data-product contract
 
-Contract version: 1.0. Defined 2026-10-27 for checklist item 1.
+Contract version: 1.1. Defined 2026-10-27; forecast product selected 2026-10-30.
 
 The owner accepted weekday delivery by 20:00 Europe/Berlin, a 99% on-time
 target over 100 operating days, an acquisition-loss limit of one operating
@@ -33,10 +33,12 @@ One accepted release contains:
 | Forecasts and evaluation | Validated, consistently labeled forecast outputs, issued/model/input cutoffs, and an honest evaluation status; current historical rescoring must not be called chronological out-of-sample performance. |
 | BI serving outputs | Stable, documented outputs referencing the same accepted release, with release time, source coverage and quality/staleness status visible to consumers. |
 
-The current forecasting implementation uses a fixed 40-calendar-day horizon
-from each feature row. Choosing a different forecast product belongs to
-checklist item 22; this contract does not silently redefine it as forty
-horizons issued from today's information.
+The owner selected one 40-calendar-day-ahead forecast per release on
+2026-10-30 (item 22). Its feature origin is the release business date and its
+target is that date plus 40 calendar days. Actual issue time and input cutoff
+are recorded separately. This is one price prediction, not a daily path of
+forty horizons. Previously issued snapshots keep their original values and
+contract metadata; see [forecast product](forecast-product.md).
 
 ## Operating calendar and delivery
 

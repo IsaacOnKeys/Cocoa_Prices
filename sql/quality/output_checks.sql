@@ -88,16 +88,16 @@ UNION ALL SELECT 'output','feature_finiteness','error',COUNTIF(
   'Present features/labels are finite; expected warm-up and terminal label nulls are permitted' FROM candidate_features
 UNION ALL SELECT 'output','feature_duplicate_dates','error',COUNT(*)-COUNT(DISTINCT date),
   'One feature record per calendar date' FROM candidate_features
-UNION ALL SELECT 'output','forecast_count','error',ABS(COUNT(*)-40),
-  'The required forecast product contains 40 records' FROM candidate_forecast
+UNION ALL SELECT 'output','forecast_count','error',ABS(COUNT(*)-1),
+  'The required product contains one 40-day-ahead forecast' FROM candidate_forecast
 UNION ALL SELECT 'output','forecast_unique_dates','error',COUNT(*)-COUNT(DISTINCT forecast_date),
   'One forecast per target date' FROM candidate_forecast
 UNION ALL SELECT 'output','forecast_values','error',COUNTIF(forecast_cocoa_price IS NULL
   OR IS_NAN(forecast_cocoa_price) OR IS_INF(forecast_cocoa_price) OR forecast_cocoa_price<=0),
   'Every required forecast is finite and positive' FROM candidate_forecast
-UNION ALL SELECT 'output','forecast_calendar','error',COUNTIF(forecast_date IS NULL
-  OR forecast_date<=p_business_date OR forecast_date>DATE_ADD(p_business_date,INTERVAL 40 DAY)),
-  'Forecast dates span business date +1 through +40; cardinality/uniqueness are checked separately' FROM candidate_forecast
+UNION ALL SELECT 'output','forecast_calendar','error',COUNTIF(
+  forecast_date IS DISTINCT FROM DATE_ADD(p_business_date,INTERVAL 40 DAY)),
+  'The target is exactly 40 calendar days after the release business date' FROM candidate_forecast
 UNION ALL SELECT 'output','historical_score_count','error',
   ABS((SELECT COUNT(*) FROM candidate_predictions)-(SELECT COUNT(*) FROM candidate_features)),
   'Historical scoring covers the same feature calendar'

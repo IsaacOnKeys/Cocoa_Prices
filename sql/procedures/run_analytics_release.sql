@@ -144,7 +144,7 @@ BEGIN
     EXECUTE IMMEDIATE FORMAT('''CREATE TEMP TABLE candidate_forecast AS
       SELECT DATE_ADD(date,INTERVAL 40 DAY) AS forecast_date,predicted_target_40 AS forecast_cocoa_price
       FROM ML.PREDICT(MODEL `%s`,(SELECT * EXCEPT(target_40) FROM _SESSION.candidate_features
-        WHERE date>=DATE_SUB(@business_date,INTERVAL 39 DAY)))''',versioned_model)
+        WHERE date=@business_date))''',versioned_model)
       USING p_business_date AS business_date;
     EXECUTE IMMEDIATE FORMAT('''CREATE TEMP TABLE candidate_predictions AS
       SELECT p.date AS prediction_date,DATE_ADD(p.date,INTERVAL 40 DAY) AS forecast_date,
@@ -160,6 +160,9 @@ BEGIN
       (SELECT COUNT(*) FROM candidate_joined) AS calendar_rows,
       (SELECT COUNT(*) FROM candidate_forecast) AS forecast_rows,
       TRUE AS current_acquisitions_reconciled,TRUE AS forecast_contract_passed,
+      STRUCT('single_40_day_ahead_v1' AS version,40 AS horizon_days,
+        p_business_date AS feature_origin_date,
+        DATE_ADD(p_business_date,INTERVAL 40 DAY) AS target_date) AS forecast_product,
       STRUCT('accepted_non_null_v1' AS version,'preserve_known_value' AS null_policy,
         'reject_conflicting_ties' AS conflict_policy) AS revision_policy,
       (SELECT COUNTIF(s.price IS NULL AND b.price IS NOT NULL)

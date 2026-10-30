@@ -35,7 +35,7 @@ query budget is bounded at 2 GiB, including first-call model creation.
 | [1. Curated data](01_curated_data/README.md) | Frozen curated baseline plus the accepted current acquisition; candidate source series and daily join |
 | [2. Features](02_feature_engineering/README.md) | Current price, 1/7/28-day lags, seven-row means, calendar and 40-day label |
 | [3. Model](03_model_training/README.md) | A retained `models.cocoa_release_<release_id>` trained from frozen candidate features |
-| [4. Prediction](04_prediction/README.md) | Forty unique future dates and historical scores from that model |
+| [4. Prediction](04_prediction/README.md) | One business-date +40-day forecast and separately labeled historical scores |
 | [5. Evaluation](05_evaluation/README.md) | Existing fitted-model historical error; chronological evaluation remains separate work |
 
 [020_atomic_delivery.sql](migrations/020_atomic_delivery.sql) creates permanent
@@ -60,6 +60,8 @@ The additive [forecast history views](serving/forecast_history.sql), rendered
 as `forecast_history_views`, expose retained issued forecasts, explicitly
 retrospective scores and frozen source vintages. See
 [issued forecast history](../docs/operations/issued-forecast-history.md).
+Render `forecast_product_view` for the explicitly labeled single-point
+`current_forecast` view; see [the 40-day product](../docs/operations/forecast-product.md).
 The legacy `models.cocoa_linreg_40` remains preserved for the verified baseline.
 
 See [atomic publication and validation](../docs/operations/atomic-analytics-release.md)

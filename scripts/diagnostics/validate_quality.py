@@ -52,7 +52,7 @@ CREATE TEMP TABLE candidate_features AS
  FROM base_data;
 CREATE TEMP TABLE candidate_forecast AS
  SELECT d AS forecast_date,2000.0+10*DATE_DIFF(d,DATE '2014-01-02',DAY)+5 AS forecast_cocoa_price
- FROM UNNEST(GENERATE_DATE_ARRAY(DATE_ADD(p_business_date,INTERVAL 1 DAY),DATE_ADD(p_business_date,INTERVAL 40 DAY))) d;
+ FROM UNNEST([DATE_ADD(p_business_date,INTERVAL 40 DAY)]) d;
 CREATE TEMP TABLE candidate_predictions AS
  SELECT date AS prediction_date,DATE_ADD(date,INTERVAL 40 DAY) AS forecast_date,
    2000.0+10*(i+40)+5 AS yhat_40,
@@ -247,21 +247,21 @@ CASES = [
     ),
     (
         "missing_forecast",
-        "DELETE candidate_forecast WHERE forecast_date=DATE_ADD(p_business_date,INTERVAL 1 DAY);",
+        "DELETE candidate_forecast WHERE forecast_date=DATE_ADD(p_business_date,INTERVAL 40 DAY);",
         False,
         False,
         "forecast_count",
     ),
     (
         "duplicate_forecast_date",
-        "UPDATE candidate_forecast SET forecast_date=DATE_ADD(p_business_date,INTERVAL 1 DAY) WHERE forecast_date=DATE_ADD(p_business_date,INTERVAL 2 DAY);",
+        "INSERT candidate_forecast SELECT * FROM candidate_forecast;",
         False,
         False,
         "forecast_unique_dates",
     ),
     (
         "invalid_forecast_value",
-        "UPDATE candidate_forecast SET forecast_cocoa_price=CAST('NaN' AS FLOAT64) WHERE forecast_date=DATE_ADD(p_business_date,INTERVAL 1 DAY);",
+        "UPDATE candidate_forecast SET forecast_cocoa_price=CAST('NaN' AS FLOAT64) WHERE forecast_date=DATE_ADD(p_business_date,INTERVAL 40 DAY);",
         False,
         False,
         "forecast_values",
