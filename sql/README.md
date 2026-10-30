@@ -56,6 +56,10 @@ the weekday 20:00 Berlin deadline. Render it with `product_status_view`; see
 The additive [run manifest migration](migrations/019_run_manifests.sql), rendered
 as `run_manifest_migration`, captures orchestration/configuration/job metadata
 alongside the existing release registry. See [run manifests](../docs/operations/run-manifests.md).
+The additive [forecast history views](serving/forecast_history.sql), rendered
+as `forecast_history_views`, expose retained issued forecasts, explicitly
+retrospective scores and frozen source vintages. See
+[issued forecast history](../docs/operations/issued-forecast-history.md).
 The legacy `models.cocoa_linreg_40` remains preserved for the verified baseline.
 
 See [atomic publication and validation](../docs/operations/atomic-analytics-release.md)
