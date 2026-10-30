@@ -49,6 +49,10 @@ metadata to the accepted release, including the corrected EIA supplier label.
 The stable `features_live` and `mape_40d` views continue to read accepted serving
 tables; candidate training never reads a partially updated live view. Read
 `cocoa_related_studio.release_status` for the active release/model identity.
+The additive [product delivery status](serving/product_delivery_status.sql) view
+exposes `current`, `missed_update` or `unavailable` for all three products using
+the weekday 20:00 Berlin deadline. Render it with `product_status_view`; see
+[consumer failure behavior](../docs/operations/product-failure-policy.md).
 The legacy `models.cocoa_linreg_40` remains preserved for the verified baseline.
 
 See [atomic publication and validation](../docs/operations/atomic-analytics-release.md)
