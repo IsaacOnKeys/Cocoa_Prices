@@ -406,7 +406,7 @@ def _run_release_job(client, request):
     config = bigquery.QueryJobConfig.from_api_repr({
         "jobTimeoutMs": "1200000",
         "labels": {"app": "cocoa-prices", "component": "atomic-release", "release": request["release_id"][:32]},
-        "query": {"queryParameters": parameters, "useLegacySql": False, "maximumBytesBilled": "1073741824"},
+        "query": {"queryParameters": parameters, "useLegacySql": False, "maximumBytesBilled": "2147483648"},
     })
     retryable = {"backendError", "internalError", "rateLimitExceeded", "jobRateLimitExceeded"}
     for attempt in range(2):

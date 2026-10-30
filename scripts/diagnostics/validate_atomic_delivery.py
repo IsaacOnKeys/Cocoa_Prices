@@ -50,7 +50,7 @@ def client():
 def query(bq, state, sql, *, params=(), name, timeout=180):
     from google.cloud import bigquery
 
-    config = bigquery.QueryJobConfig(query_parameters=list(params), maximum_bytes_billed=1073741824,
+    config = bigquery.QueryJobConfig(query_parameters=list(params), maximum_bytes_billed=2147483648,
                                     labels={'app': 'cocoa-prices', 'purpose': 'atomic-validation', 'token': state['token']})
     job = bq.query(sql, job_config=config, location=LOCATION)
     state.setdefault('jobs', {})[name] = job.job_id

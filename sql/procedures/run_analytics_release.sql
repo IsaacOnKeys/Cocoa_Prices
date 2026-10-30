@@ -13,6 +13,8 @@ BEGIN
   DECLARE is_published BOOL DEFAULT FALSE;
   DECLARE baseline JSON;
   DECLARE quality JSON;
+  DECLARE published_time TIMESTAMP;
+  DECLARE active_at_response BOOL DEFAULT FALSE;
 
   BEGIN
   ASSERT REGEXP_CONTAINS(p_release_id, r'^[a-f0-9]{64}$') AS 'Invalid release identity';
@@ -104,6 +106,10 @@ BEGIN
     SET base_id = (SELECT base_release_id FROM `${project}.${delivery}.release_runs` WHERE release_id=p_release_id);
     SET baseline = (SELECT baseline_fingerprints FROM `${project}.${delivery}.release_runs` WHERE release_id=p_release_id);
     SET is_published = (SELECT status='published' FROM `${project}.${delivery}.release_runs` WHERE release_id=p_release_id);
+    IF is_published THEN
+      SET published_time = (SELECT published_at FROM `${project}.${delivery}.release_runs` WHERE release_id=p_release_id);
+      SET active_at_response = (SELECT release_id=p_release_id FROM `${project}.${delivery}.active_release` WHERE singleton=1);
+    END IF;
   END IF;
 
   IF NOT is_published THEN
@@ -227,16 +233,19 @@ BEGIN
     INSERT `${project}.${curated}.forecast_40d` (forecast_date,forecast_cocoa_price) SELECT * FROM candidate_forecast;
     DELETE `${project}.${curated}.pred_hist_40d` WHERE TRUE;
     INSERT `${project}.${curated}.pred_hist_40d` (prediction_date,forecast_date,yhat_40,actual) SELECT * FROM candidate_predictions;
+    SET published_time = CURRENT_TIMESTAMP();
     UPDATE `${project}.${delivery}.active_release` SET release_id=p_release_id,business_date=p_business_date,
-      published_at=CURRENT_TIMESTAMP() WHERE singleton=1;
-    UPDATE `${project}.${delivery}.release_runs` SET status='published',published_at=CURRENT_TIMESTAMP(),last_error=NULL
+      published_at=published_time WHERE singleton=1;
+    UPDATE `${project}.${delivery}.release_runs` SET status='published',published_at=published_time,last_error=NULL
       WHERE release_id=p_release_id AND business_date=p_business_date;
     COMMIT TRANSACTION;
     SET in_transaction = FALSE;
+    SET active_at_response = TRUE;
   END IF;
-  SELECT r.release_id,r.business_date,r.status,r.model_id,r.input_cutoff,r.published_at,
-    (SELECT release_id FROM `${project}.${delivery}.active_release` WHERE singleton=1)=r.release_id AS is_active
-    FROM `${project}.${delivery}.release_runs` r WHERE r.release_id=p_release_id AND r.business_date=p_business_date;
+  -- Returning a receipt must not add a billed permanent-table read after commit.
+  SELECT p_release_id AS release_id,p_business_date AS business_date,'published' AS status,
+    versioned_model AS model_id,input_cutoff AS input_cutoff,published_time AS published_at,
+    active_at_response AS is_active;
 EXCEPTION WHEN ERROR THEN
   IF in_transaction THEN
     ROLLBACK TRANSACTION;
