@@ -29,15 +29,20 @@ history. AUTO_SPLIT does not supply an explicit time-ordered evaluation design.
 Consequently, this MAPE is not established chronological out-of-sample forecast
 performance. It should not be presented as a validated rolling-origin backtest.
 
-## Work needed for chronological backtesting
+## Chronological evaluation
 
-- Define time-ordered training cutoffs and evaluation periods.
-- At each cutoff, train only on examples whose 40-day targets are already known.
-- Score future observations without fitting or selecting features on them.
-- Aggregate errors across forecast origins and compare against a baseline.
+The [local chronological simulation](../../scripts/operations/backtest_forecasts.py)
+refits at explicit time cutoffs, accounts for the 40-day label delay and assumed
+source-publication lags, and compares against persistence and weekly seasonal
+baselines. It is labeled revised-history simulation because older publisher
+vintages are incomplete; its results are not deployed-model performance.
 
-These are [future engineering tasks](../../docs/operations/engineering-backlog.md),
-not changes made by this folder organization.
+The [issued-forecast evaluation views](../serving/issued_forecast_evaluation.sql)
+score genuinely issued single-point forecasts as observed actuals arrive,
+preserving actual-vintage identity and explicit pending/coverage statuses.
+Read [the evaluation policy and reproduction steps](../../docs/operations/chronological-evaluation.md)
+before interpreting either result. `mape_40d` retains its historical fitted-score
+meaning and is not an out-of-sample metric.
 
 **Previous:** [4. Prediction](../04_prediction/README.md).
 See the [full sequence](../README.md).

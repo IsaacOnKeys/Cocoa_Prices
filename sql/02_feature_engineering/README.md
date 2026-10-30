@@ -53,8 +53,10 @@ columns except date, with target_40 designated as the label.
 The presence of lagged/exogenous features does not establish that they improve
 forecast accuracy. The current model uses AUTO_SPLIT and historical predictions
 from the fitted model, rather than an explicit chronological holdout.
-Chronological evaluation and feature-set comparisons remain
-[engineering work](../../docs/operations/engineering-backlog.md).
+The [chronological evaluation](../../docs/operations/chronological-evaluation.md)
+separates local revised-history simulation from genuinely issued-forecast
+performance. It does not reinterpret the fitted-model historical scores as
+out-of-sample results. Feature-set comparisons remain subsequent work.
 
 **Previous:** [1. Curated data](../01_curated_data/README.md).
 **Next:** [3. Model training](../03_model_training/README.md).

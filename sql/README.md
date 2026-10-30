@@ -36,7 +36,7 @@ query budget is bounded at 2 GiB, including first-call model creation.
 | [2. Features](02_feature_engineering/README.md) | Current price, 1/7/28-day lags, seven-row means, calendar and 40-day label |
 | [3. Model](03_model_training/README.md) | A retained `models.cocoa_release_<release_id>` trained from frozen candidate features |
 | [4. Prediction](04_prediction/README.md) | One business-date +40-day forecast and separately labeled historical scores |
-| [5. Evaluation](05_evaluation/README.md) | Existing fitted-model historical error; chronological evaluation remains separate work |
+| [5. Evaluation](05_evaluation/README.md) | Labeled local chronological simulation and genuinely issued-forecast metrics; fitted historical scores stay separate |
 
 [020_atomic_delivery.sql](migrations/020_atomic_delivery.sql) creates permanent
 release-control/artifact tables. The [explicit bootstrap](migrations/020_atomic_delivery_bootstrap.sql)
