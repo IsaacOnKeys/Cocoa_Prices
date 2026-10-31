@@ -37,6 +37,7 @@ resource "google_cloudfunctions2_function" "functions" {
   name     = each.key
   project  = var.project_id
   location = var.region
+  labels   = { app = "cocoa-prices", component = "daily-source" }
 
   build_config {
     runtime           = "python311"

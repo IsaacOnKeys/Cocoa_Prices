@@ -50,6 +50,7 @@ resource "google_compute_instance" "airflow" {
   zone                       = var.zone
   machine_type               = "e2-medium"
   description                = "role=airflow\nenv=portfolio"
+  labels                     = { app = "cocoa-prices", component = "airflow" }
   can_ip_forward             = false
   deletion_protection        = true
   allow_stopping_for_update  = false

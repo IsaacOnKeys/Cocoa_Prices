@@ -21,6 +21,7 @@ resource "google_bigquery_dataset" "datasets" {
   dataset_id                 = each.key
   project                    = var.project_id
   location                   = var.region
+  labels                     = { app = "cocoa-prices", component = each.key }
   delete_contents_on_destroy = false
   is_case_insensitive        = false
   max_time_travel_hours      = 168

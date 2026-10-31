@@ -42,6 +42,10 @@ resource "google_storage_bucket" "application" {
   force_destroy               = false
   uniform_bucket_level_access = true
   public_access_prevention    = "enforced"
+  labels = {
+    app       = "cocoa-prices"
+    component = each.key == "raw-historic-data" ? "raw-evidence" : "pipeline-temp"
+  }
 
   soft_delete_policy {
     retention_duration_seconds = 0
