@@ -5,3 +5,6 @@
 !backfill/clean_cocoa_prices.py
 !backfill/clean_oil_eia.py
 !backfill/clean_precipitation.py
+!backfill/backfill_recovery.py
+!backfill/backfill_contract.py
+!backfill/setup.py

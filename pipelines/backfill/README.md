@@ -1,15 +1,16 @@
 # Historical Beam backfills
 
-These pipelines process the one-time historical bootstrap snapshots into BigQuery
-curated history. Automated daily ingestion is implemented separately by
+These pipelines process verified historical snapshots into isolated BigQuery
+candidates. Reviewed closed-history repairs enter the next normal atomic release.
+Automated daily ingestion is implemented separately by
 [producer functions](../../functions/), [bounded Cloud Run consumers](../../functions/ingestion/README.md) and
 [Airflow](../../airflow/dags/cocoa_daily.py).
 
-| Script | Protected snapshot input | Existing curated output |
+| Script | Example protected snapshot input | Candidate table suffix |
 | --- | --- | --- |
-| clean_cocoa_prices.py | snapshots/2025-10-02/icco/Daily_Prices_Home.csv | cocoa_related.cocoa |
-| clean_oil_eia.py | snapshots/2026-10-27/eia/brent_oil_eia.json | cocoa_related.brent_prices |
-| clean_precipitation.py | snapshots/2025-10-02/nasa_power/POWER_Point_Daily.csv | cocoa_related.precipitation |
+| clean_cocoa_prices.py | snapshots/2025-10-02/icco/Daily_Prices_Home.csv | cocoa |
+| clean_oil_eia.py | snapshots/2026-10-27/eia/brent_oil_eia.json | brent_prices |
+| clean_precipitation.py | snapshots/2025-10-02/nasa_power/POWER_Point_Daily.csv | precipitation |
 
 All inputs are in gs://raw-historic-data/. Exact generations/checksums are
 recorded in [the historical manifest](../../data/historical_manifest.yaml).
@@ -30,12 +31,16 @@ Keep the Beam environment separate:
 python -m pip install -r pipelines/requirements.txt
 ~~~
 
-The existing scripts retain DirectRunner and historical DataflowRunner support,
-destinations and validation. Curated writes still use WRITE_TRUNCATE; invalid
-tables now append JSON evidence in Errors with original input, source reference,
-checksum and rejection time. NASA protocol metadata is explicitly recognized;
-malformed/missing observations reach the invalid sink. Moving paths does not
-make a production backfill safe to run as a check. The
+Every run now requires `--input`, `--input-generation`, `--input-sha256`,
+`--start-date`, `--end-date`, `--output-dataset` and `--manifest-output`.
+The current held source generation/hash and format are checked before execution.
+Only owned `cocoa-prices-430315.backfill_YYYYMMDD_TOKEN` datasets are accepted;
+valid writes use `WRITE_EMPTY`. Invalid rows retain original input/provenance
+in an isolated table and a compressed immutable raw-bucket quarantine archive.
+Candidate tables expire after two days; temporary load files expire after three
+days. Quarantine evidence follows the existing 400-day policy. NASA protocol
+metadata is explicitly recognized; malformed/missing observations reach the
+invalid sink. The
 [quarantine validation](../../docs/operations/invalid-record-quarantine.md)
 executes actual graphs against isolated fixtures/tables and records the boundary
 between DirectRunner cloud IO, worker packaging and remote Dataflow execution.
@@ -43,7 +48,9 @@ between DirectRunner cloud IO, worker packaging and remote Dataflow execution.
 All three cleaners collapse identical facts to one valid row and retain repeats
 as duplicate evidence. Conflicting facts for a date all enter the invalid sink;
 group iteration order cannot select a price or weather revision. The shared
-worker distribution is `cocoa-backfill-recovery` 1.1.0. Actual local/cloud graphs
+worker distribution is now `cocoa-backfill-recovery` 1.2.0, including the shared
+backfill contract. Earlier acceptance receipts truthfully retain their version.
+Actual earlier local/cloud graphs
 and offline worker installation are recorded in
 [revision-policy acceptance](../../docs/operations/deterministic-source-revisions.md).
 
@@ -77,12 +84,17 @@ and matching dependencies; let Beam choose the matching managed SDK image.
 A custom Dataflow worker must match both Python and Beam versions and use the
 [SDK harness entry point](https://docs.cloud.google.com/dataflow/docs/guides/troubleshoot-custom-container).
 The obsolete unavailable custom-image override was removed from the usage examples.
-No Dataflow job is launched by the runtime validation.
+DirectRunner defaults to one worker. Dataflow requires `--allow-dataflow` and
+is limited to one e2-standard-2 worker, no autoscaling, a 30 GiB disk and the
+batch service option `max_workflow_runtime_walltime_seconds=1800`.
+See [Google's service options](https://docs.cloud.google.com/dataflow/docs/reference/service-options).
+No Dataflow job is launched by the feature validation.
 
 See the [Python 3.11 migration](../../docs/operations/python311-runtime.md) for
 actual image identities, dependency checks, real-runner fixture results and
-isolated BigQuery IO validation. These tests never run the fixed WRITE_TRUNCATE
-backfills against production. General safe backfill controls remain item 29.
+isolated BigQuery IO validation. Current scripts refuse bare invocations and
+production destinations. See [safe backfill and reviewed promotion](../../docs/operations/safe-backfill-repair.md)
+for the operator workflow and item 29 evidence.
 
 Airflow uses the separate captured
 [Docker Compose definition](../../airflow/docker-compose.yaml), based on

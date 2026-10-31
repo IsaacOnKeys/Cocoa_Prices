@@ -38,7 +38,8 @@ def checked_namespace(dataset):
 
 def mapped_table(original, feed, dataset):
     allowed = {f"{PROJECT}:cocoa_related.{table}" for table in FEEDS[feed][3:]}
-    if original not in allowed:
+    candidate = re.fullmatch(re.escape(PROJECT) + r":backfill_[0-9]{8}_[a-f0-9]{8}\.([A-Za-z_]+)", original or "")
+    if original not in allowed and (not candidate or candidate[1] not in FEEDS[feed][3:]):
         raise ValueError("Unexpected sink in the historical graph")
     checked_namespace(dataset)
     return dataset.replace(".", ":", 1) + "." + original.rsplit(".", 1)[1]
@@ -60,6 +61,7 @@ def main():
     import apache_beam as beam
     sys.path.insert(0, str(args.scripts_dir.resolve()))
     import backfill_recovery
+    import backfill_contract
 
     if (args.scripts_dir/'backfill_recovery.py').read_bytes() != (ROOT/'pipelines/backfill/backfill_recovery.py').read_bytes():
         raise ValueError('Packaged recovery helper differs from the checkout')
@@ -105,7 +107,7 @@ def main():
         observed = set()
 
         def reader(path, *positional, **kwargs):
-            if path != "gs://raw-historic-data/" + archive:
+            if path != fixture_uri:
                 raise ValueError("Unexpected source in the historical graph")
             return original_read(str(fixture), *positional, **kwargs)
 
@@ -126,17 +128,35 @@ def main():
             observed.add(name)
             if name == invalid_table and kwargs['write_disposition'] != beam.io.BigQueryDisposition.WRITE_APPEND:
                 raise ValueError('Invalid historical evidence must be append-only')
+            if name == valid_table and kwargs['write_disposition'] != beam.io.BigQueryDisposition.WRITE_EMPTY:
+                raise ValueError('Historical candidates must never overwrite existing facts')
             if token:
                 kwargs["table"] = target
                 kwargs["custom_gcs_temp_location"] = f"gs://cocoa-prices-temp-for-bq/runtime-validation/{token}/"
                 return original_write(**kwargs)
             return LocalSink(name)
 
-        argv = [str(source), "--runner=DirectRunner", "--direct_num_workers=1", "--direct_running_mode=in_memory"]
-        iterations = 2 if token and args.recovery_cases else 1
+        fixture_uri = f"gs://raw-historic-data/engineering-validation/{token or '20000101_00000000'}/{sample}"
+        argv = [str(source), "--runner=DirectRunner", "--direct_num_workers=1", "--direct_running_mode=in_memory",
+                "--input", fixture_uri, "--input-generation", "1", "--input-sha256", hashlib.sha256(fixture.read_bytes()).hexdigest(),
+                "--start-date", "2014-01-01", "--end-date", "2026-10-20",
+                "--output-dataset", f"{PROJECT}.backfill_{token or '20000101_00000000'}",
+                "--manifest-output", str(output / (feed + "-manifest.json"))]
+        iterations = 1  # New candidate writes are WRITE_EMPTY, never destructive reruns.
         contract = backfill_recovery.SOURCES[feed]
+
+        def archived(records, request):
+            import gzip
+            destination = output / (feed + '-quarantine.jsonl.gz')
+            destination.write_bytes(gzip.compress('\n'.join(json.dumps(row, sort_keys=True) for row in records).encode()))
+            return str(destination)
+
         with patch.object(beam.io, "ReadFromText", reader), patch.object(beam.io, "WriteToBigQuery", writer), patch.object(sys, "argv", argv), patch.dict(
-                backfill_recovery.SOURCES, {feed: (str(fixture), contract[1], contract[2])}):
+                backfill_recovery.SOURCES, {feed: (str(fixture), contract[1], contract[2])}), \
+                patch.object(backfill_contract, 'verify_source', lambda request: None), \
+                patch.object(backfill_contract, 'verify_destination', lambda request: None), \
+                patch.object(backfill_contract, 'persist_invalid', archived), \
+                patch.object(backfill_contract, 'finish', lambda request, result: None):
             for _ in range(iterations):
                 runpy.run_path(str(source), run_name="__main__")
         if observed != {valid_table, invalid_table}:
@@ -158,7 +178,7 @@ def main():
             raise RuntimeError(f"Unexpected {feed} fixture output; inspect isolated evidence")
         for row in invalid:
             evidence = json.loads(row['Errors'])
-            if (evidence['version'] != 1 or evidence['source_uri'] != str(fixture)
+            if (evidence['version'] != 1 or evidence['source_uri'] != fixture_uri
                     or hashlib.sha256(evidence['raw_payload'].encode()).hexdigest() != evidence['input_sha256']):
                 raise RuntimeError('Historical failure evidence is incomplete')
         if args.revision_cases:

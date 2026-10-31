@@ -22,7 +22,7 @@ def configure_worker_package(options, script_file):
             setup.setup_file = str(Path(script_file).with_name('setup.py').resolve())
 
 
-def invalid_record(record, feed):
+def invalid_record(record, feed, request=None):
     uri, fields, version = SOURCES[feed]
     # Raw text is itself a STRING: even malformed JSON/NaN remains replayable.
     original = record.get('_raw_line') or json.dumps(record, default=str)
@@ -30,6 +30,10 @@ def invalid_record(record, feed):
                 'source_acquired_at': None, 'rejected_at': datetime.now(timezone.utc).isoformat(),
                 'error_category': 'historical_validation', 'errors': record.get('Errors', record.get('_parse_error', 'invalid')),
                 'raw_payload': original, 'input_sha256': hashlib.sha256(original.encode()).hexdigest()}
+    if request is not None:
+        evidence.update(source_uri=request.input_uri, source_generation=str(request.generation),
+                        source_sha256=request.sha256, source_acquired_at=request.acquired_at,
+                        backfill_run=request.dataset, transform_sha256=getattr(request, 'transform_hashes', None))
     return {**{key: None if record.get(key) is None else str(record[key]) for key in fields},
             'Errors': json.dumps(evidence, sort_keys=True, separators=(',', ':'), allow_nan=False)}
 

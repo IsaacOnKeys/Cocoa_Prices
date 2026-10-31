@@ -152,6 +152,12 @@ then copy the two recovery Python files from the checkout into one directory.
    after the recovery window and cloud-job reconciliation are understood;
    perform any acquisition recovery under the normal admission/quality gates.
 
+Warehouse routines remain outside the VM. When restoring an older backup after
+a routine upgrade, compare its DAG's procedure pin with the deployed routine and
+install the matching reviewed DAG before unpausing. Do not overwrite a newer
+warehouse routine blindly. Routine/DAG deployments take a fresh runtime backup
+so the latest recovery point contains the matching pin.
+
 The agreed RPO is at most one operating day of acquisition loss; the RTO is
 restoration by the next operating day's deadline. A nightly dump cannot repair
 an upstream publisher's lost historical observations. The drill below measures

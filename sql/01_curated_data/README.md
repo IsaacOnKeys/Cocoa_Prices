@@ -20,6 +20,11 @@ Valid non-null source measurements revise matching baseline facts in isolated
 candidates. A missing revision preserves a known value at the same date, per
 measurement; without one, NULL remains explicit. The frozen input retains the
 missing revision and its identity. See [selection SQL](select_revisions.sql).
+Reviewed closed-history repairs first enter isolated Beam candidates and the
+content-addressed repair ledger. The daily freeze applies only the reviewed
+source/date changes, preserving known values on NULL revisions; publication and
+repair application commit together after the existing analytics/forecast gates.
+See [safe backfill and repair](../../docs/operations/safe-backfill-repair.md).
 The calendar runs from 2014-01-02 through the explicit release business date,
 converts weather -999.0 to null and carries valid observations for at most
 7 calendar days for cocoa, 14 for oil and 7 for each weather measurement.

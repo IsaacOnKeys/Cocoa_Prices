@@ -1,22 +1,8 @@
-"""
-Usage:
-Acquire a new source archive without overwriting existing files:
-python scripts/operations/acquire_eia_history.py \
-    --interface published-table --output data/raw/brent_oil_eia.json
+"""Isolated historical backfill for EIA published-table Brent USD/barrel JSON.
 
-
-To run with DataFlow:
-
-python pipelines/backfill/clean_oil_eia.py \
-    --runner=DataflowRunner \
-    --job_name="clean-oil-data-$(date +%s)" \
-    --project=cocoa-prices-430315 \
-    --region=europe-west3 \
-    --temp_location=gs://raw-historic-data/temp \
-    --staging_location=gs://raw-historic-data/staging \
-    --worker_machine_type=e2-standard-4 \
-    --save_main_session
-
+Requires an explicit held input generation/hash, date interval and candidate
+dataset. See README.md and scripts/operations/backfill_history.py create.
+No bare invocation or production WRITE_TRUNCATE destination is supported.
 """
 
 import json
@@ -28,6 +14,7 @@ from datetime import datetime, timezone
 
 import apache_beam as beam
 from backfill_recovery import configure_worker_package, invalid_record, resolve_duplicates
+from backfill_contract import configure, finish, in_interval, persist_invalid
 from apache_beam.options.pipeline_options import (
     GoogleCloudOptions,
     PipelineOptions,
@@ -167,13 +154,14 @@ class CheckUniqueness(beam.DoFn):
 
 
 def run():
-    configure_worker_package(PIPELINE_OPTIONS, __file__)
+    request, options = configure('oil')
+    configure_worker_package(options, __file__)
     logging.info("Pipeline is starting...")
-    with beam.Pipeline(options=PIPELINE_OPTIONS) as p:
+    with beam.Pipeline(options=options) as p:
         validated_records = (
             p
             | "Read Lines"
-            >> beam.io.ReadFromText("gs://raw-historic-data/snapshots/2026-10-27/eia/brent_oil_eia.json")
+            >> beam.io.ReadFromText(request.input_uri)
             | "Combine Lines"
             >> beam.CombineGlobally(lambda lines: "\n".join(lines)).without_defaults()
             | "Parse JSON" >> beam.Map(json.loads)
@@ -182,7 +170,7 @@ def run():
             >> beam.ParDo(ValidateAndTransform()).with_outputs("invalid", main="valid")
         )
 
-        valid_records = validated_records.valid
+        valid_records = validated_records.valid | "Select Requested Interval" >> beam.Filter(in_interval, request)
         invalid_records = validated_records.invalid
 
         grouped_by_date = (
@@ -202,11 +190,11 @@ def run():
             unique_records
             | "Write Valid to BigQuery"
             >> beam.io.WriteToBigQuery(
-                table="cocoa-prices-430315:cocoa_related.brent_prices",
+                table=request.table(),
                 schema="date:DATE, brent_price_eu:FLOAT",
-                write_disposition=beam.io.BigQueryDisposition.WRITE_TRUNCATE,
+                write_disposition=beam.io.BigQueryDisposition.WRITE_EMPTY,
                 create_disposition=beam.io.BigQueryDisposition.CREATE_IF_NEEDED,
-                custom_gcs_temp_location="gs://cocoa-prices-temp-for-bq",
+                custom_gcs_temp_location=f"gs://cocoa-prices-temp-for-bq/backfill/{request.token}/oil/",
             )
         )
 
@@ -215,18 +203,19 @@ def run():
             invalid_duplicates,
         ] | "Combine Invalid Records" >> beam.Flatten()
 
+        evidence = combined_invalid_records | "Retain Invalid Evidence" >> beam.Map(invalid_record, 'oil', request)
         (
-            combined_invalid_records
-            | "Retain Invalid Evidence" >> beam.Map(invalid_record, 'oil')
-            | "Write Invalid to BigQuery"
+            evidence | "Write Invalid to BigQuery"
             >> beam.io.WriteToBigQuery(
-                table="cocoa-prices-430315:cocoa_related.invalid_brent_prices",
+                table=request.table(invalid=True),
                 schema="date:STRING, brent_price_eu:STRING, Errors:STRING",
                 write_disposition=beam.io.BigQueryDisposition.WRITE_APPEND,
                 create_disposition=beam.io.BigQueryDisposition.CREATE_IF_NEEDED,
-                custom_gcs_temp_location="gs://cocoa-prices-temp-for-bq",
+                custom_gcs_temp_location=f"gs://cocoa-prices-temp-for-bq/backfill/{request.token}/oil/",
             )
         )
+        evidence | "Collect Rejections" >> beam.combiners.ToList() | "Archive Rejections" >> beam.Map(persist_invalid, request)
+    finish(request, p.result)
 
 
 if __name__ == "__main__":

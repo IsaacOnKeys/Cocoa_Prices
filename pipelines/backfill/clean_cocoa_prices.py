@@ -1,24 +1,8 @@
-"""
-Usage:
+"""Isolated historical backfill for ICCO publisher-dated EUR/tonne CSV.
 
-COCOA DATA MUST BE DOWNLOADED 
-from icco.org/statistics
-	filter for start and end dates
-	set to "show all"
-	download
-
-To run with DataFlow:
-
-python pipelines/backfill/clean_cocoa_prices.py \
---runner=DataflowRunner \
---job_name="clean-cocoa-data-$(date +%s)" \
---project=cocoa-prices-430315 \
---region=europe-west3 \
---temp_location=gs://raw-historic-data/temp \
---staging_location=gs://raw-historic-data/staging \
---worker_machine_type=e2-standard-4 \
---save_main_session
-
+Requires an explicit held input generation/hash, date interval and candidate
+dataset. See README.md and scripts/operations/backfill_history.py create.
+No bare invocation or production WRITE_TRUNCATE destination is supported.
 """
 
 import csv
@@ -31,6 +15,7 @@ from datetime import datetime
 
 import apache_beam as beam
 from backfill_recovery import configure_worker_package, invalid_record, resolve_duplicates
+from backfill_contract import configure, finish, in_interval, persist_invalid
 from apache_beam.options.pipeline_options import (
     GoogleCloudOptions,
     PipelineOptions,
@@ -170,14 +155,15 @@ class CheckDuplicates(beam.DoFn):
 
 
 def run():
-    configure_worker_package(PIPELINE_OPTIONS, __file__)
+    request, options = configure('cocoa')
+    configure_worker_package(options, __file__)
     logging.info("Pipeline is starting...")
-    with beam.Pipeline(options=PIPELINE_OPTIONS) as p:
+    with beam.Pipeline(options=options) as p:
         records = (
             p
             | "Read CSV"
             >> beam.io.ReadFromText(
-                "gs://raw-historic-data/snapshots/2025-10-02/icco/Daily_Prices_Home.csv", skip_header_lines=1
+                request.input_uri, skip_header_lines=1
             )
             | "Parse CSV" >> beam.Map(parse_csv)
         )
@@ -186,7 +172,7 @@ def run():
             ValidateAndTransform()
         ).with_outputs("invalid", main="valid")
 
-        valid_records = validated_records.valid
+        valid_records = validated_records.valid | "Select Requested Interval" >> beam.Filter(in_interval, request)
         invalid_records = validated_records.invalid
 
         duplicate_checked = (
@@ -206,22 +192,23 @@ def run():
         ] | "Combine Invalid Records" >> beam.Flatten()
 
         unique_records | "Write Valid to BigQuery" >> beam.io.WriteToBigQuery(
-            table="cocoa-prices-430315:cocoa_related.cocoa",
+            table=request.table(),
             schema="Date:DATE, Euro_Price:FLOAT",
-            write_disposition=beam.io.BigQueryDisposition.WRITE_TRUNCATE,
+            write_disposition=beam.io.BigQueryDisposition.WRITE_EMPTY,
             create_disposition=beam.io.BigQueryDisposition.CREATE_IF_NEEDED,
-            custom_gcs_temp_location="gs://cocoa-prices-temp-for-bq",
+            custom_gcs_temp_location=f"gs://cocoa-prices-temp-for-bq/backfill/{request.token}/cocoa/",
         )
 
-        (all_invalid_records
-         | "Retain Invalid Evidence" >> beam.Map(invalid_record, 'cocoa')
-         | "Write Invalid to BigQuery" >> beam.io.WriteToBigQuery(
-            table="cocoa-prices-430315:cocoa_related.invalid_cocoa",
+        evidence = all_invalid_records | "Retain Invalid Evidence" >> beam.Map(invalid_record, 'cocoa', request)
+        (evidence | "Write Invalid to BigQuery" >> beam.io.WriteToBigQuery(
+            table=request.table(invalid=True),
             schema="Date:STRING, Euro_Price:STRING, Errors:STRING",
             write_disposition=beam.io.BigQueryDisposition.WRITE_APPEND,
             create_disposition=beam.io.BigQueryDisposition.CREATE_IF_NEEDED,
-            custom_gcs_temp_location="gs://cocoa-prices-temp-for-bq",
+            custom_gcs_temp_location=f"gs://cocoa-prices-temp-for-bq/backfill/{request.token}/cocoa/",
         ))
+        evidence | "Collect Rejections" >> beam.combiners.ToList() | "Archive Rejections" >> beam.Map(persist_invalid, request)
+    finish(request, p.result)
 
 
 if __name__ == "__main__":

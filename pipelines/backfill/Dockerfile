@@ -15,6 +15,6 @@ RUN python -m pip install --no-cache-dir -r /requirements.txt \
 
 WORKDIR /app
 
-COPY backfill/clean_precipitation.py backfill/clean_oil_eia.py backfill/clean_cocoa_prices.py backfill/backfill_recovery.py backfill/setup.py /app/
+COPY backfill/clean_precipitation.py backfill/clean_oil_eia.py backfill/clean_cocoa_prices.py backfill/backfill_recovery.py backfill/backfill_contract.py backfill/setup.py /app/
 
 ENTRYPOINT ["python"]

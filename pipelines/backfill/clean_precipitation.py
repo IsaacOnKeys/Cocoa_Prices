@@ -1,20 +1,8 @@
-"""
-Usage:
-To refresh raw data from source:
-curl -s "https://power.larc.nasa.gov/api/temporal/daily/point?parameters=PRECTOTCORR,GWETROOT&community=ag&longitude=-6.635&latitude=4.745&start=20140101&end=$(date +%Y%m%d)&format=CSV" -o data/raw/POWER_Point_Daily.csv
+"""Isolated historical backfill for NASA POWER daily CSV.
 
-To run with DataFlow:
-
-python pipelines/backfill/clean_precipitation.py \
-    --runner=DataflowRunner \
-    --job_name="clean-weather-data-$(date +%s)" \
-    --project=cocoa-prices-430315 \
-    --region=europe-west3 \
-    --temp_location=gs://raw-historic-data/temp \
-    --staging_location=gs://raw-historic-data/staging \
-    --worker_machine_type=e2-standard-4 \
-    --save_main_session
-
+Requires an explicit held input generation/hash, date interval and candidate
+dataset. See README.md and scripts/operations/backfill_history.py create.
+No bare invocation or production WRITE_TRUNCATE destination is supported.
 """
 
 import logging
@@ -25,6 +13,7 @@ from datetime import datetime, timedelta
 
 import apache_beam as beam
 from backfill_recovery import configure_worker_package, invalid_record, resolve_duplicates
+from backfill_contract import configure, finish, in_interval, persist_invalid
 from apache_beam.options.pipeline_options import (
     GoogleCloudOptions,
     PipelineOptions,
@@ -355,15 +344,16 @@ def check_valid_record(record):
 
 
 def run():
-    configure_worker_package(PIPELINE_OPTIONS, __file__)
+    request, options = configure('weather')
+    configure_worker_package(options, __file__)
     logging.info("Pipeline is starting...")
-    logging.info(f"Runner = {RUNNER}")
-    with beam.Pipeline(options=PIPELINE_OPTIONS) as p:
+    logging.info("Runner = %s", options.view_as(StandardOptions).runner)
+    with beam.Pipeline(options=options) as p:
         parsed_records = (
             p
             | "Read CSV"
             >> beam.io.ReadFromText(
-                "gs://raw-historic-data/snapshots/2025-10-02/nasa_power/POWER_Point_Daily.csv",
+                request.input_uri,
                 skip_header_lines=0,
             )
             | "Parse CSV" >> beam.Map(parse_csv)
@@ -379,7 +369,7 @@ def run():
             >> beam.ParDo(ValidateAndTransform()).with_outputs("invalid", main="valid")
         )
 
-        valid_records = validated_records.valid
+        valid_records = validated_records.valid | "Select Requested Interval" >> beam.Filter(in_interval, request)
         invalid_records = validated_records.invalid
 
         # ── deduplicate by date ─────────────────────────────────────────────
@@ -410,11 +400,11 @@ def run():
             unique_records_valid_checked
             | "Write Valid to BigQuery"
             >> beam.io.WriteToBigQuery(
-                table="cocoa-prices-430315:cocoa_related.precipitation",
+                table=request.table(),
                 schema="date:DATE, precipitation:FLOAT, soil_moisture:FLOAT",
-                write_disposition=beam.io.BigQueryDisposition.WRITE_TRUNCATE,
+                write_disposition=beam.io.BigQueryDisposition.WRITE_EMPTY,
                 create_disposition=beam.io.BigQueryDisposition.CREATE_IF_NEEDED,
-                custom_gcs_temp_location="gs://cocoa-prices-temp-for-bq",
+                custom_gcs_temp_location=f"gs://cocoa-prices-temp-for-bq/backfill/{request.token}/weather/",
             )
         )
 
@@ -423,18 +413,19 @@ def run():
             unique_records.invalid,
         ] | "Combine Invalid Records" >> beam.Flatten()
 
+        evidence = combined_invalid_records | "Retain Invalid Evidence" >> beam.Map(invalid_record, 'weather', request)
         (
-            combined_invalid_records
-            | "Retain Invalid Evidence" >> beam.Map(invalid_record, 'weather')
-            | "Write Invalid to BigQuery"
+            evidence | "Write Invalid to BigQuery"
             >> beam.io.WriteToBigQuery(
-                table="cocoa-prices-430315:cocoa_related.invalid_precipitation",
+                table=request.table(invalid=True),
                 schema="date:STRING, precipitation:STRING, soil_moisture:STRING, Errors:STRING",
                 write_disposition=beam.io.BigQueryDisposition.WRITE_APPEND,
                 create_disposition=beam.io.BigQueryDisposition.CREATE_IF_NEEDED,
-                custom_gcs_temp_location="gs://cocoa-prices-temp-for-bq",
+                custom_gcs_temp_location=f"gs://cocoa-prices-temp-for-bq/backfill/{request.token}/weather/",
             )
         )
+        evidence | "Collect Rejections" >> beam.combiners.ToList() | "Archive Rejections" >> beam.Map(persist_invalid, request)
+    finish(request, p.result)
 
 
 if __name__ == "__main__":

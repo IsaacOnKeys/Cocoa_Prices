@@ -102,6 +102,7 @@ BEGIN
         AND producer_acquired_at=SAFE_CAST(JSON_VALUE(p_sources,'$.weather.acquired_at') AS TIMESTAMP)
         AND consumer_received_at<=input_cutoff
       GROUP BY date,observation_id,precipitation,soil_moisture,acquisition_id,producer_acquired_at,timestamp_status;
+    ${historical_repairs}
     COMMIT TRANSACTION;
     SET in_transaction = FALSE;
   ELSE
@@ -216,6 +217,12 @@ BEGIN
     SET in_transaction = TRUE;
     ASSERT (SELECT release_id FROM `${project}.${delivery}.active_release` WHERE singleton=1)=base_id
       AS 'Another release was published; start a new logical run';
+    ASSERT (SELECT COUNT(*) FROM
+      (SELECT DISTINCT historical_repair_id AS repair_id FROM `${project}.${delivery}.frozen_inputs`
+       WHERE release_id=p_release_id AND business_date=p_business_date AND historical_repair_id IS NOT NULL) f
+      LEFT JOIN `${project}.${delivery}.historical_repairs` r USING(repair_id)
+      WHERE r.status IS DISTINCT FROM 'approved' OR r.repair_id IS DISTINCT FROM LOWER(TO_HEX(SHA256(r.plan_json))))=0
+      AS 'A frozen historical repair was cancelled or changed; retain the accepted release';
     CREATE TEMP TABLE current_fingerprints AS
     SELECT 'cocoa' AS name,COUNT(*) AS row_count,COALESCE(CAST(BIT_XOR(FARM_FINGERPRINT(TO_JSON_STRING(t))) AS STRING),'0') AS fingerprint FROM `${project}.${curated}.cocoa` t
     UNION ALL SELECT 'brent_prices',COUNT(*),COALESCE(CAST(BIT_XOR(FARM_FINGERPRINT(TO_JSON_STRING(t))) AS STRING),'0') FROM `${project}.${curated}.brent_prices` t
@@ -247,6 +254,9 @@ BEGIN
       published_at=published_time WHERE singleton=1;
     UPDATE `${project}.${delivery}.release_runs` SET status='published',published_at=published_time,last_error=NULL
       WHERE release_id=p_release_id AND business_date=p_business_date;
+    UPDATE `${project}.${delivery}.historical_repairs` SET status='applied',applied_release_id=p_release_id
+      WHERE status='approved' AND repair_id IN (SELECT historical_repair_id FROM `${project}.${delivery}.frozen_inputs`
+        WHERE release_id=p_release_id AND business_date=p_business_date AND historical_repair_id IS NOT NULL);
     COMMIT TRANSACTION;
     SET in_transaction = FALSE;
     SET active_at_response = TRUE;

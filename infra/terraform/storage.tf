@@ -74,6 +74,19 @@ resource "google_storage_bucket" "application" {
     }
   }
 
+  dynamic "lifecycle_rule" {
+    for_each = each.key == "cocoa-prices-temp-for-bq" ? [true] : []
+    content {
+      action {
+        type = "Delete"
+      }
+      condition {
+        age            = 3
+        matches_prefix = ["backfill/"]
+      }
+    }
+  }
+
   lifecycle {
     prevent_destroy = true
   }

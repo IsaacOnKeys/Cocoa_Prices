@@ -156,6 +156,7 @@ def prepare(path, historical_gaps=False, revision_cases=False):
         query(bq, state, f'CREATE VIEW `{PROJECT}.{curated}.{name}` AS '+text, name='seed_'+name)
     query(bq, state, RENDER('migration', **context), name='migration')
     query(bq, state, RENDER('model_policy_migration', **context), name='model_policy_migration')
+    query(bq, state, RENDER('historical_repairs_migration', **context), name='historical_repairs_migration')
     fixture_model = f'{PROJECT}.{context["models"]}.fixture_reviewed_model'
     # This manually invoked isolated probe trains one fixture model; daily SQL never trains.
     query(bq, state, f'''CREATE MODEL `{fixture_model}`

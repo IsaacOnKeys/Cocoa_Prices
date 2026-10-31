@@ -10,6 +10,7 @@ DEFAULTS = {'project': 'cocoa-prices-430315', 'delivery': 'analytics_delivery',
 FILES = {'migration': ROOT / 'sql/migrations/020_atomic_delivery.sql',
          'run_manifest_migration': ROOT / 'sql/migrations/019_run_manifests.sql',
          'model_policy_migration': ROOT / 'sql/migrations/024_model_policy.sql',
+         'historical_repairs_migration': ROOT / 'sql/migrations/029_historical_repairs.sql',
          'model_selection': ROOT / 'sql/procedures/select_reviewed_model.sql',
          'procedure': ROOT / 'sql/procedures/run_analytics_release.sql',
          'rollback': ROOT / 'sql/procedures/rollback_analytics_release.sql',
@@ -26,7 +27,8 @@ FILES = {'migration': ROOT / 'sql/migrations/020_atomic_delivery.sql',
 FRAGMENTS = {'input_quality_checks': ROOT / 'sql/quality/input_checks.sql',
              'output_quality_checks': ROOT / 'sql/quality/output_checks.sql',
              'imputation_join': ROOT / 'sql/01_curated_data/bounded_join.sql',
-             'revision_selection': ROOT / 'sql/01_curated_data/select_revisions.sql'}
+             'revision_selection': ROOT / 'sql/01_curated_data/select_revisions.sql',
+             'historical_repairs': ROOT / 'sql/01_curated_data/freeze_historical_repairs.sql'}
 FILES.update(FRAGMENTS)
 
 
