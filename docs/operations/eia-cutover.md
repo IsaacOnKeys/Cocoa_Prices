@@ -97,7 +97,11 @@ function source backup, legacy-function-source.zip, has SHA-256
 `185a68a7b909572c22acfd4a0d75119af6e8bceba13e28fc438b78a8e8c80d6d`.
 Its actual identifiers and deployment settings remain in the private metadata
 backup and unchanged [baseline resource record](https://github.com/IsaacOnKeys/Cocoa_Prices/blob/0236abaad185d1f6b475aa6f4c4a105058c95aad/docs/infrastructure/gcp-resource-inventory.json).
-The previous credential is retained; its value was not read during retirement.
+The previous credential container is retained; its value was not read during retirement.
+Item 33 subsequently disabled its unused Secret Manager version and removed
+application-wide secret access. Restoring a retired-provider integration now
+requires a separate source-use/security review and an explicitly approved
+credential; do not silently re-enable that version as a rollback shortcut.
 No secret versions are managed in Terraform state.
 
 ## Rollback after retirement

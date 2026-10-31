@@ -117,8 +117,8 @@ resource "google_cloudfunctions2_function" "watchdog" {
     source {
       storage_source {
         bucket     = local.function_source_bucket
-        object     = "check_analytics_delivery/monitor-6e61fed7549f8f69ac7f7e5f5df0ca430a4765baeb18154bb3d8f5cb01ca6b0d.zip"
-        generation = 1793393706824745
+        object     = "check_analytics_delivery/locked-6bb49e50a814788ea39aaa938074c00a835f55d28ae37c6f44b1a7f469e960bc.zip"
+        generation = 1793443245510458
       }
     }
   }

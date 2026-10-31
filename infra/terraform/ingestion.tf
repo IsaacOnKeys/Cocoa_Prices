@@ -69,8 +69,8 @@ resource "google_cloudfunctions2_function" "ingestion" {
     source {
       storage_source {
         bucket     = local.function_source_bucket
-        object     = "stage_analytics_data/revisions-fe2606f536d854ef2fbc6b4ba8470669ca13246f3ac9431e33cd9c99e99d21d4.zip"
-        generation = 1793351116839638
+        object     = "stage_analytics_data/locked-2c80630e431ae615fac74a16795a106893b8881304e44117d828119c62379b8b.zip"
+        generation = 1793443245094151
       }
     }
   }

@@ -1,0 +1,54 @@
+name: Security review
+
+"on":
+  push:
+  pull_request:
+  workflow_dispatch:
+  schedule:
+    - cron: '0 9 * * 1'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: security-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  secrets:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Scan this repository's committed files only
+        run: |
+          mkdir "$RUNNER_TEMP/security-source"
+          git archive HEAD | tar -xf - -C "$RUNNER_TEMP/security-source"
+          docker run --rm --network none -v "$RUNNER_TEMP/security-source:/repo:ro" ghcr.io/gitleaks/gitleaks@sha256:c00b6bd0aeb3071cbcb79009cb16a60dd9e0a7c60e2be9ab65d25e6bc8abbb7f dir /repo --redact=100 --no-banner
+  dependencies:
+    if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    strategy:
+      fail-fast: false
+      matrix:
+        constraints:
+          - airflow/constraints-python311.txt
+          - pipelines/constraints-python311.txt
+          - functions/cocoa/constraints-python311.txt
+          - functions/oil/constraints-python311.txt
+          - functions/weather/constraints-python311.txt
+          - functions/ingestion/constraints-python311.txt
+          - functions/monitor/constraints-python311.txt
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
+        with:
+          python-version: '3.11'
+      - run: python -m pip install pip-audit==2.10.1
+      - name: Report advisories without resolving or modifying the runtime
+        run: python -m pip_audit --no-deps --disable-pip -r ${{ matrix.constraints }}

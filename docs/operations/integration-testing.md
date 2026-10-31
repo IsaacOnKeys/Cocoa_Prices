@@ -33,6 +33,8 @@ These probes have already been exercised natively: [Python 3.11 source-to-public
 
 Hosted workflow execution and production promotion of the new candidate constraints are separate from local validation. The existing live runtime remains the accepted deployment until the controlled deployment gates pass.
 
+Subsequent activation: item 33 promoted all five function constraints from the verified `237965d` application bundle. Serving archive members match those exact artifacts, while Python behavior and Avro schemas remain unchanged; see [security/deployment evidence](security-governance.md). The item 31 receipts below remain the original local validation record.
+
 ## Validation receipt, 2026-10-31
 
 Both constrained images rebuilt locally and passed pip check. Airflow Python 3.11.10 imported all nine application tasks; the fault-injection DAG finished failed with source=failed and publish=upstream_failed. Beam Python 3.11.18 / 2.65.0 ran all three DirectRunner graphs with network disabled: five valid facts per feed, with cocoa/oil/weather rejection counts 6/5/7 and revision/evidence assertions passing. All five packaged functions installed in separate Linux Python 3.11.18 environments, passed pip check and exact resolved-version checks, and imported their entrypoints with network disabled (44/43/41/24/23 packages respectively). No supplier was invoked. Six focused packaging tests, targeted Ruff, workflow YAML parsing and diff whitespace checks passed. Private local logs are under `.build/item31/`.

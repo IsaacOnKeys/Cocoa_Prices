@@ -2,21 +2,21 @@ locals {
   cloud_functions = {
     publish_price = {
       entry_point       = "publish_price"
-      source_object     = "publish_price/daily-raw-1ac9b22d0ad1c0ceb34c39a8a5eb6e6d24f7b3302db9d918d60dffa70d5ac19f.zip"
-      source_generation = 1793286465384348
+      source_object     = "publish_price/locked-4c5c04d0615b21550b31d3ac8853ea7f87a000a649028c08a5ccf21d0a1462cc.zip"
+      source_generation = 1793443243719024
       trigger_topic     = null
     }
     # Serving EIA producer; cutover evidence: docs/operations/eia-cutover.md.
     publish_eia_data = {
       entry_point       = "publish_eia_data"
-      source_object     = "publish_eia_data/daily-raw-2a6c8193f4bca7eb9c510172b10cb556399de811eb73f0a0251deeb7c21d86cb.zip"
-      source_generation = 1793286466894879
+      source_object     = "publish_eia_data/locked-c7b79616e44cf8377518c35bceb4a361af1229469cbdd5d7ea153d1fe479d38c.zip"
+      source_generation = 1793443244191370
       trigger_topic     = "eia-oil-trigger"
     }
     publish_weather_data = {
       entry_point       = "publish_weather_data"
-      source_object     = "publish_weather_data/daily-raw-2b3d59cdda91279d34a37ea5c6517cc54309560623e5712e1e7a96924e239135.zip"
-      source_generation = 1793286468647234
+      source_object     = "publish_weather_data/locked-70dd03d48423449f1952c81beece0b7c136c0fd5f07da25ae0e1a9b68d0580ce.zip"
+      source_generation = 1793443244623079
       trigger_topic     = "weather-trigger"
     }
   }
@@ -27,6 +27,12 @@ locals {
 
 resource "google_cloudfunctions2_function" "functions" {
   for_each = local.cloud_functions
+  depends_on = [
+    google_pubsub_topic_iam_member.producer_publish,
+    google_storage_bucket_iam_member.producer_raw,
+    google_storage_bucket_iam_member.producer_coverage,
+    google_secret_manager_secret_iam_member.producer_eia,
+  ]
 
   name     = each.key
   project  = var.project_id
@@ -50,14 +56,14 @@ resource "google_cloudfunctions2_function" "functions" {
   }
 
   service_config {
-    max_instance_count               = 100
+    max_instance_count               = 1
     available_memory                 = "256M"
     timeout_seconds                  = 60
     max_instance_request_concurrency = 1
     available_cpu                    = "0.1666"
     ingress_settings                 = "ALLOW_ALL"
     all_traffic_on_latest_revision   = true
-    service_account_email            = local.compute_service_account
+    service_account_email            = google_service_account.producer_runtime.email
 
     environment_variables = merge({
       LOG_EXECUTION_ID        = "true"

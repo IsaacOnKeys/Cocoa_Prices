@@ -1,9 +1,10 @@
 locals {
   airflow_firewall_rules = {
     allow-airflow-ui-myip = {
-      ports         = ["8080"]
-      source_ranges = [var.operator_ipv4_cidr]
-      target_tags   = null
+      ports = ["8080"]
+      # Retain the adopted resource name; public HTTP UI access is retired.
+      source_ranges = ["35.235.240.0/20"]
+      target_tags   = ["airflow-ui"]
     }
     allow-iap-8080 = {
       ports         = ["8080"]

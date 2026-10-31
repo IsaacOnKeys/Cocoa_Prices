@@ -39,10 +39,3 @@ import {
   to = google_secret_manager_secret.secrets["EIA_OIL_API_KEY"]
   id = "projects/${var.project_id}/secrets/EIA_OIL_API_KEY"
 }
-
-resource "google_secret_manager_secret_iam_member" "eia_oil_accessor" {
-  project   = var.project_id
-  secret_id = google_secret_manager_secret.secrets["EIA_OIL_API_KEY"].secret_id
-  role      = "roles/secretmanager.secretAccessor"
-  member    = "serviceAccount:${local.compute_service_account}"
-}
