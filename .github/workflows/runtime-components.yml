@@ -1,0 +1,65 @@
+name: Runtime components
+
+"on":
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: runtime-components-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  functions:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - {feed: cocoa, entrypoint: publish_price}
+          - {feed: oil, entrypoint: publish_eia_data}
+          - {feed: weather, entrypoint: publish_weather_data}
+          - {feed: ingestion, entrypoint: stage_analytics_data}
+          - {feed: monitor, entrypoint: check_analytics_delivery}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
+        with:
+          python-version: '3.11'
+      - name: Package and check the isolated function environment
+        run: |
+          python scripts/deploy/package_functions.py ${{ matrix.feed }}
+          python -m pip install -r .build/functions/${{ matrix.feed }}/requirements.txt
+          python -m pip check
+          python scripts/diagnostics/validate_function_runtime.py .build/functions/${{ matrix.feed }} ${{ matrix.entrypoint }}
+  components:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Build constrained Python 3.11 runtimes
+        run: |
+          docker build -f airflow/Dockerfile -t cocoa-airflow:component .
+          docker build -f pipelines/backfill/Dockerfile -t cocoa-backfill:component pipelines
+      - name: Real Airflow failure propagation without cloud access
+        run: >-
+          docker run --rm --network none
+          -e AIRFLOW_HOME=/tmp/isolated-airflow
+          -e AIRFLOW__DATABASE__SQL_ALCHEMY_CONN=sqlite:////tmp/isolated-airflow/airflow.db
+          -e AIRFLOW__CORE__EXECUTOR=SequentialExecutor
+          -e AIRFLOW__CORE__LOAD_EXAMPLES=False
+          -v "$PWD:/workspace:ro" --entrypoint python cocoa-airflow:component
+          /workspace/scripts/diagnostics/validate_airflow_runtime.py
+      - name: Real DirectRunner IO and rejection handling without cloud access
+        run: >-
+          docker run --rm --network none
+          -e OPENBLAS_NUM_THREADS=1 -e OMP_NUM_THREADS=1
+          -v "$PWD:/workspace:ro" --entrypoint python cocoa-backfill:component
+          /workspace/scripts/diagnostics/validate_backfill_runtime.py
+          --scripts-dir /app --output-dir /tmp/beam-component --recovery-cases --revision-cases

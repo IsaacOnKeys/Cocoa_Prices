@@ -2,3 +2,4 @@
 !airflow/
 !airflow/Dockerfile
 !airflow/requirements.txt
+!airflow/constraints-python311.txt

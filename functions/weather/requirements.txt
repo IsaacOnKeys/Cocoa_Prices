@@ -1,3 +1,4 @@
+-c constraints-python311.txt
 fastavro
 functions-framework==3.8.3
 requests

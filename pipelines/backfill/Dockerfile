@@ -10,7 +10,8 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     && rm -rf /var/lib/apt/lists/*
 
 COPY requirements.txt /requirements.txt
-RUN python -m pip install --no-cache-dir -r /requirements.txt \
+COPY constraints-python311.txt /constraints-python311.txt
+RUN python -m pip install --no-cache-dir -r /requirements.txt -c /constraints-python311.txt \
     && python -m pip check
 
 WORKDIR /app

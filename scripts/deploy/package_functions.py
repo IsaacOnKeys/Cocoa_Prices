@@ -20,6 +20,7 @@ def package_function(feed, *, repo_root=REPO_ROOT, output_dir=None):
     sources = {
         "main.py": repo_root / source_dir / "main.py",
         "requirements.txt": repo_root / source_dir / "requirements.txt",
+        "constraints-python311.txt": repo_root / source_dir / "constraints-python311.txt",
     }
     if feed not in {"ingestion", "monitor"}:
         sources["request_policy.py"] = repo_root / "functions/shared/request_policy.py"

@@ -1,5 +1,6 @@
 **
 !requirements.txt
+!constraints-python311.txt
 !backfill/
 !backfill/Dockerfile
 !backfill/clean_cocoa_prices.py
