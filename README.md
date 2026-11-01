@@ -153,6 +153,8 @@ container environments.
   measured coverage, acquisition provenance, SHA-256 and recovery verification.
 - [Runtime/install mappings](docs/operations/runtime-layout.md): VM paths, captured
   systemd units, sanitized Compose configuration and scheduling responsibilities.
+- [Operational ownership and handoff](docs/operations/operational-handoff.md): incident
+  runbooks, accountable operator, acceptance status and reliability evidence limits.
 - [Terraform workflow](infra/terraform/README.md): two separate roots and preserved
   backend identities; application deployment remains a separate responsibility.
 - [Engineering backlog](docs/operations/engineering-backlog.md): remaining reliability,
