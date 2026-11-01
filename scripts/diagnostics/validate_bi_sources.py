@@ -10,7 +10,7 @@ CONTRACT = ROOT / 'bi/looker_studio_report.json'
 
 
 def source_links(contract):
-    """Create separate connector links; existing report aliases are not known."""
+    """Create separate connector drafts; these links do not update the report."""
     result = {}
     for view in contract['sources']:
         result[view] = 'https://lookerstudio.google.com/reporting/create?' + urlencode({

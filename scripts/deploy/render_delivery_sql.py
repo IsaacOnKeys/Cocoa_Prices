@@ -22,6 +22,7 @@ FILES = {'migration': ROOT / 'sql/migrations/020_atomic_delivery.sql',
          'model_health_view': ROOT / 'sql/serving/model_health.sql',
          'operational_status_view': ROOT / 'sql/serving/operational_status.sql',
          'imputation_view': ROOT / 'sql/serving/imputation.sql',
+         'bi_history_views': ROOT / 'sql/serving/bi_history.sql',
          'retire_legacy': ROOT / 'sql/procedures/run_daily_pipeline.sql',
          'bootstrap': ROOT / 'sql/migrations/020_atomic_delivery_bootstrap.sql'}
 FRAGMENTS = {'input_quality_checks': ROOT / 'sql/quality/input_checks.sql',

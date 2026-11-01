@@ -6,16 +6,30 @@
   "location": "europe-west3",
   "timezone": "Europe/Berlin",
   "pages": {
-    "BGEqE": "Market and data quality (proposed)",
-    "p_m0h69dttwd": "Forecast and evaluation (proposed)"
+    "BGEqE": "Release and 40-day forecast",
+    "p_m0h69dttwd": "Historical prices and sources"
   },
+  "source_aliases": {
+    "ls_market_history": "ds2",
+    "ls_indexed_series_smooth": "ds19",
+    "ls_freshness": "ds32",
+    "current_forecast": "ds28",
+    "product_delivery_status": "ds29",
+    "ls_series_quality": "ds30",
+    "issued_forecast_metrics": "ds31",
+    "model_health": "ds33"
+  },
+  "refresh_minutes": 15,
+  "sharing": "public_viewer_owner_confirmed_2026-11-01",
   "sources": {
     "ls_series_quality": ["release_id", "business_date", "date", "measurement", "usable_value", "quality_status", "is_latest", "is_imputed", "original_value_date", "latest_measurement_age_days", "latest_measurement_overdue", "preserved_prior_value"],
     "product_delivery_status": ["product", "release_id", "accepted_business_date", "original_publication_time", "checked_at", "delivery_status", "status_message"],
     "ls_freshness": ["feed", "last_ingestion_time", "hours_ago", "source_name", "source_url"],
     "current_forecast": ["release_id", "forecast_origin_date", "issued_at", "feature_cutoff", "model_id", "target_date", "model_horizon_days", "forecast_cocoa_price", "unit", "forecast_product_version"],
     "issued_forecast_metrics": ["method", "issued_count", "scored_count", "mae", "rmse", "mape_percent", "evaluation_status"],
-    "model_health": ["serving_model_id", "serving_release_id", "scored_forecasts", "performance_status", "retraining_policy"]
+    "model_health": ["serving_model_id", "serving_release_id", "scored_forecasts", "performance_status", "retraining_policy"],
+    "ls_market_history": ["date", "cocoa_price", "oil_price", "precipitation", "soil_moisture"],
+    "ls_indexed_series_smooth": ["date", "cocoa_idx", "oil_idx", "precip_idx", "soil_pct"]
   },
   "probes": {
     "market_series_90d": "SELECT date,measurement,MAX(usable_value) AS value FROM `cocoa-prices-430315.cocoa_related_studio.ls_series_quality` WHERE measurement IN ('cocoa_price','oil_price') AND date BETWEEN DATE_SUB(CURRENT_DATE('Europe/Berlin'),INTERVAL 90 DAY) AND CURRENT_DATE('Europe/Berlin') GROUP BY date,measurement",
@@ -24,6 +38,8 @@
     "source_freshness": "SELECT feed,last_ingestion_time,hours_ago,source_name,source_url FROM `cocoa-prices-430315.cocoa_related_studio.ls_freshness`",
     "current_forecast": "SELECT release_id,forecast_origin_date,issued_at,feature_cutoff,model_id,target_date,model_horizon_days,forecast_cocoa_price,unit,forecast_product_version FROM `cocoa-prices-430315.cocoa_related_studio.current_forecast`",
     "forecast_metrics": "SELECT method,issued_count,scored_count,mae,rmse,mape_percent,evaluation_status FROM `cocoa-prices-430315.cocoa_related_studio.issued_forecast_metrics`",
-    "model_health": "SELECT serving_model_id,serving_release_id,scored_forecasts,performance_status,retraining_policy FROM `cocoa-prices-430315.cocoa_related_studio.model_health`"
+    "model_health": "SELECT serving_model_id,serving_release_id,scored_forecasts,performance_status,retraining_policy FROM `cocoa-prices-430315.cocoa_related_studio.model_health`",
+    "historical_prices": "SELECT date,MAX(cocoa_price) AS cocoa_price FROM `cocoa-prices-430315.cocoa_related_studio.ls_market_history` GROUP BY date",
+    "historical_indices": "SELECT date,MAX(cocoa_idx) AS cocoa_idx,MAX(oil_idx) AS oil_idx,MAX(precip_idx) AS precip_idx,MAX(soil_pct) AS soil_pct FROM `cocoa-prices-430315.cocoa_related_studio.ls_indexed_series_smooth` GROUP BY date"
   }
 }
