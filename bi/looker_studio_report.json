@@ -24,7 +24,16 @@
     "scope": "history_page",
     "price_and_index_charts": "inherit",
     "source_freshness_date_range_dimension": null,
+    "custom_range_help": "In View mode, open the top-right date picker; click each calendar month/year heading, choose a start date and end date, then Apply.",
     "kpi_page": "independent"
+  },
+  "oil_series": {
+    "publisher": "U.S. Energy Information Administration",
+    "series": "RBRTE",
+    "description": "Europe Brent Spot Price FOB",
+    "source_unit": "USD per barrel",
+    "chart_label": "EIA Europe Brent spot: USD/barrel index (0â€“100)",
+    "chart_value": "Full accepted-history min/max index, not the dollar price"
   },
   "sharing": "public_viewer_owner_confirmed_2026-11-01",
   "sources": {

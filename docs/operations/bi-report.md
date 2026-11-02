@@ -2,7 +2,7 @@
 
 Report: [Swiss Cocoa Price Predictions](https://datastudio.google.com/reporting/0458444b-cbb3-4adf-afad-6e9b2ebb93ff). Updated in the authenticated owner editor on 2026-11-01, on branch codex/governed-bi-report. A named recovery version, `Before governed BI update - 2026-11-01`, precedes the edits. The machine-readable field/query contract is [bi/looker_studio_report.json](../../bi/looker_studio_report.json).
 
-Technical verification completed on 2026-11-02. Both pages render, accepted historical values reconcile, history filters work, and the original 5 GiB/user/day quota is restored. The report is ready for the owner's consumer review; that final human acceptance remains part of step 36.
+Consumer review on 2026-11-02 identified date-picker usability concerns and a real oil-history gap. Final acceptance remains open. The original 5 GiB/user/day quota remains the cost guardrail.
 
 ## Release and 40-day forecast (BGEqE)
 
@@ -72,3 +72,66 @@ A November 1 retry was also quota-rejected (job 0c0cb579-0385-4899-9984-3a821eb1
 - Fresh signed-out Chrome contexts rendered both public pages with zero edit controls and zero dataset errors; the public history page rendered both full-history charts and source attribution. German locale showed 5.013,48 and 5.025,53, equivalent to the English-format prices; dates localized consistently. This was a browser-locale difference, not a data mismatch. Both owner pages were visually inspected and captured in .build/item35.
 - Final report-labelled jobs measured a mixed-cache two-page visit at 390 MiB billed: history 160 MiB, KPIs 230 MiB across 13 jobs, including six query-cache hits. The corrected seven-day change added one uncached 70 MiB price query because the driver query was reused; an empty-range change billed 140 MiB. The cached revisit interval issued no new BigQuery jobs. These are observed bytes, not a fully cold worst-case estimate or a euro invoice. Job IDs and time windows are retained in final-nov02.json and report-cost-summary.json.
 - No VM startup, container build, source acquisition, pipeline rerun or model training was needed. The actual scheduled evidence is recorded in [the operational handoff](operational-handoff.md); one scheduled success does not demonstrate the 100-operating-day service target.
+
+## Consumer review corrections: November 2
+
+The date picker was tested in a fresh, signed-out Chrome session using ordinary
+pointer clicks, including the year/month selectors, separate start and end dates,
+and Apply. Both charts displayed January 1-31, 2025; their axes showed only that
+interval. The source table remained visible. No forced clicks or synthetic DOM
+click events were used in this public custom-range check. The connected owner's
+background tab had animation/stability problems, so it was not used as the proof.
+Receipts: `.build/item35/custom-range-result.json` and matching screenshot.
+
+In View mode, open the top-right date control, click each
+calendar's month/year heading to select its year and month, choose the start and
+end days, then click Apply. In German these controls read Zeitraum and Anwenden.
+The owner clarified that choosing the start/end dates was the difficulty. The
+page header now says: Historical prices | Dates: choose start and end above,
+then Apply. The test established working selection; the new hint addresses its
+discoverability rather than claiming a calendar software defect was reproduced.
+
+Brent remains the correct commodity after the supplier migration. The official
+[EIA series definition](https://www.eia.gov/dnav/pet/hist/RBRTED.htm) is Europe
+Brent Spot Price FOB, series RBRTE, USD/barrel. The legend now identifies EIA,
+Brent spot, original units and the 0-100 index. The driver title also identifies
+Brent spot USD/barrel. The plotted index is not itself a dollar price.
+
+The previous history reconciliation established agreement with accepted data,
+not completeness of supplier coverage. A bounded follow-up query found no
+accepted oil source observations from September 23, 2025 through August 10, 2026.
+After the 14-day carry expired, October 7-August 10 correctly remained NULL
+(308 calendar days). The held EIA archive contains 223 actual prices in the
+source gap, with its manifest SHA256 verified against the local archive.
+The repair uses the existing isolated Beam candidate and reviewed atomic-release
+workflow; it must not interpolate prices or independently patch serving tables.
+Consumer acceptance remains pending correction and publication evidence.
+
+The local Python 3.11 / Beam 2.65.0 run completed with 218 valid records and zero
+rejections. The normal prepare command verified candidate ownership/counts and
+source generation/hash; its preview showed 218 insertions, zero changes and zero
+unchanged dates. Every proposed price was compared exactly with the protected
+archive. Repair `c98b6cebbff9dfcc6ae3a8e485c4b1922bbafda00dcba257435e9df59a976d56`
+is approved in the existing ledger for the next normal atomic release. This is
+queued, not published. The interval is September 23, 2025-August 3, 2026, wholly
+older than 90 days. The subsequent August 4-10 interval remains source-missing;
+the unchanged 14-day carry can bridge it from the August 3 observation to the
+next real observation on August 11. No current observation, existing price,
+model, acquisition watermark or carry policy was changed. No VM or Dataflow job
+was started; the warehouse load used an isolated candidate table.
+
+Run/plan receipts are `.build/item35/oil-gap-run.json` and `oil-gap-plan.json`.
+The completed manifest records Beam state DONE, exact code/source hashes and
+counts. The Windows PowerShell wrapper reported a nonzero status after native
+stderr deprecation warnings, with no Beam traceback; candidate completion and
+its exact contents were independently checked by prepare and plan review rather
+than treating the wrapper status as a clean process pass.
+
+The header hint, precise driver title and Source acquisition freshness (UTC)
+title were read back after a report reload. Final oil-gap rendering still needs
+verification after the next accepted release consumes this repair. Step 35 and
+final step 36 acceptance remain open until that evidence and consumer review.
+The owned temporary candidate dataset was removed after approval; the immutable
+source, rejection evidence and reviewed ledger plan remain. No recurring
+candidate-storage resource is retained. The source table's original vertical
+layout was restored after editing its title.
