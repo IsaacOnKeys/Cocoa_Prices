@@ -20,6 +20,12 @@
     "model_health": "ds33"
   },
   "refresh_minutes": 15,
+  "history_date_control": {
+    "scope": "history_page",
+    "price_and_index_charts": "inherit",
+    "source_freshness_date_range_dimension": null,
+    "kpi_page": "independent"
+  },
   "sharing": "public_viewer_owner_confirmed_2026-11-01",
   "sources": {
     "ls_series_quality": ["release_id", "business_date", "date", "measurement", "usable_value", "quality_status", "is_latest", "is_imputed", "original_value_date", "latest_measurement_age_days", "latest_measurement_overdue", "preserved_prior_value"],

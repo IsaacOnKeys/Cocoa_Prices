@@ -46,9 +46,9 @@ For the CV handoff, report the available evidence and actual sample size:
   outcomes for future scheduled evidence. No extra poller, VM uptime, daily test
   pipeline, training schedule or paid monitoring service is needed.
 - [BI acceptance](bi-report.md) records the accepted October 30 release and
-  November 1 report work. Final historical reconciliation and rendered checks
-  remain blocked by the existing per-user query quota; this is not a passing
-  validation result.
+  November 1 report work and completed November 2 technical verification.
+  The earlier quota rejections remain recorded as failed attempts, separately
+  from the subsequent passing reconciliation and rendered checks.
 
 When reviewing scheduled delivery, select a stated start and end date and count
 every elapsed Monday-Friday whose Berlin deadline has passed. Match scheduled
@@ -67,11 +67,28 @@ Long-term scheduled reliability, normal-month spending and genuinely matured
 forecast performance remain ongoing measurements with their actual windows.
 Neither a feature count nor the word "production" substitutes for that evidence.
 
-## Current handoff state (2026-11-01)
+## Current handoff state (2026-11-02)
 
 Steps 1-33 have recorded implementation evidence and accepted limitations.
-Steps 34-35 retain their final-source BI verification/cost checks. The ownership
-and runbook portion of step 36 is prepared here; consumer acceptance and a
-scheduled-evidence assessment are still open. No new claim of production
-readiness or achieved service level is made. Existing Airflow 2 CV security
-exception and provisional model status remain explicit in their runbooks.
+Steps 34-35 now have final-source BI reconciliation, rendered filter and access
+checks, query-workload measurements and restoration of the original quota.
+Implementation and the operational handoff are ready for consumer review.
+The owner's final acceptance remains open under step 36. Existing Airflow 2 CV
+security exception and provisional model status remain explicit in their runbooks.
+
+The bounded run-manifest lookup b98e9db2-874f-414c-9a76-6182c8df3f4d
+processed 500 bytes and billed 20 MiB. For October 27-November 1 it returned one
+durable latest-per-run record: business date October 30,
+scheduled__2026-10-29T18:00:00+00:00, outcome success, engineering_validation=false,
+release status published. Original publication was October 30 at 18:02:58 UTC,
+19:02:58 Europe/Berlin, before the 20:00 deadline. The manifest was recorded at
+18:03:36 UTC. This verifies **one on-time scheduled run**, not just a manual drill.
+The window also contains October 27-29 without matching retained manifests in
+this lookup; treat those three days as unverified, not successful or assumed
+excused. November 2's deadline had not elapsed at handoff. A reliable multi-day
+availability rate cannot be established from this sample.
+
+There is no fixed 30-day implementation hold. Continued scheduled observation,
+the 100-operating-day service target, normal-month billing and matured forecast
+performance remain explicitly ongoing evidence. They cannot be asserted as
+achieved when the owner accepts the CV implementation.
