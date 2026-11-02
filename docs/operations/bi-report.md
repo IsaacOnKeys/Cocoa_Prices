@@ -2,7 +2,7 @@
 
 Report: [Swiss Cocoa Price Predictions](https://datastudio.google.com/reporting/0458444b-cbb3-4adf-afad-6e9b2ebb93ff). Updated in the authenticated owner editor on 2026-11-01, on branch codex/governed-bi-report. A named recovery version, `Before governed BI update - 2026-11-01`, precedes the edits. The machine-readable field/query contract is [bi/looker_studio_report.json](../../bi/looker_studio_report.json).
 
-Consumer review on 2026-11-02 identified date-picker usability concerns and a real oil-history gap. Final acceptance remains open. The original 5 GiB/user/day quota remains the cost guardrail.
+Consumer review corrections were implemented and technically verified on 2026-11-02: date-selection guidance is visible, the EIA Brent label is precise, and the repaired oil history is published and rendered. Personal consumer approval is not inferred from technical checks. The original 5 GiB/user/day quota remains the cost guardrail.
 
 ## Release and 40-day forecast (BGEqE)
 
@@ -135,3 +135,46 @@ The owned temporary candidate dataset was removed after approval; the immutable
 source, rejection evidence and reviewed ledger plan remain. No recurring
 candidate-storage resource is retained. The source table's original vertical
 layout was restored after editing its title.
+
+## Published consumer corrections: November 2, 14:21 Berlin
+
+The owner's instruction to finish the work authorized one bounded controlled run
+rather than waiting for the evening schedule. Run
+`bi_oil_gap__927a884__20261102` published release
+`f0cbaf6a6c93bff3525ace3a45e0c87f9931abb28c15f801ce73aa41844948b8`
+at 14:21:42 Europe/Berlin. Its deterministic warehouse job ended successfully
+at 14:22:13 with no error; the durable Airflow success manifest was recorded at
+14:22:34. It is explicitly an engineering-validation run, not another scheduled
+on-time observation. Source completion and forecast publication gates were not
+bypassed. The reviewed October 30 model was reused; no model was trained.
+
+The SSH status poll timed out after publication. The maintenance wrapper still
+restored the VM to TERMINATED, confirmed at 14:24:37. Direct job metadata, the
+active marker, applied repair ledger and durable success manifest reconciled the
+result without a pipeline replay. The failed status transport is retained in
+`completion-run.json`; it is not reported as an uninterrupted orchestration pass.
+
+Verification job `47b6bf53-7dbc-4af5-a6ac-5708d84e2d8f` processed 10,459,310 bytes
+and billed 90 MiB. All 218 source prices match exactly; none is missing or
+mismatched. The former 308-day oil gap has zero unavailable days. Of those days,
+100 are explicitly imputed, with a maximum source age of seven days; the
+14-day oil carry rule is unchanged. One valid positive +40-calendar-day forecast
+has origin November 2 and target December 12, 2026. The repair ledger is applied
+in the active release. The manifest check billed 10 MiB and confirms success.
+
+A fresh signed-out Chrome context selected January 1-31, 2026 with ordinary
+pointer clicks. Both charts rendered that interval, including the previously
+missing Brent line. The visible header explains start/end selection and Apply;
+the legend identifies EIA Europe Brent spot and its original USD/barrel unit.
+The screenshot was visually inspected. Weather series remain blank where their
+accepted history has no usable observations; this oil-only repair did not invent
+weather readings or establish complete historical coverage for every feed.
+Receipts: `completion-verified.json`, `completion-job.json`,
+`completion-manifest.json`, and `completion-range-result.json/.png` in
+`.build/item35`. The disposable browser was closed. No recurring resource,
+quota increase, model training or schedule change was added.
+
+Step 35's reported technical defects are resolved. Step 36's personal consumer
+acceptance and ongoing reliability, normal-month cost and forecast-performance
+evidence remain distinct from finished implementation; no additional engineering
+work or fixed observation wait is imposed merely to manufacture those claims.

@@ -72,10 +72,12 @@ Neither a feature count nor the word "production" substitutes for that evidence.
 Steps 1-33 have recorded implementation evidence and accepted limitations.
 Steps 34-35 now have final-source BI reconciliation, rendered filter and access
 checks, query-workload measurements and restoration of the original quota.
-Consumer review reopened step 35: an oil-history coverage gap needs a source-backed
-repair and publication evidence. Exact custom date selection on both public
-charts passed a subsequent ordinary-pointer check; the owner's reported failure
-has not yet been reproduced. See the correction section in [BI evidence](bi-report.md).
+The consumer's oil-history and date-selection concerns have been addressed:
+the 218-price repair is published, both public charts respond to exact dates,
+and the date-selection hint and precise EIA label are saved. The controlled
+November 2 release has a durable success manifest and the VM is stopped.
+See the completion section in [BI evidence](bi-report.md). No further technical
+work is pending for those corrections; personal consumer approval is not inferred.
 The owner's final acceptance remains open under step 36. Existing Airflow 2 CV
 security exception and provisional model status remain explicit in their runbooks.
 

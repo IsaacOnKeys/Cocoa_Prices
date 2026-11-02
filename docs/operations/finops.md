@@ -1,6 +1,6 @@
 # Cost baseline and operating limits
 
-Owner: project operator. Target below EUR 5/month; EUR 10 is the owner's maximum acceptable monthly spend, including development. These are operating constraints, not a guaranteed provider-enforced euro cap. Stop discretionary cloud builds, training and backfills at EUR 5 forecast/actual spend; investigate at EUR 8 and resolve before EUR 10. Do not disable billing or destroy storage/keys as an automatic reaction.
+Owner: project operator. As clarified on November 2, the primary target is recurring live hosting below EUR 5/month, with EUR 10/month the acceptable recurring limit. Initial development and one-off repairs are tracked separately and minimized; they are not evidence of the normal hosting bill. Budget notifications still cover the combined provider bill and do not enforce a euro cap. Investigate recurring forecast/actual spend at EUR 5 and EUR 8, and resolve before EUR 10. Keep compute off outside scheduled delivery or bounded maintenance; do not disable billing or destroy storage/keys as an automatic reaction.
 
 ## October 2026 evidence
 
@@ -50,3 +50,26 @@ The native effective user limit was restored to 5120 MiB; the project cap remain
 Validation on October 31: label changes and two quota preferences applied; native Service Usage reported effective 65536/5120 MiB limits, repository metadata reported SCANNING_DISABLED and the labeled VM remained TERMINATED. Final Terraform plan had no changes. Changed-file Ruff, Python 3.11 compilation, Terraform formatting/validation and whitespace checks passed. No supplier invocation, cloud image build, pipeline replay or training was used for these checks. The first quota attempt failed without changing limits because the consumer project was missing; the scoped provider now explicitly supplies it. Google's rejected 10 GiB aggregate proposal was replaced with the documented 64 GiB allowance after inspecting recent usage.
 
 References: [repository scanning controls](https://docs.cloud.google.com/artifact-analysis/docs/enable-automatic-scanning), [BigQuery custom query quotas and their limits](https://docs.cloud.google.com/bigquery/docs/custom-quotas). Private receipts are in .build/item34; they are not public release artifacts.
+
+## Recurring hosting priority: November 2
+
+The owner clarified that the EUR 5 target / EUR 10 limit primarily concern live
+recurring hosting; initial development is separate and should still be minimized.
+A live native-API readback confirmed paid repository scanning remains disabled,
+all five application functions have no configured minimum instances and use
+request-idle CPU allocation, and current revision maxima remain one instance for
+sources/monitoring and three for staging. Existing VM startup remains 18:30 on
+weekdays, with 20:30 shutdown every day, Europe/Berlin. BigQuery allowances remain
+5 GiB per user/day and 64 GiB project/day. No quota or recurring schedule changed.
+
+The oil-history completion uses one explicitly bounded manual release and the
+existing reviewed model, not new training or an always-on worker. Its VM is
+returned to its prior stopped state afterward. This one-off maintenance must not
+be counted as the steady-state hosting footprint. The combined budget alerts
+remain useful, but do not enforce a monetary cap or prove a normal month's cost.
+Readback receipt: `.build/item35/recurring-guards.json`.
+The November 2 completion run billed 1,216,348,160 warehouse query bytes
+(1.133 GiB, including statement billing minima). This is measured query usage,
+not a euro charge. Publication succeeded using the existing model. The VM was
+confirmed TERMINATED at 14:24:37 Europe/Berlin after this one-off run; the normal
+weekday two-hour schedule and scale-to-zero configuration remain unchanged.
