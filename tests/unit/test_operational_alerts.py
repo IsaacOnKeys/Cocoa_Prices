@@ -102,4 +102,4 @@ def test_alert_is_actionable_and_contains_no_credentials(capsys):
 def test_monitor_package_contains_only_its_runtime_inputs(tmp_path):
     pack=runpy.run_path(str(ROOT/'scripts/deploy/package_functions.py'))['package_function']
     runtime,_=pack('monitor',output_dir=tmp_path)
-    assert {p.name for p in runtime.iterdir()}=={'main.py','requirements.txt'}
+    assert {p.name for p in runtime.iterdir()}=={'main.py','requirements.txt','constraints-python311.txt'}
